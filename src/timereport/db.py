@@ -182,8 +182,11 @@ class Database:
 
         try:
             self.conn.commit()
-            with sqlite3.connect(temporary_path) as backup_connection:
+            backup_connection = sqlite3.connect(temporary_path)
+            try:
                 self.conn.backup(backup_connection)
+            finally:
+                backup_connection.close()
             self.validate_file(temporary_path)
             os.replace(temporary_path, destination)
             if os.name != "nt":
@@ -283,8 +286,11 @@ class Database:
         try:
             source_connection = sqlite3.connect(f"{source.resolve().as_uri()}?mode=ro", uri=True)
             try:
-                with sqlite3.connect(temporary_path) as destination_connection:
+                destination_connection = sqlite3.connect(temporary_path)
+                try:
                     source_connection.backup(destination_connection)
+                finally:
+                    destination_connection.close()
             finally:
                 source_connection.close()
 
