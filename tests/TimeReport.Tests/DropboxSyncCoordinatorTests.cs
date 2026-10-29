@@ -55,7 +55,9 @@ public sealed class DropboxSyncCoordinatorTests
     {
         using var source = new SessionContext();
         source.Session.Service.CreateProject("Remote");
-        var remoteBytes = await File.ReadAllBytesAsync(source.Session.Database.Path);
+        var snapshot = Path.Combine(source.Directory, "snapshot.db");
+        source.Session.Database.BackupTo(snapshot);
+        var remoteBytes = await File.ReadAllBytesAsync(snapshot);
 
         using var target = new SessionContext();
         Configure(target.Session, lastSync: null);
@@ -79,7 +81,9 @@ public sealed class DropboxSyncCoordinatorTests
     {
         using var source = new SessionContext();
         source.Session.Service.CreateProject("Remote");
-        var remoteBytes = await File.ReadAllBytesAsync(source.Session.Database.Path);
+        var snapshot = Path.Combine(source.Directory, "snapshot.db");
+        source.Session.Database.BackupTo(snapshot);
+        var remoteBytes = await File.ReadAllBytesAsync(snapshot);
 
         using var target = new SessionContext();
         Configure(target.Session, lastSync: DateTimeOffset.UtcNow);

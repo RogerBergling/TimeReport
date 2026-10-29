@@ -270,12 +270,23 @@ public sealed class DropboxSyncCoordinator
 
     private async Task<DropboxSyncResult> UploadAsync(CancellationToken cancellationToken)
     {
-        await EnsureFolderAsync(cancellationToken);
-        var metadata = await UploadRemoteAsync(cancellationToken);
-        SetLastSync(metadata?.ServerModified ?? DateTimeOffset.UtcNow);
-        return new DropboxSyncResult(
-            DropboxSyncStatus.Uploaded,
-            LocalizationService.T("DropboxUploaded"));
+        var temporary = Path.Combine(
+            _session.DataDirectory,
+            $".dropbox-upload-{Guid.NewGuid():N}.db");
+        try
+        {
+            _session.Database.BackupTo(temporary);
+            await EnsureFolderAsync(cancellationToken);
+            var metadata = await UploadRemoteAsync(temporary, cancellationToken);
+            SetLastSync(metadata?.ServerModified ?? DateTimeOffset.UtcNow);
+            return new DropboxSyncResult(
+                DropboxSyncStatus.Uploaded,
+                LocalizationService.T("DropboxUploaded"));
+        }
+        finally
+        {
+            TryDelete(temporary);
+        }
     }
 
     private async Task<DropboxSyncResult> DownloadAsync(
@@ -312,12 +323,14 @@ public sealed class DropboxSyncCoordinator
             token => _dropbox.EnsureFolderAsync(token, GetRemoteFolder(), cancellationToken),
             cancellationToken);
 
-    private Task<DropboxMetadata?> UploadRemoteAsync(CancellationToken cancellationToken) =>
+    private Task<DropboxMetadata?> UploadRemoteAsync(
+        string localPath,
+        CancellationToken cancellationToken) =>
         WithTokenAsync(
             token => _dropbox.UploadAsync(
                 token,
                 RemotePath,
-                _session.Database.Path,
+                localPath,
                 cancellationToken),
             cancellationToken);
 
