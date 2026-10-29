@@ -1,34 +1,26 @@
-# Miljoefiler och hemligheter
-.env
-.env.*
-!.env.example
-*.pem
-*.key
-id_ed25519
+# .NET
+bin/
+obj/
+*.user
+*.suo
+.vs/
+TestResults/
+*.trx
+*.coverage
+*.coveragexml
 
-# Python
-__pycache__/
-*.py[cod]
-.venv/
-.pytest_cache/
-.ruff_cache/
-*.egg-info/
-.eggs/
-
-# Node / build
-node_modules/
+# Build output
 dist/
 build/
+artifacts/
 
-# Lokala utvecklingsbyggen (release/ hanteras separat)
-/php2shell-checker
-/php2shell-checker.exe
+# Local development tools
+.venv/
+__pycache__/
+.pytest_cache/
+.ruff_cache/
 
-# Lokala editorer och loggar
-.vscode/
-*.log
-
-# TimeReport-data och backuper ska aldrig checkas in
+# Local data and logs
 *.db
 *.db-journal
 *.db-wal
@@ -37,3 +29,18 @@ build/
 *.sqlite3
 backups/
 timereport.log*
+*.log
+
+# Secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+id_ed25519
+
+# Editors and OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

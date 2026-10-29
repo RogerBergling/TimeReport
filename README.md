@@ -1,8 +1,8 @@
 # TimeReport
 
-A local-first desktop time report for Linux and Windows. It stores everything in a
-SQLite database on your own computer, keeps working across application updates, and
-includes backup/restore in the GUI.
+A local-first desktop time report for Linux and Windows, written in C#/.NET 10 with
+Avalonia. The published executables are self-contained single-file binaries: they do
+not require Python or a separate .NET installation.
 
 ## Features
 
@@ -22,7 +22,7 @@ includes backup/restore in the GUI.
     end of the workday.
   - It does not reduce worked hours.
 - Daily totals, weekly totals, monthly totals, yearly totals and an all-time total.
-- Backup and restore from the File menu, with automatic safety backups.
+- Backup and restore from the GUI, with automatic safety backups.
 - 24-hour clock and ISO dates (`YYYY-MM-DD`).
 - No account, cloud service, telemetry or network access.
 
@@ -35,7 +35,9 @@ upgrading the executable does not remove your data.
 |---|---|
 | Linux | `$XDG_DATA_HOME/timereport/timereport.db`, normally `~/.local/share/timereport/timereport.db` |
 | Windows | `%LOCALAPPDATA%\TimeReport\timereport.db` |
-| macOS (not an official target) | `~/Library/Application Support/TimeReport/timereport.db` |
+
+The database schema is unchanged from the earlier Python version, so an existing
+`timereport.db` continues to work.
 
 The app also writes a rotating log file, `timereport.log`, in the same data folder.
 Backups made automatically before a restore or schema migration are placed in the
@@ -44,11 +46,11 @@ Backups made automatically before a restore or schema migration are placed in th
 You can override the data folder for testing or portable use:
 
 ```bash
-python -m timereport --data-dir /path/to/data
+TimeReport --data-dir /path/to/data
 ```
 
 ```powershell
-python -m timereport --data-dir C:\path\to\data
+TimeReport.exe --data-dir C:\path\to\data
 ```
 
 ## Backup and restore
@@ -66,94 +68,82 @@ Use **File → Restore database…** to replace the current database. Restore:
 Backup files are normal SQLite databases and can be moved between Linux and Windows.
 They contain personal time data, so store them securely.
 
-## Running from source
+## Building from source
+
+Requirements:
+
+- .NET 10 SDK.
+- Linux GUI builds need the usual X11/fontconfig desktop libraries. Windows needs the
+  standard Windows desktop runtime libraries included with Windows 10+.
+
+```bash
+dotnet restore TimeReport.slnx
+dotnet build TimeReport.slnx -c Release
+dotnet run --project src/TimeReport/TimeReport.csproj -c Release
+```
+
+## Publishing self-contained executables
+
+The project is configured for self-contained single-file publishing. No .NET runtime is
+required on the target machine.
 
 ### Linux
 
 ```bash
-sudo apt-get install python3-tk python3-venv
-python3 -m venv .venv
-source .venv/bin/activate
-python -m pip install -e ".[dev]"
-python -m timereport
+dotnet publish src/TimeReport/TimeReport.csproj \
+  -c Release \
+  -r linux-x64 \
+  --self-contained true \
+  -p:PublishSingleFile=true \
+  -p:IncludeNativeLibrariesForSelfExtract=true \
+  -o dist/linux
+
+# Result: dist/linux/TimeReport
 ```
 
 ### Windows
 
-Install Python 3.11 or newer from python.org, then:
-
 ```powershell
-py -3.12 -m venv .venv
-.venv\Scripts\Activate.ps1
-python -m pip install -e ".[dev]"
-python -m timereport
+dotnet publish src/TimeReport/TimeReport.csproj `
+  -c Release `
+  -r win-x64 `
+  --self-contained true `
+  -p:PublishSingleFile=true `
+  -p:IncludeNativeLibrariesForSelfExtract=true `
+  -o dist/windows
+
+# Result: dist\windows\TimeReport.exe
 ```
-
-## Building executables
-
-PyInstaller is included in the development dependencies.
-
-### Linux
-
-```bash
-source .venv/bin/activate
-python -m PyInstaller --clean --noconfirm packaging/timereport.spec
-# Result: dist/TimeReport
-```
-
-Or use `packaging/build_linux.sh`.
-
-### Windows
-
-```powershell
-.venv\Scripts\Activate.ps1
-python -m PyInstaller --clean --noconfirm packaging/timereport.spec
-# Result: dist\TimeReport.exe
-```
-
-Or use `packaging\build_windows.ps1`.
 
 The GitHub Actions workflow in `.github/workflows/build.yml` runs tests on Linux and
-Windows and uploads `TimeReport` / `TimeReport.exe` as build artifacts. PyInstaller
-cannot reliably cross-compile a Windows executable from Linux, so the Windows build is
-produced on a Windows runner.
+Windows, builds both executables, and uploads them as build artifacts.
 
 ## Testing
 
 ```bash
-source .venv/bin/activate
-python -m pytest -q
-ruff check .
-ruff format --check .
-python -m compileall -q src
+dotnet test TimeReport.slnx -c Release
 ```
 
-The GUI smoke test requires a display. On Linux, run it under Xvfb:
+The Linux GUI smoke test requires Xvfb:
 
 ```bash
-xvfb-run -a python -m timereport --smoke-test --data-dir /tmp/timereport-test
+xvfb-run -a dotnet run --project src/TimeReport/TimeReport.csproj -c Release -- \
+  --smoke-test --data-dir /tmp/timereport-test
 ```
 
 ## Project layout
 
 ```text
-src/timereport/
-  app.py             Application bootstrap and CLI
-  db.py              SQLite schema, migrations, backup and restore
-  models.py          Dataclasses and entry types
-  paths.py           Cross-platform data folder resolution
-  service.py         Validation, CRUD and totals calculations
-  timeutil.py        24-hour time parsing, periods and interval math
-  ui/
-    main_window.py   Main window, menus and weekly timesheet
-    day_card.py      One day card in the week view
-    entry_dialog.py  Add/edit entry dialog
-    projects_dialog.py
-    totals_view.py   Week/month/year/all-time totals
-    theme.py
-    widgets.py
-tests/               Unit, integration and GUI smoke tests
-packaging/           PyInstaller spec and build scripts
+src/TimeReport/
+  App.axaml                 Application theme and startup
+  Program.cs                CLI and Avalonia bootstrap
+  Data/Database.cs          SQLite schema, migrations, backup and restore
+  Models/                   Projects, entries, totals
+  Services/                 Validation, totals, paths, time utilities
+  ViewModels/               Main timesheet and totals view models
+  Views/                    Main window and dialogs
+  Styles/AppStyles.axaml    Shared visual theme
+tests/TimeReport.Tests/     xUnit tests for time, database, validation, totals, backup
 ```
 
 ## Rules and assumptions
@@ -165,10 +155,10 @@ packaging/           PyInstaller spec and build scripts
 - Away entries cannot overlap work, lunch, X-Pause or another away entry.
 - X-Pause is not deducted from worked time; it is displayed separately.
 - A work entry must end on the same date. Cross-midnight shifts are not supported in
-  version 1.
+  version 2.
 - The database is single-user and unencrypted. It is intended for local use.
 - Dates are ISO dates and times use the 24-hour clock.
 
 ## Version
 
-`1.0.0`
+`2.0.0`

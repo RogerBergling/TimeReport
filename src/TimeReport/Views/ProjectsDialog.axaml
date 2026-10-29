@@ -1,0 +1,47 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="TimeReport.Views.ProjectsDialog"
+        x:CompileBindings="False"
+        Title="Projects"
+        Width="640"
+        Height="500"
+        MinWidth="520"
+        MinHeight="380"
+        WindowStartupLocation="CenterOwner"
+        ShowInTaskbar="False">
+  <Border Padding="18">
+    <Grid RowDefinitions="Auto,Auto,*,Auto">
+      <TextBlock Grid.Row="0" Text="Projects" Classes="h2" Margin="0,0,0,10" />
+
+      <Grid Grid.Row="1" ColumnDefinitions="*,100,80" Margin="6,0,6,4">
+        <TextBlock Grid.Column="0" Text="Project" Classes="columnHeader" />
+        <TextBlock Grid.Column="1" Text="Status" Classes="columnHeader" HorizontalAlignment="Center" />
+        <TextBlock Grid.Column="2" Text="Entries" Classes="columnHeader" HorizontalAlignment="Center" />
+      </Grid>
+
+      <ListBox Grid.Row="2" x:Name="ProjectsList" SelectionChanged="OnSelectionChanged">
+        <ListBox.ItemTemplate>
+          <DataTemplate>
+            <Grid ColumnDefinitions="*,100,80" Margin="0,2">
+              <TextBlock Grid.Column="0" Text="{Binding Name}" />
+              <TextBlock Grid.Column="1" Text="{Binding Status}" HorizontalAlignment="Center"
+                         Classes="muted" />
+              <TextBlock Grid.Column="2" Text="{Binding EntryCount}" HorizontalAlignment="Center"
+                         Classes="muted" />
+            </Grid>
+          </DataTemplate>
+        </ListBox.ItemTemplate>
+      </ListBox>
+
+      <Grid Grid.Row="3" ColumnDefinitions="Auto,Auto,Auto,Auto,*,Auto" Margin="0,12,0,0">
+        <Button Grid.Column="0" Content="Add" Classes="accent" Click="OnAddClick" />
+        <Button Grid.Column="1" Content="Rename" Click="OnRenameClick" Margin="6,0,0,0" />
+        <Button Grid.Column="2" x:Name="ArchiveButton" Content="Archive" Click="OnArchiveClick"
+                Margin="6,0,0,0" />
+        <Button Grid.Column="3" Content="Delete" Classes="danger" Click="OnDeleteClick"
+                Margin="6,0,0,0" />
+        <Button Grid.Column="5" Content="Close" Click="OnCloseClick" />
+      </Grid>
+    </Grid>
+  </Border>
+</Window>

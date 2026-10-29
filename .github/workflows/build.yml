@@ -13,64 +13,84 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
-      - name: Install system packages
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+      - name: Restore
+        run: dotnet restore TimeReport.slnx
+      - name: Build
+        run: dotnet build TimeReport.slnx -c Release --no-restore
+      - name: Test
+        run: dotnet test TimeReport.slnx -c Release --no-build
+      - name: Format check
+        run: dotnet format TimeReport.slnx --verify-no-changes --no-restore
+      - name: Install GUI dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y python3-tk python3-venv xvfb
-      - name: Create virtual environment
-        run: |
-          python3 -m venv .venv
-          .venv/bin/python -m pip install --upgrade pip
-          .venv/bin/python -m pip install -e ".[dev]"
-      - name: Run tests
-        run: .venv/bin/python -m pytest -q
-      - name: Lint
-        run: .venv/bin/ruff check .
-      - name: Format check
-        run: .venv/bin/ruff format --check .
+          sudo apt-get install -y xvfb libx11-6 libxrandr2 libxi6 libxcursor1 libxext6 \
+            libxrender1 libfontconfig1 libice6 libsm6 libxfixes3 libxinerama1 \
+            libxcomposite1 libxdamage1 libxcb-randr0 libxcb-render0 libxcb-shm0 \
+            libxcb-image0 libxcb-util1
       - name: GUI smoke test
-        run: xvfb-run -a .venv/bin/python -m timereport --smoke-test --data-dir "$RUNNER_TEMP/timereport-test"
+        run: |
+          xvfb-run -a dotnet run --project src/TimeReport/TimeReport.csproj \
+            -c Release --no-build -- --smoke-test --data-dir "$RUNNER_TEMP/timereport-test"
 
   test-windows:
     runs-on: windows-2022
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-dotnet@v4
         with:
-          python-version: "3.12"
-      - name: Install
-        run: |
-          python -m pip install --upgrade pip
-          python -m pip install -e ".[dev]"
-      - name: Run tests
-        run: python -m pytest -q
-      - name: Lint
-        run: python -m ruff check .
+          dotnet-version: "10.0.x"
+      - name: Restore
+        run: dotnet restore TimeReport.slnx
+      - name: Build
+        run: dotnet build TimeReport.slnx -c Release --no-restore
+      - name: Test
+        run: dotnet test TimeReport.slnx -c Release --no-build
       - name: Format check
-        run: python -m ruff format --check .
+        run: dotnet format TimeReport.slnx --verify-no-changes --no-restore
+      - name: GUI smoke test
+        shell: pwsh
+        run: |
+          dotnet run --project src/TimeReport/TimeReport.csproj -c Release --no-build -- `
+            --smoke-test --data-dir "$env:RUNNER_TEMP\timereport-test"
 
   build-linux:
     needs: test-linux
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
-      - name: Install system packages
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+      - name: Restore
+        run: dotnet restore TimeReport.slnx
+      - name: Publish Linux executable
+        run: |
+          dotnet publish src/TimeReport/TimeReport.csproj \
+            -c Release \
+            -r linux-x64 \
+            --self-contained true \
+            -p:PublishSingleFile=true \
+            -p:IncludeNativeLibrariesForSelfExtract=true \
+            -o dist/linux
+      - name: Install GUI dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y python3-tk python3-venv xvfb
-      - name: Create virtual environment
-        run: |
-          python3 -m venv .venv
-          .venv/bin/python -m pip install --upgrade pip
-          .venv/bin/python -m pip install -e ".[dev]"
-      - name: Build executable
-        run: .venv/bin/python -m PyInstaller --clean --noconfirm packaging/timereport.spec
+          sudo apt-get install -y xvfb libx11-6 libxrandr2 libxi6 libxcursor1 libxext6 \
+            libxrender1 libfontconfig1 libice6 libsm6 libxfixes3 libxinerama1 \
+            libxcomposite1 libxdamage1 libxcb-randr0 libxcb-render0 libxcb-shm0 \
+            libxcb-image0 libxcb-util1
       - name: Smoke test executable
-        run: xvfb-run -a dist/TimeReport --smoke-test --data-dir "$RUNNER_TEMP/timereport-binary-test"
+        run: |
+          xvfb-run -a dist/linux/TimeReport --smoke-test \
+            --data-dir "$RUNNER_TEMP/timereport-binary-test"
       - uses: actions/upload-artifact@v4
         with:
           name: TimeReport-linux-x86_64
-          path: dist/TimeReport
+          path: dist/linux/TimeReport
           if-no-files-found: error
 
   build-windows:
@@ -78,22 +98,29 @@ jobs:
     runs-on: windows-2022
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-dotnet@v4
         with:
-          python-version: "3.12"
-      - name: Install
+          dotnet-version: "10.0.x"
+      - name: Restore
+        run: dotnet restore TimeReport.slnx
+      - name: Publish Windows executable
         run: |
-          python -m pip install --upgrade pip
-          python -m pip install -e ".[dev]"
-      - name: Build executable
-        run: python -m PyInstaller --clean --noconfirm packaging/timereport.spec
+          dotnet publish src/TimeReport/TimeReport.csproj `
+            -c Release `
+            -r win-x64 `
+            --self-contained true `
+            -p:PublishSingleFile=true `
+            -p:IncludeNativeLibrariesForSelfExtract=true `
+            -o dist/windows
       - name: Smoke test executable
         shell: pwsh
         run: |
-          $process = Start-Process -FilePath "dist\TimeReport.exe" -ArgumentList "--version" -Wait -PassThru
+          $arguments = @("--smoke-test", "--data-dir", "$env:RUNNER_TEMP\timereport-binary-test")
+          $process = Start-Process -FilePath "dist\windows\TimeReport.exe" `
+            -ArgumentList $arguments -Wait -PassThru
           if ($process.ExitCode -ne 0) { exit $process.ExitCode }
       - uses: actions/upload-artifact@v4
         with:
           name: TimeReport-windows-x86_64
-          path: dist/TimeReport.exe
+          path: dist/windows/TimeReport.exe
           if-no-files-found: error
