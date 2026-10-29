@@ -1,0 +1,48 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="TimeReport.Views.DropboxSyncDialog"
+        x:CompileBindings="False"
+        Title="{DynamicResource DropboxSettingsTitle}"
+        Width="720"
+        SizeToContent="Height"
+        CanResize="False"
+        WindowStartupLocation="CenterOwner"
+        ShowInTaskbar="False">
+  <Border Padding="20">
+    <StackPanel Spacing="10">
+      <TextBlock Text="{DynamicResource DropboxSettingsTitle}" Classes="h2" />
+      <TextBlock Text="{DynamicResource DropboxInstructions}" Classes="muted" TextWrapping="Wrap" />
+      <TextBlock Text="{DynamicResource DropboxLocalCopyInfo}" Classes="muted" TextWrapping="Wrap" />
+
+      <TextBlock Text="{DynamicResource DropboxAppKey}" Classes="h3" Margin="0,8,0,0" />
+      <TextBox x:Name="AppKeyTextBox" />
+
+      <TextBlock Text="{DynamicResource DropboxAppSecret}" Classes="h3" Margin="0,8,0,0" />
+      <TextBox x:Name="AppSecretTextBox" PasswordChar="*" />
+
+      <TextBlock Text="{DynamicResource DropboxRedirectUri}" Classes="h3" Margin="0,8,0,0" />
+      <SelectableTextBlock Text="http://127.0.0.1:53682/dropbox-callback" Classes="muted" />
+
+      <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,6,0,0">
+        <Button Content="{DynamicResource DropboxConnect}" Classes="accent" Click="OnConnectClick" />
+        <Button Content="{DynamicResource DropboxDisconnect}" Click="OnDisconnectClick" />
+      </StackPanel>
+
+      <TextBlock Text="{DynamicResource DropboxRemotePath}" Classes="h3" Margin="0,8,0,0" />
+      <TextBox x:Name="RemotePathTextBox" />
+      <TextBlock Text="{DynamicResource DropboxRemotePathHint}" Classes="muted" />
+
+      <CheckBox x:Name="AutoSyncCheckBox" Content="{DynamicResource DropboxAutoSync}" />
+
+      <TextBlock x:Name="StatusText" Classes="muted" TextWrapping="Wrap" />
+
+      <Grid ColumnDefinitions="Auto,Auto,*,Auto,Auto" Margin="0,10,0,0">
+        <Button Grid.Column="0" Content="{DynamicResource DropboxOpenAppConsole}" Click="OnOpenAppConsoleClick" />
+        <Button Grid.Column="1" Content="{DynamicResource DropboxTestConnection}" Click="OnTestConnectionClick"
+                Margin="8,0,0,0" />
+        <Button Grid.Column="3" Content="{DynamicResource ButtonCancel}" Click="OnCancelClick" Margin="0,0,8,0" />
+        <Button Grid.Column="4" Content="{DynamicResource ButtonSave}" Classes="accent" Click="OnSaveClick" />
+      </Grid>
+    </StackPanel>
+  </Border>
+</Window>

@@ -11,8 +11,14 @@ namespace TimeReport.Views;
 public partial class MainWindow : Window
 {
     private readonly AppSession? _session;
+    private readonly IDropboxSyncService? _dropboxSync;
+    private readonly DropboxTokenProvider? _tokenProvider;
+    private readonly DropboxSyncCoordinator? _syncCoordinator;
     private TimeReportService? _service;
     private MainWindowViewModel? _viewModel;
+    private bool _initializingLanguage;
+    private DropboxSyncStatus _dropboxStatus = DropboxSyncStatus.NotConfigured;
+    private string? _dropboxStatusDetail;
 
     public MainWindow()
     {
@@ -22,7 +28,42 @@ public partial class MainWindow : Window
     public MainWindow(AppSession session) : this()
     {
         _session = session;
+        _dropboxSync = new DropboxSyncService();
+        _tokenProvider = new DropboxTokenProvider(session);
+        _syncCoordinator = new DropboxSyncCoordinator(session, _dropboxSync, _tokenProvider);
         RebindService(session.Service);
+        InitializeLanguageSelector();
+        InitializeDropboxStatus();
+        Opened += async (_, _) => await AutoSyncOnStartupAsync();
+    }
+
+    private void InitializeLanguageSelector()
+    {
+        _initializingLanguage = true;
+        LanguageComboBox.ItemsSource = LocalizationService.Languages;
+        LanguageComboBox.SelectedItem = LocalizationService.Languages
+            .FirstOrDefault(language => language.Code == LocalizationService.CurrentLanguage);
+        _initializingLanguage = false;
+    }
+
+    private void OnLanguageChanged(object? sender, SelectionChangedEventArgs e)
+    {
+        if (_initializingLanguage ||
+            LanguageComboBox.SelectedItem is not LanguageOption language ||
+            language.Code == LocalizationService.CurrentLanguage)
+        {
+            return;
+        }
+
+        LocalizationService.SetLanguage(language.Code);
+        if (_session is not null)
+        {
+            _session.Settings.Language = language.Code;
+            _session.Settings.Save(_session.SettingsPath);
+        }
+        _viewModel?.Totals.RefreshLocalization();
+        _viewModel?.Refresh();
+        RefreshDropboxStatusText();
     }
 
     private void RebindService(TimeReportService service)
@@ -34,6 +75,156 @@ public partial class MainWindow : Window
         viewModel.DeleteEntryRequested += async entry => await DeleteEntryAsync(entry);
         _viewModel = viewModel;
         DataContext = viewModel;
+    }
+
+    private void InitializeDropboxStatus()
+    {
+        if (_syncCoordinator is null || !_syncCoordinator.IsConfigured)
+        {
+            SetDropboxStatus(DropboxSyncStatus.NotConfigured);
+        }
+        else if (!_syncCoordinator.AutoSyncEnabled)
+        {
+            SetDropboxStatus(DropboxSyncStatus.Disabled);
+        }
+        else
+        {
+            SetDropboxStatus(DropboxSyncStatus.Ready);
+        }
+    }
+
+    private void SetDropboxStatus(DropboxSyncStatus status, string? detail = null)
+    {
+        _dropboxStatus = status;
+        _dropboxStatusDetail = detail;
+        RefreshDropboxStatusText();
+    }
+
+    private void RefreshDropboxStatusText()
+    {
+        if (DropboxStatusText is null)
+        {
+            return;
+        }
+
+        var key = _dropboxStatus switch
+        {
+            DropboxSyncStatus.NotConfigured => "DropboxStatusNotConfigured",
+            DropboxSyncStatus.Disabled => "DropboxStatusDisabled",
+            DropboxSyncStatus.Ready => "DropboxStatusReady",
+            DropboxSyncStatus.UpToDate => "DropboxStatusUpToDate",
+            DropboxSyncStatus.Uploaded or DropboxSyncStatus.Downloaded => "DropboxStatusSynced",
+            DropboxSyncStatus.Conflict => "DropboxStatusConflict",
+            DropboxSyncStatus.Error => "DropboxStatusError",
+            _ => "DropboxStatusOff",
+        };
+        DropboxStatusText.Text = LocalizationService.T(key);
+        ToolTip.SetTip(DropboxStatusText, _dropboxStatusDetail);
+    }
+
+    private async void OnDropboxClick(object? sender, RoutedEventArgs e)
+    {
+        if (_session is null || _dropboxSync is null || _tokenProvider is null)
+        {
+            return;
+        }
+
+        var dialog = new DropboxSyncDialog(_session, _dropboxSync, _tokenProvider);
+        var saved = await dialog.ShowDialog<bool>(this);
+        if (!saved)
+        {
+            return;
+        }
+
+        InitializeDropboxStatus();
+        if (_syncCoordinator?.AutoSyncEnabled == true)
+        {
+            await AutoSyncOnStartupAsync();
+        }
+    }
+
+    private async void OnSyncNowClick(object? sender, RoutedEventArgs e) =>
+        await RunSyncNowAsync(interactive: true);
+
+    private async Task RunSyncNowAsync(bool interactive)
+    {
+        if (_syncCoordinator is null)
+        {
+            return;
+        }
+
+        SetDropboxStatus(DropboxSyncStatus.Syncing);
+        var result = await _syncCoordinator.SyncNowAsync(ResolveDropboxConflictAsync);
+        if (result.Status == DropboxSyncStatus.Downloaded)
+        {
+            _viewModel?.Totals.RefreshLocalization();
+            _viewModel?.Refresh();
+        }
+        SetDropboxStatus(result.Status, result.Message);
+
+        if (interactive)
+        {
+            await MessageDialog.ShowAsync(
+                this,
+                LocalizationService.T("DropboxSyncComplete"),
+                result.Message,
+                false);
+        }
+    }
+
+    private async Task AutoSyncAfterChangeAsync()
+    {
+        if (_syncCoordinator is null)
+        {
+            return;
+        }
+
+        var result = await _syncCoordinator.AutoSyncAfterChangeAsync();
+        if (result.Status == DropboxSyncStatus.Downloaded)
+        {
+            _viewModel?.Totals.RefreshLocalization();
+            _viewModel?.Refresh();
+        }
+        SetDropboxStatus(result.Status, result.Message);
+    }
+
+    private async Task AutoSyncOnStartupAsync()
+    {
+        if (_syncCoordinator is null)
+        {
+            return;
+        }
+
+        var result = await _syncCoordinator.AutoSyncOnStartupAsync();
+        if (result.Status == DropboxSyncStatus.Downloaded)
+        {
+            _viewModel?.Totals.RefreshLocalization();
+            _viewModel?.Refresh();
+        }
+        SetDropboxStatus(result.Status, result.Message);
+    }
+
+    private async Task<DropboxConflictChoice> ResolveDropboxConflictAsync()
+    {
+        if (await MessageDialog.ShowAsync(
+                this,
+                LocalizationService.T("DropboxConflictTitle"),
+                LocalizationService.T("DropboxConflictUpload"),
+                true))
+        {
+            return DropboxConflictChoice.UseLocal;
+        }
+
+        if (await MessageDialog.ShowAsync(
+                this,
+                LocalizationService.T("DropboxConflictTitle"),
+                LocalizationService.T("DropboxConflictDownload"),
+                true))
+        {
+            return DropboxConflictChoice.UseRemote;
+        }
+
+        return DropboxConflictChoice.Cancel;
     }
 
     private void OnPreviousWeekClick(object? sender, RoutedEventArgs e) => _viewModel?.ChangeWeek(-1);
@@ -62,6 +253,7 @@ public partial class MainWindow : Window
         if (result is not null)
         {
             _viewModel?.SetWeekForDate(result.Date);
+            await AutoSyncAfterChangeAsync();
         }
     }
 
@@ -77,6 +269,7 @@ public partial class MainWindow : Window
         if (result is not null)
         {
             _viewModel?.SetWeekForDate(result.Date);
+            await AutoSyncAfterChangeAsync();
         }
     }
 
@@ -90,8 +283,8 @@ public partial class MainWindow : Window
         var description = entry.Kind.DisplayName().ToLowerInvariant();
         if (!await MessageDialog.ShowAsync(
                 this,
-                "Delete entry",
-                $"Delete this {description} entry?",
+                LocalizationService.T("MessageDeleteEntryTitle"),
+                LocalizationService.T("MessageDeleteEntry", description),
                 true))
         {
             return;
@@ -101,10 +294,11 @@ public partial class MainWindow : Window
         {
             _service.DeleteEntry(entry.Id.Value);
             _viewModel?.Refresh();
+            await AutoSyncAfterChangeAsync();
         }
         catch (Exception exception) when (exception is ValidationException or DatabaseException)
         {
-            await MessageDialog.ShowAsync(this, "Cannot delete entry", exception.Message, false);
+            await MessageDialog.ShowAsync(this, LocalizationService.T("MessageCannotDeleteEntry"), exception.Message, false);
         }
     }
 
@@ -118,6 +312,7 @@ public partial class MainWindow : Window
         var dialog = new ProjectsDialog(_service);
         await dialog.ShowDialog(this);
         _viewModel?.Refresh();
+        await AutoSyncAfterChangeAsync();
     }
 
     private async void OnDatabaseLocationClick(object? sender, RoutedEventArgs e)
@@ -142,15 +337,16 @@ public partial class MainWindow : Window
             RebindService(service);
             await MessageDialog.ShowAsync(
                 this,
-                "Database location changed",
-                $"TimeReport is now using:\n{_session.Database.Path}",
+                LocalizationService.T("MessageDatabaseLocationChanged"),
+                LocalizationService.T("MessageNowUsing", _session.Database.Path),
                 false);
+            await AutoSyncAfterChangeAsync();
         }
         catch (Exception exception)
         {
             await MessageDialog.ShowAsync(
                 this,
-                "Cannot change database location",
+                LocalizationService.T("MessageCannotChangeDatabase"),
                 exception.Message,
                 false);
         }
@@ -165,7 +361,7 @@ public partial class MainWindow : Window
 
         var file = await StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
         {
-            Title = "Backup TimeReport database",
+            Title = LocalizationService.T("MenuBackup"),
             SuggestedFileName = $"TimeReport-backup-{DateTime.Now:yyyyMMdd-HHmmss}.db",
             DefaultExtension = "db",
             ShowOverwritePrompt = true,
@@ -185,13 +381,13 @@ public partial class MainWindow : Window
             var saved = _service.Database.BackupTo(file.Path.LocalPath);
             await MessageDialog.ShowAsync(
                 this,
-                "Backup complete",
-                $"Backup saved to:\n{saved}",
+                LocalizationService.T("MessageBackupComplete"),
+                LocalizationService.T("MessageBackupSaved", saved),
                 false);
         }
         catch (DatabaseException exception)
         {
-            await MessageDialog.ShowAsync(this, "Backup failed", exception.Message, false);
+            await MessageDialog.ShowAsync(this, LocalizationService.T("MessageBackupFailed"), exception.Message, false);
         }
     }
 
@@ -204,7 +400,7 @@ public partial class MainWindow : Window
 
         var files = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
         {
-            Title = "Restore TimeReport database",
+            Title = LocalizationService.T("MenuRestore"),
             AllowMultiple = false,
             FileTypeFilter =
             [
@@ -222,10 +418,8 @@ public partial class MainWindow : Window
 
         if (!await MessageDialog.ShowAsync(
                 this,
-                "Restore database",
-                "Restoring replaces all current data with the selected backup.\n\n" +
-                "A backup of the current database will be created automatically first.\n\n" +
-                "Continue?",
+                LocalizationService.T("MessageRestoreTitle"),
+                LocalizationService.T("MessageRestoreConfirm"),
                 true))
         {
             return;
@@ -235,15 +429,16 @@ public partial class MainWindow : Window
         {
             var autoBackup = _service.Database.RestoreFrom(files[0].Path.LocalPath);
             _viewModel?.Refresh();
+            await AutoSyncAfterChangeAsync();
             await MessageDialog.ShowAsync(
                 this,
-                "Restore complete",
-                $"Data restored.\n\nThe previous database was backed up to:\n{autoBackup}",
+                LocalizationService.T("MessageRestoreComplete"),
+                LocalizationService.T("MessageRestoreDone", autoBackup),
                 false);
         }
         catch (DatabaseException exception)
         {
-            await MessageDialog.ShowAsync(this, "Restore failed", exception.Message, false);
+            await MessageDialog.ShowAsync(this, LocalizationService.T("MessageRestoreFailed"), exception.Message, false);
         }
     }
 

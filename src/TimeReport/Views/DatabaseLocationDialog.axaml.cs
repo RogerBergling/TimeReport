@@ -3,6 +3,7 @@ using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Platform.Storage;
 using TimeReport.Data;
+using TimeReport.Services;
 
 namespace TimeReport.Views;
 
@@ -66,7 +67,7 @@ public partial class DatabaseLocationDialog : Window
         var path = NormalizePath();
         if (string.IsNullOrWhiteSpace(path))
         {
-            StatusText.Text = "Enter a valid database path.";
+            StatusText.Text = LocalizationService.T("StatusChooseDatabase");
             SaveButton.IsEnabled = false;
             CopyCurrentCheckBox.IsEnabled = false;
             return;
@@ -74,7 +75,7 @@ public partial class DatabaseLocationDialog : Window
 
         if (PathsEqual(path, _currentPath))
         {
-            StatusText.Text = "This is the current database.";
+            StatusText.Text = LocalizationService.T("StatusCurrentDatabase");
             SaveButton.IsEnabled = false;
             CopyCurrentCheckBox.IsEnabled = false;
             return;
@@ -85,19 +86,19 @@ public partial class DatabaseLocationDialog : Window
             try
             {
                 Database.ValidateFile(path);
-                StatusText.Text = "An existing TimeReport database will be opened. The current database file is left untouched.";
+                StatusText.Text = LocalizationService.T("StatusExistingDatabase");
                 SaveButton.IsEnabled = true;
             }
             catch (DatabaseException exception)
             {
-                StatusText.Text = $"This file cannot be used: {exception.Message}";
+                StatusText.Text = LocalizationService.T("StatusInvalidDatabase", exception.Message);
                 SaveButton.IsEnabled = false;
             }
             CopyCurrentCheckBox.IsEnabled = false;
             return;
         }
 
-        StatusText.Text = "A new database will be created at this location.";
+        StatusText.Text = LocalizationService.T("StatusNewDatabase");
         SaveButton.IsEnabled = true;
         CopyCurrentCheckBox.IsEnabled = true;
     }
@@ -109,8 +110,8 @@ public partial class DatabaseLocationDialog : Window
         {
             await MessageDialog.ShowAsync(
                 this,
-                "Cannot use this database",
-                "Enter a valid database path.",
+                LocalizationService.T("MessageCannotUseDatabase"),
+                LocalizationService.T("StatusChooseDatabase"),
                 false);
             return;
         }
@@ -131,7 +132,7 @@ public partial class DatabaseLocationDialog : Window
             {
                 await MessageDialog.ShowAsync(
                     this,
-                    "Cannot use this database",
+                    LocalizationService.T("MessageCannotUseDatabase"),
                     exception.Message,
                     false);
                 return;

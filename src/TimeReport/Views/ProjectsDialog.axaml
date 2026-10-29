@@ -2,7 +2,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="TimeReport.Views.ProjectsDialog"
         x:CompileBindings="False"
-        Title="Projects"
+        Title="{DynamicResource ProjectsTitle}"
         Width="640"
         Height="500"
         MinWidth="520"
@@ -11,12 +11,12 @@
         ShowInTaskbar="False">
   <Border Padding="18">
     <Grid RowDefinitions="Auto,Auto,*,Auto">
-      <TextBlock Grid.Row="0" Text="Projects" Classes="h2" Margin="0,0,0,10" />
+      <TextBlock Grid.Row="0" Text="{DynamicResource ProjectsTitle}" Classes="h2" Margin="0,0,0,10" />
 
       <Grid Grid.Row="1" ColumnDefinitions="*,100,80" Margin="6,0,6,4">
-        <TextBlock Grid.Column="0" Text="Project" Classes="columnHeader" />
-        <TextBlock Grid.Column="1" Text="Status" Classes="columnHeader" HorizontalAlignment="Center" />
-        <TextBlock Grid.Column="2" Text="Entries" Classes="columnHeader" HorizontalAlignment="Center" />
+        <TextBlock Grid.Column="0" Text="{DynamicResource ProjectsHeaderProject}" Classes="columnHeader" />
+        <TextBlock Grid.Column="1" Text="{DynamicResource ProjectsHeaderStatus}" Classes="columnHeader" HorizontalAlignment="Center" />
+        <TextBlock Grid.Column="2" Text="{DynamicResource ProjectsHeaderEntries}" Classes="columnHeader" HorizontalAlignment="Center" />
       </Grid>
 
       <ListBox Grid.Row="2" x:Name="ProjectsList" SelectionChanged="OnSelectionChanged">
@@ -34,13 +34,13 @@
       </ListBox>
 
       <Grid Grid.Row="3" ColumnDefinitions="Auto,Auto,Auto,Auto,*,Auto" Margin="0,12,0,0">
-        <Button Grid.Column="0" Content="Add" Classes="accent" Click="OnAddClick" />
-        <Button Grid.Column="1" Content="Rename" Click="OnRenameClick" Margin="6,0,0,0" />
-        <Button Grid.Column="2" x:Name="ArchiveButton" Content="Archive" Click="OnArchiveClick"
+        <Button Grid.Column="0" Content="{DynamicResource ButtonAdd}" Classes="accent" Click="OnAddClick" />
+        <Button Grid.Column="1" Content="{DynamicResource ButtonRename}" Click="OnRenameClick" Margin="6,0,0,0" />
+        <Button Grid.Column="2" x:Name="ArchiveButton" Content="{DynamicResource ButtonArchive}" Click="OnArchiveClick"
                 Margin="6,0,0,0" />
-        <Button Grid.Column="3" Content="Delete" Classes="danger" Click="OnDeleteClick"
+        <Button Grid.Column="3" Content="{DynamicResource ButtonDelete}" Classes="danger" Click="OnDeleteClick"
                 Margin="6,0,0,0" />
-        <Button Grid.Column="5" Content="Close" Click="OnCloseClick" />
+        <Button Grid.Column="5" Content="{DynamicResource ButtonClose}" Click="OnCloseClick" />
       </Grid>
     </Grid>
   </Border>

@@ -25,6 +25,10 @@ The database is stored outside this folder:
 
 Use **File → Database location…** to choose where the database file is stored.
 
+Use **File → Dropbox sync…** to configure optional Dropbox synchronization. You will
+need a Dropbox app key and the redirect URI `http://127.0.0.1:53682/dropbox-callback`
+registered in the Dropbox App Console.
+
 Use **File → Backup database…** and **File → Restore database…** inside the app.
 
 `SHA256SUMS.txt` contains checksums for both executables.

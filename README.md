@@ -23,6 +23,8 @@ not require Python or a separate .NET installation.
   - It does not reduce worked hours.
 - Daily totals, weekly totals, monthly totals, yearly totals and an all-time total.
 - Backup and restore from the GUI, with automatic safety backups.
+- Optional Dropbox sync with OAuth refresh tokens and conflict detection.
+- Switch the interface and calendar between English and Swedish.
 - 24-hour clock and ISO dates (`YYYY-MM-DD`).
 - No account, cloud service, telemetry or network access.
 
@@ -34,7 +36,7 @@ Ready-to-run self-contained binaries are included in [`release/`](release/):
 - Windows: `release/TimeReport-windows-x86_64.exe`
 - Checksums: `release/SHA256SUMS.txt`
 
-They are also attached to the [v2.1.0 release](https://github.com/RogerBergling/TimeReport/releases/tag/v2.1.0).
+They are also attached to the [v2.2.0 release](https://github.com/RogerBergling/TimeReport/releases/tag/v2.2.0).
 
 ## Data storage
 
@@ -97,6 +99,32 @@ Use **File → Restore database…** to replace the current database. Restore:
 
 Backup files are normal SQLite databases and can be moved between Linux and Windows.
 They contain personal time data, so store them securely.
+
+## Optional Dropbox sync
+
+TimeReport can keep a local database and sync it to Dropbox. Local changes are uploaded
+automatically when auto-sync is enabled. On startup, a newer Dropbox copy is downloaded
+if the local database has not changed since the last sync. If both sides changed,
+TimeReport reports a conflict instead of overwriting either copy; use **Sync now** to
+choose which database to keep.
+
+To configure it:
+
+1. Create a Dropbox app in the [Dropbox App Console](https://www.dropbox.com/developers/apps).
+2. Enable the scopes `files.content.read`, `files.content.write` and
+   `files.metadata.read`.
+3. Add this redirect URI to the app:
+   `http://127.0.0.1:53682/dropbox-callback`
+4. In TimeReport, open **File → Dropbox sync…**, enter the app key and optional app
+   secret, then click **Connect to Dropbox** and authorize in the browser.
+5. Keep or change the remote path (default `/TimeReport/timereport.db`), enable
+   **Sync automatically after changes**, and use **Sync now** for the first sync.
+
+The app uses Dropbox OAuth with a long-lived refresh token, so it can keep syncing
+without asking you to paste a new short-lived access token every few hours. Tokens are
+stored in the TimeReport settings file. On Linux the file is given owner-only
+permissions, but the tokens are still sensitive; protect the settings file and the
+Dropbox account. Dropbox sync is optional and the app works fully offline.
 
 ## Building from source
 
@@ -191,4 +219,4 @@ tests/TimeReport.Tests/     xUnit tests for time, database, validation, totals, 
 
 ## Version
 
-`2.1.0`
+`2.2.0`

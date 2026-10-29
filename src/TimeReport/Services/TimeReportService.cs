@@ -64,7 +64,7 @@ public sealed class TimeReportService
         }
         catch (SqliteException exception) when (exception.SqliteErrorCode == 19)
         {
-            throw new ValidationException($"Project \"{cleaned}\" already exists.");
+            throw new ValidationException(LocalizationService.T("ValidationProjectExists", cleaned));
         }
     }
 
@@ -81,7 +81,7 @@ public sealed class TimeReportService
             command.Parameters.AddWithValue("$id", projectId);
             if (command.ExecuteNonQuery() == 0)
             {
-                throw new ValidationException("Project not found.");
+                throw new ValidationException(LocalizationService.T("ValidationProjectNotFound"));
             }
 
             using var archivedCommand = Database.Connection.CreateCommand();
@@ -94,7 +94,7 @@ public sealed class TimeReportService
         }
         catch (SqliteException exception) when (exception.SqliteErrorCode == 19)
         {
-            throw new ValidationException($"Project \"{cleaned}\" already exists.");
+            throw new ValidationException(LocalizationService.T("ValidationProjectExists", cleaned));
         }
     }
 
@@ -106,7 +106,7 @@ public sealed class TimeReportService
         command.Parameters.AddWithValue("$id", projectId);
         if (command.ExecuteNonQuery() == 0)
         {
-            throw new ValidationException("Project not found.");
+            throw new ValidationException(LocalizationService.T("ValidationProjectNotFound"));
         }
     }
 
@@ -114,8 +114,7 @@ public sealed class TimeReportService
     {
         if (ProjectEntryCount(projectId) > 0)
         {
-            throw new ValidationException(
-                "This project is used by time entries. Archive it instead of deleting it.");
+            throw new ValidationException(LocalizationService.T("ValidationProjectUsed"));
         }
 
         using var command = Database.Connection.CreateCommand();
@@ -123,7 +122,7 @@ public sealed class TimeReportService
         command.Parameters.AddWithValue("$id", projectId);
         if (command.ExecuteNonQuery() == 0)
         {
-            throw new ValidationException("Project not found.");
+            throw new ValidationException(LocalizationService.T("ValidationProjectNotFound"));
         }
     }
 
@@ -141,11 +140,11 @@ public sealed class TimeReportService
             .Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
         if (cleaned.Length == 0)
         {
-            throw new ValidationException("Enter a project name.");
+            throw new ValidationException(LocalizationService.T("ValidationProjectNameEmpty"));
         }
         if (cleaned.Length > 80)
         {
-            throw new ValidationException("Project names must be 80 characters or fewer.");
+            throw new ValidationException(LocalizationService.T("ValidationProjectNameLength"));
         }
         return cleaned;
     }
@@ -163,7 +162,7 @@ public sealed class TimeReportService
         var original = entry.Id is long originalId ? GetEntry(originalId) : null;
         if (entry.Id is not null && original is null)
         {
-            throw new ValidationException("Entry not found.");
+            throw new ValidationException(LocalizationService.T("ValidationEntryNotFound"));
         }
 
         var firstDay = TimeUtil.WeekStart(entry.Date);
@@ -244,7 +243,7 @@ public sealed class TimeReportService
                     command.Parameters.AddWithValue("$id", entry.Id.Value);
                     if (command.ExecuteNonQuery() == 0)
                     {
-                        throw new ValidationException("Entry not found.");
+                        throw new ValidationException(LocalizationService.T("ValidationEntryNotFound"));
                     }
                     savedId = entry.Id.Value;
                 }
@@ -267,7 +266,7 @@ public sealed class TimeReportService
         try
         {
             var entry = GetEntry(Database.Connection, transaction, entryId)
-                ?? throw new ValidationException("Entry not found.");
+                ?? throw new ValidationException(LocalizationService.T("ValidationEntryNotFound"));
             var firstDay = TimeUtil.WeekStart(entry.Date);
             var weekEntries = FetchEntries(
                 Database.Connection,
@@ -352,11 +351,11 @@ public sealed class TimeReportService
     {
         if (entry.StartMinute < 0 || entry.EndMinute > TimeUtil.MinutesPerDay)
         {
-            throw new ValidationException("Times must be between 00:00 and 24:00.");
+            throw new ValidationException(LocalizationService.T("ValidationTimesRange"));
         }
         if (entry.EndMinute <= entry.StartMinute)
         {
-            throw new ValidationException("End time must be later than start time.");
+            throw new ValidationException(LocalizationService.T("ValidationEndAfterStart"));
         }
 
         var reason = string.IsNullOrWhiteSpace(entry.AwayReason) ? null : entry.AwayReason.Trim();
@@ -367,30 +366,29 @@ public sealed class TimeReportService
             case EntryKind.Work:
                 if (projectId is null)
                 {
-                    throw new ValidationException("Choose a project for a work entry.");
+                    throw new ValidationException(LocalizationService.T("ValidationChooseProject"));
                 }
                 reason = null;
                 break;
             case EntryKind.Away:
                 if (reason is null)
                 {
-                    throw new ValidationException("Enter a reason for the away time.");
+                    throw new ValidationException(LocalizationService.T("ValidationAwayReason"));
                 }
                 if (reason.Length > 80)
                 {
-                    throw new ValidationException("Away reason must be 80 characters or fewer.");
+                    throw new ValidationException(LocalizationService.T("ValidationAwayReasonLength"));
                 }
                 if (projectId is not null)
                 {
-                    throw new ValidationException("Away entries cannot have a project.");
+                    throw new ValidationException(LocalizationService.T("ValidationAwayNoProject"));
                 }
                 projectId = null;
                 break;
             default:
                 if (projectId is not null)
                 {
-                    throw new ValidationException(
-                        $"{entry.Kind.DisplayName()} entries cannot have a project.");
+                    throw new ValidationException(LocalizationService.T("ValidationNonWorkNoProject", entry.Kind.DisplayName()));
                 }
                 reason = null;
                 break;
@@ -414,7 +412,7 @@ public sealed class TimeReportService
                     var other = FindOverlap(candidate, sameDay, [EntryKind.Work, EntryKind.Away]);
                     if (other is not null)
                     {
-                        throw new ValidationException(OverlapMessage("work", other));
+                        throw new ValidationException(OverlapMessage(EntryKind.Work, other));
                     }
                     break;
                 }
@@ -426,7 +424,7 @@ public sealed class TimeReportService
                         [EntryKind.Lunch, EntryKind.Away, EntryKind.XPause]);
                     if (other is not null)
                     {
-                        throw new ValidationException(OverlapMessage("lunch", other));
+                        throw new ValidationException(OverlapMessage(EntryKind.Lunch, other));
                     }
                     break;
                 }
@@ -438,7 +436,7 @@ public sealed class TimeReportService
                         [EntryKind.Work, EntryKind.Lunch, EntryKind.Away, EntryKind.XPause]);
                     if (other is not null)
                     {
-                        throw new ValidationException(OverlapMessage("away", other));
+                        throw new ValidationException(OverlapMessage(EntryKind.Away, other));
                     }
                     break;
                 }
@@ -446,17 +444,17 @@ public sealed class TimeReportService
                 {
                     if (candidate.Date.DayOfWeek is DayOfWeek.Saturday or DayOfWeek.Sunday)
                     {
-                        throw new ValidationException("X-Pause can only be used Monday to Friday.");
+                        throw new ValidationException(LocalizationService.T("ValidationXPauseWeekday"));
                     }
 
                     var duration = candidate.DurationMinutes;
                     if (duration % TimeUtil.XPauseStep != 0)
                     {
-                        throw new ValidationException("X-Pause must be entered in 15-minute steps.");
+                        throw new ValidationException(LocalizationService.T("ValidationXPauseStep"));
                     }
                     if (duration > TimeUtil.XPauseWeeklyLimit)
                     {
-                        throw new ValidationException("X-Pause cannot be longer than 1:00 in one day.");
+                        throw new ValidationException(LocalizationService.T("ValidationXPauseDayLimit"));
                     }
 
                     var used = existing
@@ -467,8 +465,9 @@ public sealed class TimeReportService
                     if (duration > remaining)
                     {
                         throw new ValidationException(
-                            "X-Pause is limited to 1:00 per week. " +
-                            $"You have {TimeUtil.FormatDuration(Math.Max(0, remaining))} remaining this week.");
+                            LocalizationService.T(
+                                "ValidationXPauseWeekly",
+                                TimeUtil.FormatDuration(Math.Max(0, remaining))));
                     }
 
                     var containingWork = sameDay.Any(item =>
@@ -481,8 +480,7 @@ public sealed class TimeReportService
                     if (!containingWork)
                     {
                         throw new ValidationException(
-                            "X-Pause must be inside a work entry. It cannot start at the beginning " +
-                            "or end at the end of the workday.");
+                            LocalizationService.T("ValidationXPauseInside"));
                     }
 
                     var other = FindOverlap(
@@ -491,7 +489,7 @@ public sealed class TimeReportService
                         [EntryKind.Lunch, EntryKind.Away, EntryKind.XPause]);
                     if (other is not null)
                     {
-                        throw new ValidationException(OverlapMessage("X-Pause", other));
+                        throw new ValidationException(OverlapMessage(EntryKind.XPause, other));
                     }
                     break;
                 }
@@ -503,7 +501,7 @@ public sealed class TimeReportService
         var xpauses = entries.Where(item => item.Kind == EntryKind.XPause).ToList();
         if (xpauses.Sum(item => item.DurationMinutes) > TimeUtil.XPauseWeeklyLimit)
         {
-            throw new ValidationException("X-Pause is limited to 1:00 per week.");
+            throw new ValidationException(LocalizationService.T("ValidationXPauseWeeklySimple"));
         }
 
         foreach (var xpause in xpauses)
@@ -518,15 +516,15 @@ public sealed class TimeReportService
     {
         if (xpause.Date.DayOfWeek is DayOfWeek.Saturday or DayOfWeek.Sunday)
         {
-            throw new ValidationException("X-Pause can only be used Monday to Friday.");
+            throw new ValidationException(LocalizationService.T("ValidationXPauseWeekday"));
         }
         if (xpause.DurationMinutes % TimeUtil.XPauseStep != 0)
         {
-            throw new ValidationException("X-Pause must be entered in 15-minute steps.");
+            throw new ValidationException(LocalizationService.T("ValidationXPauseStep"));
         }
         if (xpause.DurationMinutes > TimeUtil.XPauseWeeklyLimit)
         {
-            throw new ValidationException("X-Pause cannot be longer than 1:00 in one day.");
+            throw new ValidationException(LocalizationService.T("ValidationXPauseDayLimit"));
         }
 
         var sameDay = entries.Where(item => item.Date == xpause.Date).ToList();
@@ -539,9 +537,7 @@ public sealed class TimeReportService
                 item.EndMinute));
         if (!containingWork)
         {
-            throw new ValidationException(
-                $"X-Pause on {TimeUtil.FormatDateLong(xpause.Date)} is no longer inside a work entry. " +
-                "Adjust the X-Pause or the work entry first.");
+            throw new ValidationException(LocalizationService.T("ValidationXPauseOrphan", TimeUtil.FormatDateLong(xpause.Date)));
         }
 
         var other = FindOverlap(
@@ -550,7 +546,7 @@ public sealed class TimeReportService
             [EntryKind.Lunch, EntryKind.Away, EntryKind.XPause]);
         if (other is not null)
         {
-            throw new ValidationException(OverlapMessage("X-Pause", other));
+            throw new ValidationException(OverlapMessage(EntryKind.XPause, other));
         }
     }
 
@@ -571,12 +567,12 @@ public sealed class TimeReportService
         var result = command.ExecuteScalar();
         if (result is null)
         {
-            throw new ValidationException("The selected project no longer exists.");
+            throw new ValidationException(LocalizationService.T("ValidationProjectMissing"));
         }
         var archived = Convert.ToInt32(result, CultureInfo.InvariantCulture) != 0;
         if (archived && (original is null || original.ProjectId != entry.ProjectId))
         {
-            throw new ValidationException("The selected project is archived. Choose an active project.");
+            throw new ValidationException(LocalizationService.T("ValidationProjectArchived"));
         }
     }
 
@@ -600,12 +596,17 @@ public sealed class TimeReportService
         return null;
     }
 
-    private static string OverlapMessage(string candidateLabel, Entry other)
+    private static string OverlapMessage(EntryKind candidateKind, Entry other)
     {
         var detail = other.ProjectName ?? other.AwayReason;
         var suffix = string.IsNullOrWhiteSpace(detail) ? string.Empty : $" · {detail}";
-        return $"This {candidateLabel} entry overlaps {other.Kind.DisplayName().ToLowerInvariant()} time " +
-               $"({TimeUtil.FormatTime(other.StartMinute)}–{TimeUtil.FormatTime(other.EndMinute)}{suffix}).";
+        return LocalizationService.T(
+            "ValidationOverlap",
+            candidateKind.DisplayName().ToLowerInvariant(),
+            other.Kind.DisplayName().ToLowerInvariant(),
+            TimeUtil.FormatTime(other.StartMinute),
+            TimeUtil.FormatTime(other.EndMinute),
+            suffix);
     }
 
     // Totals -------------------------------------------------------------------

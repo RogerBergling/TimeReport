@@ -2,7 +2,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="TimeReport.Views.MainWindow"
         x:CompileBindings="False"
-        Title="TimeReport 2.1.0"
+        Title="TimeReport 2.2.0"
         Width="1180"
         Height="800"
         MinWidth="980"
@@ -10,77 +10,83 @@
         WindowStartupLocation="CenterScreen">
   <Grid RowDefinitions="Auto,Auto,*,Auto">
     <Menu Grid.Row="0">
-      <MenuItem Header="File">
-        <MenuItem Header="Database location…" Click="OnDatabaseLocationClick" />
+      <MenuItem Header="{DynamicResource MenuFile}">
+        <MenuItem Header="{DynamicResource MenuDatabaseLocation}" Click="OnDatabaseLocationClick" />
+        <MenuItem Header="{DynamicResource MenuDropbox}" Click="OnDropboxClick" />
+        <MenuItem Header="{DynamicResource MenuSyncNow}" Click="OnSyncNowClick" />
         <Separator />
-        <MenuItem Header="Backup database…" Click="OnBackupClick" />
-        <MenuItem Header="Restore database…" Click="OnRestoreClick" />
+        <MenuItem Header="{DynamicResource MenuBackup}" Click="OnBackupClick" />
+        <MenuItem Header="{DynamicResource MenuRestore}" Click="OnRestoreClick" />
         <Separator />
-        <MenuItem Header="Exit" Click="OnExitClick" />
+        <MenuItem Header="{DynamicResource MenuExit}" Click="OnExitClick" />
       </MenuItem>
-      <MenuItem Header="Data">
-        <MenuItem Header="Projects…" Click="OnProjectsClick" />
-        <MenuItem Header="Refresh" Click="OnRefreshClick" />
+      <MenuItem Header="{DynamicResource MenuData}">
+        <MenuItem Header="{DynamicResource MenuProjects}" Click="OnProjectsClick" />
+        <MenuItem Header="{DynamicResource MenuRefresh}" Click="OnRefreshClick" />
       </MenuItem>
-      <MenuItem Header="Help">
-        <MenuItem Header="About TimeReport" Click="OnAboutClick" />
+      <MenuItem Header="{DynamicResource MenuHelp}">
+        <MenuItem Header="{DynamicResource MenuAbout}" Click="OnAboutClick" />
       </MenuItem>
     </Menu>
 
     <Grid Grid.Row="1" ColumnDefinitions="*,Auto" Margin="18,12,18,6">
       <StackPanel>
         <TextBlock Text="TimeReport" Classes="h1" />
-        <TextBlock Text="Local time reporting" Classes="muted" Margin="0,2,0,0" />
+        <TextBlock Text="{DynamicResource HeaderSubtitle}" Classes="muted" Margin="0,2,0,0" />
       </StackPanel>
       <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
-        <Button Content="Projects" Click="OnProjectsClick" />
-        <Button Content="Database" Click="OnDatabaseLocationClick" />
-        <Button Content="Backup" Click="OnBackupClick" />
-        <Button Content="Restore" Click="OnRestoreClick" />
-        <Button Content="About" Click="OnAboutClick" />
+        <Button Content="{DynamicResource ButtonProjects}" Click="OnProjectsClick" />
+        <Button Content="{DynamicResource ButtonDatabase}" Click="OnDatabaseLocationClick" />
+        <Button Content="{DynamicResource ButtonDropbox}" Click="OnDropboxClick" />
+        <Button Content="{DynamicResource ButtonSync}" Click="OnSyncNowClick" />
+        <Button Content="{DynamicResource ButtonBackup}" Click="OnBackupClick" />
+        <Button Content="{DynamicResource ButtonRestore}" Click="OnRestoreClick" />
+        <Button Content="{DynamicResource ButtonAbout}" Click="OnAboutClick" />
+        <ComboBox x:Name="LanguageComboBox" Width="110" Margin="6,0,0,0"
+                  SelectionChanged="OnLanguageChanged" />
       </StackPanel>
     </Grid>
 
     <TabControl Grid.Row="2" x:Name="MainTabs" SelectionChanged="OnTabChanged" Margin="18,0,18,0">
-      <TabItem Header="Timesheet">
+      <TabItem Header="{DynamicResource TabTimesheet}">
         <Grid RowDefinitions="Auto,Auto,*" Margin="0,8,0,0">
           <Grid Grid.Row="0" ColumnDefinitions="Auto,Auto,Auto,Auto,*,Auto">
             <Button Grid.Column="0" Content="◀" Classes="icon" Click="OnPreviousWeekClick" />
             <TextBlock Grid.Column="1" Text="{Binding WeekLabel}" Classes="h2"
                        VerticalAlignment="Center" Margin="10,0" />
             <Button Grid.Column="2" Content="▶" Classes="icon" Click="OnNextWeekClick" />
-            <Button Grid.Column="3" Content="This week" Click="OnThisWeekClick" Margin="10,0,0,0" />
-            <Button Grid.Column="5" Content="+ Add entry" Classes="accent" Click="OnAddEntryClick" />
+            <Button Grid.Column="3" Content="{DynamicResource ButtonThisWeek}" Click="OnThisWeekClick" Margin="10,0,0,0" />
+            <Button Grid.Column="5" Content="{DynamicResource ButtonAddEntry}" Classes="accent" Click="OnAddEntryClick" />
           </Grid>
 
           <Grid Grid.Row="1" ColumnDefinitions="*,*,*,*,*" Margin="0,10,0,10">
             <Border Grid.Column="0" Classes="card" Margin="0,0,8,0">
               <StackPanel Spacing="2">
-                <TextBlock Text="Worked" Classes="cardLabel" />
+                <TextBlock Text="{DynamicResource LabelWorked}" Classes="cardLabel" />
                 <TextBlock Text="{Binding WeekWorkedText}" Classes="cardValue" />
               </StackPanel>
             </Border>
             <Border Grid.Column="1" Classes="card" Margin="0,0,8,0">
               <StackPanel Spacing="2">
-                <TextBlock Text="Lunch" Classes="cardLabel" />
+                <TextBlock Text="{DynamicResource LabelLunch}" Classes="cardLabel" />
                 <TextBlock Text="{Binding WeekLunchText}" Classes="cardValue" />
               </StackPanel>
             </Border>
             <Border Grid.Column="2" Classes="card" Margin="0,0,8,0">
               <StackPanel Spacing="2">
-                <TextBlock Text="Away" Classes="cardLabel" />
+                <TextBlock Text="{DynamicResource LabelAway}" Classes="cardLabel" />
                 <TextBlock Text="{Binding WeekAwayText}" Classes="cardValue" />
               </StackPanel>
             </Border>
             <Border Grid.Column="3" Classes="card" Margin="0,0,8,0">
               <StackPanel Spacing="2">
-                <TextBlock Text="X-Pause" Classes="cardLabel" />
+                <TextBlock Text="{DynamicResource LabelXPause}" Classes="cardLabel" />
                 <TextBlock Text="{Binding WeekXPauseText}" Classes="cardValueAccent" />
               </StackPanel>
             </Border>
             <Border Grid.Column="4" Classes="card">
               <StackPanel Spacing="2">
-                <TextBlock Text="Days worked" Classes="cardLabel" />
+                <TextBlock Text="{DynamicResource LabelDaysWorked}" Classes="cardLabel" />
                 <TextBlock Text="{Binding WeekDaysWorkedText}" Classes="cardValue" />
               </StackPanel>
             </Border>
@@ -103,16 +109,16 @@
                             <TextBlock Text="{Binding XPauseText}" Classes="muted" />
                           </StackPanel>
                         </StackPanel>
-                        <Button Grid.Column="1" Content="+ Add" Classes="accent"
+                        <Button Grid.Column="1" Content="{DynamicResource ButtonAdd}" Classes="accent"
                                 Command="{Binding AddCommand}" VerticalAlignment="Top" />
                       </Grid>
 
                       <Grid ColumnDefinitions="90,*,70,70,80,60,60" Margin="0,8,0,0">
-                        <TextBlock Grid.Column="0" Text="Type" Classes="columnHeader" />
-                        <TextBlock Grid.Column="1" Text="Project / reason" Classes="columnHeader" />
-                        <TextBlock Grid.Column="2" Text="Start" Classes="columnHeader" HorizontalAlignment="Center" />
-                        <TextBlock Grid.Column="3" Text="End" Classes="columnHeader" HorizontalAlignment="Center" />
-                        <TextBlock Grid.Column="4" Text="Duration" Classes="columnHeader" HorizontalAlignment="Center" />
+                        <TextBlock Grid.Column="0" Text="{DynamicResource LabelType}" Classes="columnHeader" />
+                        <TextBlock Grid.Column="1" Text="{DynamicResource LabelProjectReason}" Classes="columnHeader" />
+                        <TextBlock Grid.Column="2" Text="{DynamicResource LabelStart}" Classes="columnHeader" HorizontalAlignment="Center" />
+                        <TextBlock Grid.Column="3" Text="{DynamicResource LabelEnd}" Classes="columnHeader" HorizontalAlignment="Center" />
+                        <TextBlock Grid.Column="4" Text="{DynamicResource LabelDuration}" Classes="columnHeader" HorizontalAlignment="Center" />
                       </Grid>
 
                       <ItemsControl ItemsSource="{Binding Entries}">
@@ -125,16 +131,16 @@
                               <TextBlock Grid.Column="2" Text="{Binding StartText}" HorizontalAlignment="Center" />
                               <TextBlock Grid.Column="3" Text="{Binding EndText}" HorizontalAlignment="Center" />
                               <TextBlock Grid.Column="4" Text="{Binding DurationText}" HorizontalAlignment="Center" />
-                              <Button Grid.Column="5" Content="Edit" Classes="link"
+                              <Button Grid.Column="5" Content="{DynamicResource ButtonEdit}" Classes="link"
                                       Command="{Binding EditCommand}" />
-                              <Button Grid.Column="6" Content="Delete" Classes="link danger"
+                              <Button Grid.Column="6" Content="{DynamicResource ButtonDelete}" Classes="link danger"
                                       Command="{Binding DeleteCommand}" />
                             </Grid>
                           </DataTemplate>
                         </ItemsControl.ItemTemplate>
                       </ItemsControl>
 
-                      <TextBlock Text="No entries yet" Classes="muted" IsVisible="{Binding IsEmpty}" />
+                      <TextBlock Text="{DynamicResource EmptyEntries}" Classes="muted" IsVisible="{Binding IsEmpty}" />
                     </StackPanel>
                   </Border>
                 </DataTemplate>
@@ -144,56 +150,56 @@
         </Grid>
       </TabItem>
 
-      <TabItem Header="Totals">
+      <TabItem Header="{DynamicResource TabTotals}">
         <Grid RowDefinitions="Auto,Auto,*" Margin="0,8,0,0">
           <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-            <TextBlock Text="Period" VerticalAlignment="Center" />
-            <ComboBox ItemsSource="{Binding Totals.PeriodKinds}"
-                      SelectedItem="{Binding Totals.SelectedPeriod}" Width="120" />
+            <TextBlock Text="{DynamicResource LabelPeriod}" VerticalAlignment="Center" />
+            <ComboBox ItemsSource="{Binding Totals.PeriodOptions}"
+                      SelectedItem="{Binding Totals.SelectedPeriodOption}" Width="120" />
             <Button Content="◀" Classes="icon" Command="{Binding Totals.PreviousCommand}"
                     IsEnabled="{Binding Totals.CanNavigate}" />
             <TextBlock Text="{Binding Totals.PeriodLabel}" Classes="h2" VerticalAlignment="Center"
                        MinWidth="280" />
             <Button Content="▶" Classes="icon" Command="{Binding Totals.NextCommand}"
                     IsEnabled="{Binding Totals.CanNavigate}" />
-            <Button Content="Current" Command="{Binding Totals.CurrentCommand}"
+            <Button Content="{DynamicResource ButtonCurrent}" Command="{Binding Totals.CurrentCommand}"
                     IsEnabled="{Binding Totals.CanNavigate}" />
           </StackPanel>
 
           <Grid Grid.Row="1" ColumnDefinitions="*,*,*,*,*,*" Margin="0,10,0,10">
             <Border Grid.Column="0" Classes="card" Margin="0,0,8,0">
               <StackPanel Spacing="2">
-                <TextBlock Text="Worked" Classes="cardLabel" />
+                <TextBlock Text="{DynamicResource LabelWorked}" Classes="cardLabel" />
                 <TextBlock Text="{Binding Totals.WorkedText}" Classes="cardValue" />
               </StackPanel>
             </Border>
             <Border Grid.Column="1" Classes="card" Margin="0,0,8,0">
               <StackPanel Spacing="2">
-                <TextBlock Text="Lunch" Classes="cardLabel" />
+                <TextBlock Text="{DynamicResource LabelLunch}" Classes="cardLabel" />
                 <TextBlock Text="{Binding Totals.LunchText}" Classes="cardValue" />
               </StackPanel>
             </Border>
             <Border Grid.Column="2" Classes="card" Margin="0,0,8,0">
               <StackPanel Spacing="2">
-                <TextBlock Text="Away" Classes="cardLabel" />
+                <TextBlock Text="{DynamicResource LabelAway}" Classes="cardLabel" />
                 <TextBlock Text="{Binding Totals.AwayText}" Classes="cardValue" />
               </StackPanel>
             </Border>
             <Border Grid.Column="3" Classes="card" Margin="0,0,8,0">
               <StackPanel Spacing="2">
-                <TextBlock Text="X-Pause" Classes="cardLabel" />
+                <TextBlock Text="{DynamicResource LabelXPause}" Classes="cardLabel" />
                 <TextBlock Text="{Binding Totals.XPauseText}" Classes="cardValueAccent" />
               </StackPanel>
             </Border>
             <Border Grid.Column="4" Classes="card" Margin="0,0,8,0">
               <StackPanel Spacing="2">
-                <TextBlock Text="Days worked" Classes="cardLabel" />
+                <TextBlock Text="{DynamicResource LabelDaysWorked}" Classes="cardLabel" />
                 <TextBlock Text="{Binding Totals.DaysWorkedText}" Classes="cardValue" />
               </StackPanel>
             </Border>
             <Border Grid.Column="5" Classes="card">
               <StackPanel Spacing="2">
-                <TextBlock Text="Days away" Classes="cardLabel" />
+                <TextBlock Text="{DynamicResource LabelDaysAway}" Classes="cardLabel" />
                 <TextBlock Text="{Binding Totals.DaysAwayText}" Classes="cardValue" />
               </StackPanel>
             </Border>
@@ -203,13 +209,13 @@
                         HorizontalScrollBarVisibility="Disabled">
             <StackPanel>
               <Grid ColumnDefinitions="2*,*,*,*,*,*,*" Margin="0,0,0,6">
-                <TextBlock Grid.Column="0" Text="Period" Classes="columnHeader" />
-                <TextBlock Grid.Column="1" Text="Worked" Classes="columnHeader" HorizontalAlignment="Center" />
-                <TextBlock Grid.Column="2" Text="Lunch" Classes="columnHeader" HorizontalAlignment="Center" />
-                <TextBlock Grid.Column="3" Text="Away" Classes="columnHeader" HorizontalAlignment="Center" />
-                <TextBlock Grid.Column="4" Text="X-Pause" Classes="columnHeader" HorizontalAlignment="Center" />
-                <TextBlock Grid.Column="5" Text="Days worked" Classes="columnHeader" HorizontalAlignment="Center" />
-                <TextBlock Grid.Column="6" Text="Days away" Classes="columnHeader" HorizontalAlignment="Center" />
+                <TextBlock Grid.Column="0" Text="{DynamicResource LabelPeriod}" Classes="columnHeader" />
+                <TextBlock Grid.Column="1" Text="{DynamicResource LabelWorked}" Classes="columnHeader" HorizontalAlignment="Center" />
+                <TextBlock Grid.Column="2" Text="{DynamicResource LabelLunch}" Classes="columnHeader" HorizontalAlignment="Center" />
+                <TextBlock Grid.Column="3" Text="{DynamicResource LabelAway}" Classes="columnHeader" HorizontalAlignment="Center" />
+                <TextBlock Grid.Column="4" Text="{DynamicResource LabelXPause}" Classes="columnHeader" HorizontalAlignment="Center" />
+                <TextBlock Grid.Column="5" Text="{DynamicResource LabelDaysWorked}" Classes="columnHeader" HorizontalAlignment="Center" />
+                <TextBlock Grid.Column="6" Text="{DynamicResource LabelDaysAway}" Classes="columnHeader" HorizontalAlignment="Center" />
               </Grid>
               <ItemsControl ItemsSource="{Binding Totals.Rows}">
                 <ItemsControl.ItemTemplate>
@@ -233,12 +239,14 @@
     </TabControl>
 
     <Border Grid.Row="3" Padding="18,0,18,10">
-      <Grid ColumnDefinitions="*,Auto">
+      <Grid ColumnDefinitions="*,Auto,Auto">
         <StackPanel Orientation="Horizontal" Spacing="4">
-          <TextBlock Text="Database:" Classes="muted" FontSize="11" />
+          <TextBlock Text="{DynamicResource StatusDatabase}" Classes="muted" FontSize="11" />
           <TextBlock Text="{Binding DatabasePath}" Classes="muted" FontSize="11" />
         </StackPanel>
-        <TextBlock Grid.Column="1" Text="All data stays on this computer"
+        <TextBlock Grid.Column="1" x:Name="DropboxStatusText" Classes="muted" FontSize="11"
+                   Margin="0,0,18,0" />
+        <TextBlock Grid.Column="2" Text="{DynamicResource StatusLocalOnly}"
                    Classes="muted" FontSize="11" />
       </Grid>
     </Border>

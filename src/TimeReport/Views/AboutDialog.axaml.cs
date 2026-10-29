@@ -17,11 +17,13 @@ public partial class AboutDialog : Window
     public AboutDialog(TimeReportService service, string dataDir, string settingsPath) : this()
     {
         _dataDir = dataDir;
-        VersionText.Text = $"Version {AppInfo.Version}";
+        VersionText.Text = $"{LocalizationService.T("VersionLabel")} {AppInfo.Version}";
         DatabaseText.Text = service.Database.Path;
         DataFolderText.Text = dataDir;
         SettingsText.Text = settingsPath;
-        SchemaText.Text = $"Schema version: {service.Database.SchemaVersionNumber}";
+        SchemaText.Text = LocalizationService.T(
+            "AboutSchemaVersion",
+            service.Database.SchemaVersionNumber);
     }
 
     private async void OnOpenDataFolderClick(object? sender, RoutedEventArgs e)
@@ -39,7 +41,11 @@ public partial class AboutDialog : Window
         }
         catch (Exception exception)
         {
-            await MessageDialog.ShowAsync(this, "Cannot open data folder", exception.Message, false);
+            await MessageDialog.ShowAsync(
+                this,
+                LocalizationService.T("MessageCannotOpenDataFolder"),
+                exception.Message,
+                false);
         }
     }
 

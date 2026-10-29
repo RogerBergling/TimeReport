@@ -11,6 +11,24 @@ public sealed class AppSettings
 
     public string? DatabasePath { get; set; }
 
+    public string? Language { get; set; }
+
+    public string? DropboxAppKey { get; set; }
+
+    public string? DropboxAppSecret { get; set; }
+
+    public string? DropboxRefreshToken { get; set; }
+
+    public string? DropboxAccessToken { get; set; }
+
+    public DateTimeOffset? DropboxAccessTokenExpiresUtc { get; set; }
+
+    public string? DropboxRemotePath { get; set; }
+
+    public bool DropboxAutoSync { get; set; }
+
+    public DateTimeOffset? DropboxLastSyncUtc { get; set; }
+
     public static AppSettings Load(string path)
     {
         try
@@ -36,5 +54,18 @@ public sealed class AppSettings
             Directory.CreateDirectory(directory);
         }
         File.WriteAllText(path, JsonSerializer.Serialize(this, JsonOptions));
+        if (!OperatingSystem.IsWindows())
+        {
+            try
+            {
+                File.SetUnixFileMode(path, UnixFileMode.UserRead | UnixFileMode.UserWrite);
+            }
+            catch (IOException)
+            {
+            }
+            catch (UnauthorizedAccessException)
+            {
+            }
+        }
     }
 }

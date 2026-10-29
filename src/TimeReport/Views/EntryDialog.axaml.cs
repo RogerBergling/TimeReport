@@ -21,7 +21,7 @@ public partial class EntryDialog : Window
     {
         _service = service;
         _entry = entry;
-        Title = entry is null ? "Add entry" : "Edit entry";
+        Title = LocalizationService.T(entry is null ? "EntryDialogAddTitle" : "EntryDialogEditTitle");
         TypeComboBox.ItemsSource = Enum.GetValues<EntryKind>()
             .Select(kind => new EntryKindOption(kind, kind.DisplayName()))
             .ToList();
@@ -91,13 +91,10 @@ public partial class EntryDialog : Window
         AwayRow.IsVisible = kind == EntryKind.Away;
         InfoText.Text = kind switch
         {
-            EntryKind.Work =>
-                "Work time is counted. Lunch that overlaps work is deducted; X-Pause is tracked separately.",
-            EntryKind.Lunch => "Lunch is deducted from work time when it overlaps a work entry.",
-            EntryKind.Away => "Away time is tracked separately and is not counted as work.",
-            EntryKind.XPause =>
-                "X-Pause is a separate weekly benefit. It must be inside work hours, " +
-                "in 15-minute steps, max 1:00 per week, and is not deducted from worked time.",
+            EntryKind.Work => LocalizationService.T("EntryDialogInfoWork"),
+            EntryKind.Lunch => LocalizationService.T("EntryDialogInfoLunch"),
+            EntryKind.Away => LocalizationService.T("EntryDialogInfoAway"),
+            EntryKind.XPause => LocalizationService.T("EntryDialogInfoXPause"),
             _ => string.Empty,
         };
         UpdateXPauseHint();
@@ -123,18 +120,20 @@ public partial class EntryDialog : Window
         }
         catch (ValidationException)
         {
-            XPauseHintText.Text = "Enter a valid date to see the weekly X-Pause balance.";
+            XPauseHintText.Text = LocalizationService.T("EntryDialogInvalidDate");
             return;
         }
 
         var remaining = _service.XPauseRemaining(day, _entry?.Id);
         var used = TimeUtil.XPauseWeeklyLimit - remaining;
         var weekdayNote = day.DayOfWeek is DayOfWeek.Saturday or DayOfWeek.Sunday
-            ? " X-Pause is only available Monday–Friday."
+            ? LocalizationService.T("EntryDialogXPauseWeekdayNote")
             : string.Empty;
-        XPauseHintText.Text =
-            $"X-Pause this week: {TimeUtil.FormatDuration(used)} used of 1:00, " +
-            $"{TimeUtil.FormatDuration(remaining)} remaining.{weekdayNote}";
+        XPauseHintText.Text = LocalizationService.T(
+            "EntryDialogXPauseHint",
+            TimeUtil.FormatDuration(used),
+            TimeUtil.FormatDuration(remaining),
+            weekdayNote);
     }
 
     private async void OnNewProjectClick(object? sender, RoutedEventArgs e)
@@ -144,7 +143,10 @@ public partial class EntryDialog : Window
             return;
         }
 
-        var name = await TextInputDialog.ShowAsync(this, "New project", "Project name:");
+        var name = await TextInputDialog.ShowAsync(
+            this,
+            LocalizationService.T("NewProjectTitle"),
+            LocalizationService.T("ProjectNamePrompt"));
         if (string.IsNullOrWhiteSpace(name))
         {
             return;
@@ -158,7 +160,11 @@ public partial class EntryDialog : Window
         }
         catch (ValidationException exception)
         {
-            await MessageDialog.ShowAsync(this, "Cannot create project", exception.Message, false);
+            await MessageDialog.ShowAsync(
+                this,
+                LocalizationService.T("MessageCannotCreateProject"),
+                exception.Message,
+                false);
         }
     }
 
@@ -183,7 +189,7 @@ public partial class EntryDialog : Window
                 if (ProjectComboBox.SelectedItem is not Project project)
                 {
                     throw new ValidationException(
-                        "Choose a project. Use “New…” to create one if needed.");
+                        LocalizationService.T("EntryDialogChooseProject"));
                 }
                 projectId = project.Id;
             }
@@ -205,11 +211,19 @@ public partial class EntryDialog : Window
         }
         catch (ValidationException exception)
         {
-            await MessageDialog.ShowAsync(this, "Cannot save entry", exception.Message, false);
+            await MessageDialog.ShowAsync(
+                this,
+                LocalizationService.T("MessageCannotSaveEntry"),
+                exception.Message,
+                false);
         }
         catch (DatabaseException exception)
         {
-            await MessageDialog.ShowAsync(this, "Cannot save entry", exception.Message, false);
+            await MessageDialog.ShowAsync(
+                this,
+                LocalizationService.T("MessageCannotSaveEntry"),
+                exception.Message,
+                false);
         }
     }
 

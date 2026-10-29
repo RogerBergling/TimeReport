@@ -165,11 +165,32 @@ public sealed class AppSessionTests
         try
         {
             var path = Path.Combine(root, "settings.json");
-            var settings = new AppSettings { DatabasePath = Path.Combine(root, "custom.db") };
+            var settings = new AppSettings
+            {
+                DatabasePath = Path.Combine(root, "custom.db"),
+                Language = "sv",
+                DropboxAppKey = "app-key",
+                DropboxAppSecret = "app-secret",
+                DropboxRefreshToken = "refresh-token",
+                DropboxAccessToken = "token",
+                DropboxAccessTokenExpiresUtc = new DateTimeOffset(2026, 10, 29, 13, 0, 0, TimeSpan.Zero),
+                DropboxRemotePath = "/TimeReport/timereport.db",
+                DropboxAutoSync = true,
+                DropboxLastSyncUtc = new DateTimeOffset(2026, 10, 29, 12, 0, 0, TimeSpan.Zero),
+            };
             settings.Save(path);
 
             var loaded = AppSettings.Load(path);
             Assert.Equal(settings.DatabasePath, loaded.DatabasePath);
+            Assert.Equal(settings.Language, loaded.Language);
+            Assert.Equal(settings.DropboxAppKey, loaded.DropboxAppKey);
+            Assert.Equal(settings.DropboxAppSecret, loaded.DropboxAppSecret);
+            Assert.Equal(settings.DropboxRefreshToken, loaded.DropboxRefreshToken);
+            Assert.Equal(settings.DropboxAccessToken, loaded.DropboxAccessToken);
+            Assert.Equal(settings.DropboxAccessTokenExpiresUtc, loaded.DropboxAccessTokenExpiresUtc);
+            Assert.Equal(settings.DropboxRemotePath, loaded.DropboxRemotePath);
+            Assert.Equal(settings.DropboxAutoSync, loaded.DropboxAutoSync);
+            Assert.Equal(settings.DropboxLastSyncUtc, loaded.DropboxLastSyncUtc);
         }
         finally
         {

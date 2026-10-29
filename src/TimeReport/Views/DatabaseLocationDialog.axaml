@@ -2,7 +2,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="TimeReport.Views.DatabaseLocationDialog"
         x:CompileBindings="False"
-        Title="Database location"
+        Title="{DynamicResource DatabaseLocationTitle}"
         Width="660"
         SizeToContent="Height"
         CanResize="False"
@@ -10,28 +10,28 @@
         ShowInTaskbar="False">
   <Border Padding="20">
     <StackPanel Spacing="10">
-      <TextBlock Text="Database location" Classes="h2" />
+      <TextBlock Text="{DynamicResource DatabaseLocationTitle}" Classes="h2" />
 
-      <TextBlock Text="Current database" Classes="h3" Margin="0,6,0,0" />
+      <TextBlock Text="{DynamicResource CurrentDatabase}" Classes="h3" Margin="0,6,0,0" />
       <TextBlock x:Name="CurrentPathText" Classes="muted" TextWrapping="Wrap" />
 
-      <TextBlock Text="New database file" Classes="h3" Margin="0,8,0,0" />
+      <TextBlock Text="{DynamicResource NewDatabaseFile}" Classes="h3" Margin="0,8,0,0" />
       <Grid ColumnDefinitions="*,Auto">
         <TextBox x:Name="PathTextBox" TextChanged="OnPathChanged" />
-        <Button Grid.Column="1" Content="Browse folder…" Click="OnBrowseClick" Margin="8,0,0,0" />
+        <Button Grid.Column="1" Content="{DynamicResource ButtonBrowseFolder}" Click="OnBrowseClick" Margin="8,0,0,0" />
       </Grid>
 
       <TextBlock x:Name="StatusText" Classes="muted" TextWrapping="Wrap" />
       <CheckBox x:Name="CopyCurrentCheckBox"
-                Content="Copy the current database to the new location"
+                Content="{DynamicResource CopyCurrentDatabase}"
                 IsChecked="True" />
-      <TextBlock Text="If the selected file already exists, it will be opened instead of overwritten. The current database file is left untouched."
+      <TextBlock Text="{DynamicResource DatabaseLocationInfo}"
                  Classes="muted" TextWrapping="Wrap" />
 
       <Grid ColumnDefinitions="Auto,*,Auto,Auto" Margin="0,12,0,0">
-        <Button Grid.Column="0" Content="Use default" Click="OnUseDefaultClick" />
-        <Button Grid.Column="2" Content="Cancel" Click="OnCancelClick" Margin="0,0,8,0" />
-        <Button Grid.Column="3" x:Name="SaveButton" Content="Save" Classes="accent"
+        <Button Grid.Column="0" Content="{DynamicResource ButtonUseDefault}" Click="OnUseDefaultClick" />
+        <Button Grid.Column="2" Content="{DynamicResource ButtonCancel}" Click="OnCancelClick" Margin="0,0,8,0" />
+        <Button Grid.Column="3" x:Name="SaveButton" Content="{DynamicResource ButtonSave}" Classes="accent"
                 Click="OnSaveClick" />
       </Grid>
     </StackPanel>

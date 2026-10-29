@@ -27,6 +27,7 @@ public partial class App : Application
         try
         {
             session = new AppSession(AppOptions.DatabasePath, AppOptions.DataDir);
+            LocalizationService.SetLanguage(session.Settings.Language);
             desktop.MainWindow = new MainWindow(session);
             desktop.Exit += (_, _) => session.Dispose();
         }

@@ -9,22 +9,6 @@ public static class TimeUtil
     public const int XPauseWeeklyLimit = 60;
     public const int XPauseStep = 15;
 
-    public static readonly string[] WeekdayNames =
-    [
-        "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday",
-    ];
-
-    public static readonly string[] WeekdayShort =
-    [
-        "Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat",
-    ];
-
-    public static readonly string[] MonthNames =
-    [
-        "January", "February", "March", "April", "May", "June",
-        "July", "August", "September", "October", "November", "December",
-    ];
-
     private static readonly Regex TimeRegex = new(@"^(\d{1,2}):(\d{2})$", RegexOptions.Compiled);
 
     public static int ParseTime(string value, bool allowEndOfDay = true)
@@ -33,7 +17,7 @@ public static class TimeUtil
         var match = TimeRegex.Match(text);
         if (!match.Success)
         {
-            throw new ValidationException("Enter a time as HH:MM using the 24-hour clock.");
+            throw new ValidationException(LocalizationService.T("TimeParse"));
         }
 
         var hour = int.Parse(match.Groups[1].Value, CultureInfo.InvariantCulture);
@@ -43,14 +27,14 @@ public static class TimeUtil
         {
             if (!allowEndOfDay)
             {
-                throw new ValidationException("24:00 can only be used as an end time.");
+                throw new ValidationException(LocalizationService.T("TimeEndOfDay"));
             }
             return MinutesPerDay;
         }
 
         if (hour > 23 || minute > 59)
         {
-            throw new ValidationException("Enter a time as HH:MM using the 24-hour clock.");
+            throw new ValidationException(LocalizationService.T("TimeParse"));
         }
 
         return hour * 60 + minute;
@@ -64,7 +48,7 @@ public static class TimeUtil
         }
         if (minutes is < 0 or > MinutesPerDay)
         {
-            throw new ValidationException("Time must be between 00:00 and 24:00.");
+            throw new ValidationException(LocalizationService.T("TimeRange"));
         }
         return $"{minutes / 60:00}:{minutes % 60:00}";
     }
@@ -73,7 +57,7 @@ public static class TimeUtil
     {
         if (minutes < 0)
         {
-            throw new ValidationException("Duration cannot be negative.");
+            throw new ValidationException(LocalizationService.T("DurationNegative"));
         }
         return $"{minutes / 60}:{minutes % 60:00}";
     }
@@ -87,7 +71,7 @@ public static class TimeUtil
                 DateTimeStyles.None,
                 out var day))
         {
-            throw new ValidationException("Enter a date as YYYY-MM-DD.");
+            throw new ValidationException(LocalizationService.T("DateParse"));
         }
         return day;
     }
@@ -122,15 +106,15 @@ public static class TimeUtil
     }
 
     public static string FormatDateLong(DateOnly day) =>
-        $"{WeekdayNames[(int)day.DayOfWeek]} {day.Day} {MonthNames[day.Month - 1]} {day.Year}";
+        $"{LocalizationService.WeekdayNames[(int)day.DayOfWeek]} {day.Day} {LocalizationService.MonthNames[day.Month - 1]} {day.Year}";
 
     public static string FormatDayShort(DateOnly day) =>
-        $"{WeekdayShort[(int)day.DayOfWeek]} {day.Day} {MonthNames[day.Month - 1][..3]}";
+        $"{LocalizationService.WeekdayShort[(int)day.DayOfWeek]} {day.Day} {LocalizationService.MonthNames[day.Month - 1][..3]}";
 
-    public static string FormatMonthName(DateOnly day) => MonthNames[day.Month - 1];
+    public static string FormatMonthName(DateOnly day) => LocalizationService.MonthNames[day.Month - 1];
 
     public static string FormatWeekRange(DateOnly start, DateOnly end) =>
-        $"{start.Day} {MonthNames[start.Month - 1][..3]} – {end.Day} {MonthNames[end.Month - 1][..3]} {end.Year}";
+        $"{start.Day} {LocalizationService.MonthNames[start.Month - 1][..3]} – {end.Day} {LocalizationService.MonthNames[end.Month - 1][..3]} {end.Year}";
 
     public static List<(int Start, int End)> MergeIntervals(IEnumerable<(int Start, int End)> intervals)
     {

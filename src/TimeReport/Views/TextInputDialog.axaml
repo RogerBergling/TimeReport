@@ -13,8 +13,8 @@
       <TextBlock x:Name="PromptText" TextWrapping="Wrap" />
       <TextBox x:Name="InputTextBox" />
       <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
-        <Button Content="Cancel" Click="OnCancelClick" />
-        <Button Content="OK" Classes="accent" Click="OnOkClick" />
+        <Button Content="{DynamicResource ButtonCancel}" Click="OnCancelClick" />
+        <Button Content="{DynamicResource MessageOK}" Classes="accent" Click="OnOkClick" />
       </StackPanel>
     </StackPanel>
   </Border>

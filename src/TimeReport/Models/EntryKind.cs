@@ -1,3 +1,5 @@
+using TimeReport.Services;
+
 namespace TimeReport.Models;
 
 public enum EntryKind
@@ -28,12 +30,12 @@ public static class EntryKindExtensions
         _ => throw new ArgumentOutOfRangeException(nameof(value), value, "Unknown entry kind."),
     };
 
-    public static string DisplayName(this EntryKind kind) => kind switch
+    public static string DisplayName(this EntryKind kind) => LocalizationService.T(kind switch
     {
-        EntryKind.Work => "Work",
-        EntryKind.Lunch => "Lunch",
-        EntryKind.Away => "Away",
-        EntryKind.XPause => "X-Pause",
+        EntryKind.Work => "EntryKindWork",
+        EntryKind.Lunch => "EntryKindLunch",
+        EntryKind.Away => "EntryKindAway",
+        EntryKind.XPause => "EntryKindXPause",
         _ => throw new ArgumentOutOfRangeException(nameof(kind)),
-    };
+    });
 }

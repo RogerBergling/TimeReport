@@ -10,7 +10,7 @@ public sealed class TotalsViewModel : ViewModelBase
 {
     private readonly TimeReportService _service;
     private DateOnly _anchor = DateOnly.FromDateTime(DateTime.Today);
-    private string _selectedPeriod = "Week";
+    private string _periodCode = "Week";
     private bool _canNavigate = true;
 
     public TotalsViewModel(TimeReportService service)
@@ -19,22 +19,28 @@ public sealed class TotalsViewModel : ViewModelBase
         PreviousCommand = new RelayCommand(() => Move(-1));
         NextCommand = new RelayCommand(() => Move(1));
         CurrentCommand = new RelayCommand(Current);
+        RefreshPeriodOptions();
         Refresh();
     }
 
-    public IReadOnlyList<string> PeriodKinds { get; } = ["Week", "Month", "Year", "All time"];
+    public ObservableCollection<PeriodOption> PeriodOptions { get; } = [];
 
-    public string SelectedPeriod
+    public PeriodOption? SelectedPeriodOption
     {
-        get => _selectedPeriod;
+        get => PeriodOptions.FirstOrDefault(option => option.Code == _periodCode);
         set
         {
-            if (SetProperty(ref _selectedPeriod, value))
+            if (value is null || value.Code == _periodCode)
             {
-                Refresh();
+                return;
             }
+            _periodCode = value.Code;
+            OnPropertyChanged();
+            Refresh();
         }
     }
+
+    public string SelectedPeriod => _periodCode;
 
     public string PeriodLabel { get; private set; } = string.Empty;
 
@@ -70,14 +76,19 @@ public sealed class TotalsViewModel : ViewModelBase
         Refresh();
     }
 
+    public void RefreshLocalization()
+    {
+        RefreshPeriodOptions();
+        Refresh();
+    }
+
     public void Refresh()
     {
         var today = DateOnly.FromDateTime(DateTime.Today);
         var rows = new List<TotalsRowViewModel>();
         var totals = new Totals();
-        var period = SelectedPeriod;
 
-        switch (period)
+        switch (_periodCode)
         {
             case "Month":
                 {
@@ -89,7 +100,7 @@ public sealed class TotalsViewModel : ViewModelBase
                         var label = TimeUtil.FormatDayShort(day);
                         if (day == today)
                         {
-                            label += " · Today";
+                            label += $" · {LocalizationService.T("LabelToday")}";
                         }
                         rows.Add(new TotalsRowViewModel(label, dayTotals));
                     }
@@ -111,18 +122,19 @@ public sealed class TotalsViewModel : ViewModelBase
             case "All time":
                 {
                     CanNavigate = false;
+                    var allTime = LocalizationService.T("PeriodAllTime");
                     var bounds = _service.AllTimeBounds();
                     if (bounds is null)
                     {
-                        PeriodLabel = "All time";
+                        PeriodLabel = allTime;
                         totals = new Totals();
                     }
                     else
                     {
                         var (start, end) = bounds.Value;
                         PeriodLabel = start.Year == end.Year
-                            ? $"All time · {start.Year}"
-                            : $"All time · {start.Year}–{end.Year}";
+                            ? $"{allTime} · {start.Year}"
+                            : $"{allTime} · {start.Year}–{end.Year}";
                         foreach (var (yearStart, yearTotals) in _service.TotalsByYear(start.Year, end.Year))
                         {
                             rows.Add(new TotalsRowViewModel(yearStart.Year.ToString(), yearTotals));
@@ -136,13 +148,15 @@ public sealed class TotalsViewModel : ViewModelBase
                     CanNavigate = true;
                     var start = TimeUtil.WeekStart(_anchor);
                     var end = start.AddDays(6);
-                    PeriodLabel = $"Week {TimeUtil.WeekNumber(start)} · {TimeUtil.FormatWeekRange(start, end)}";
+                    PeriodLabel =
+                        $"{LocalizationService.T("LabelWeekPrefix")} {TimeUtil.WeekNumber(start)} · " +
+                        TimeUtil.FormatWeekRange(start, end);
                     foreach (var (day, dayTotals) in _service.TotalsByDay(start, end))
                     {
                         var label = TimeUtil.FormatDayShort(day);
                         if (day == today)
                         {
-                            label += " · Today";
+                            label += $" · {LocalizationService.T("LabelToday")}";
                         }
                         rows.Add(new TotalsRowViewModel(label, dayTotals));
                     }
@@ -161,7 +175,7 @@ public sealed class TotalsViewModel : ViewModelBase
         Rows.Clear();
         if (rows.Count == 0)
         {
-            Rows.Add(new TotalsRowViewModel("No entries yet", new Totals()));
+            Rows.Add(new TotalsRowViewModel(LocalizationService.T("EmptyEntries"), new Totals()));
         }
         else
         {
@@ -179,6 +193,19 @@ public sealed class TotalsViewModel : ViewModelBase
         OnPropertyChanged(nameof(DaysWorkedText));
         OnPropertyChanged(nameof(DaysAwayText));
         OnPropertyChanged(nameof(CanNavigate));
+        OnPropertyChanged(nameof(SelectedPeriodOption));
+    }
+
+    private void RefreshPeriodOptions()
+    {
+        var current = _periodCode;
+        PeriodOptions.Clear();
+        PeriodOptions.Add(new PeriodOption("Week", LocalizationService.T("PeriodWeek")));
+        PeriodOptions.Add(new PeriodOption("Month", LocalizationService.T("PeriodMonth")));
+        PeriodOptions.Add(new PeriodOption("Year", LocalizationService.T("PeriodYear")));
+        PeriodOptions.Add(new PeriodOption("All time", LocalizationService.T("PeriodAllTime")));
+        _periodCode = current;
+        OnPropertyChanged(nameof(SelectedPeriodOption));
     }
 
     private void Move(int direction)
@@ -188,7 +215,7 @@ public sealed class TotalsViewModel : ViewModelBase
             return;
         }
 
-        switch (SelectedPeriod)
+        switch (_periodCode)
         {
             case "Month":
                 {
@@ -211,6 +238,11 @@ public sealed class TotalsViewModel : ViewModelBase
         _anchor = DateOnly.FromDateTime(DateTime.Today);
         Refresh();
     }
+}
+
+public sealed record PeriodOption(string Code, string DisplayName)
+{
+    public override string ToString() => DisplayName;
 }
 
 public sealed class TotalsRowViewModel

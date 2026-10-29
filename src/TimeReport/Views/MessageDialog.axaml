@@ -12,8 +12,8 @@
     <StackPanel Spacing="16">
       <TextBlock x:Name="MessageText" TextWrapping="Wrap" />
       <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
-        <Button x:Name="CancelButton" Content="Cancel" Click="OnCancelClick" />
-        <Button Content="OK" Classes="accent" Click="OnOkClick" />
+        <Button x:Name="CancelButton" Content="{DynamicResource MessageCancel}" Click="OnCancelClick" />
+        <Button Content="{DynamicResource MessageOK}" Classes="accent" Click="OnOkClick" />
       </StackPanel>
     </StackPanel>
   </Border>

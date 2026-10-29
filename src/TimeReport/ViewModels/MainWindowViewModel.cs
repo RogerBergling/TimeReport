@@ -25,7 +25,7 @@ public sealed class MainWindowViewModel : ViewModelBase
     public string DatabasePath => _service.Database.Path;
 
     public string WeekLabel =>
-        $"Week {TimeUtil.WeekNumber(_currentWeekStart)} · " +
+        $"{LocalizationService.T("LabelWeekPrefix")} {TimeUtil.WeekNumber(_currentWeekStart)} · " +
         TimeUtil.FormatWeekRange(_currentWeekStart, _currentWeekStart.AddDays(6));
 
     public string WeekWorkedText { get; private set; } = "0:00";
@@ -128,13 +128,13 @@ public sealed class DayCardViewModel : ViewModelBase
         Title = TimeUtil.FormatDateLong(day);
         if (day == DateOnly.FromDateTime(DateTime.Today))
         {
-            Title += " · Today";
+            Title += $" · {LocalizationService.T("LabelToday")}";
         }
 
-        WorkedText = $"Worked {TimeUtil.FormatDuration(totals.WorkedMinutes)}";
-        LunchText = $"Lunch {TimeUtil.FormatDuration(totals.LunchMinutes)}";
-        AwayText = $"Away {TimeUtil.FormatDuration(totals.AwayMinutes)}";
-        XPauseText = $"X-Pause {TimeUtil.FormatDuration(totals.XPauseMinutes)}";
+        WorkedText = $"{LocalizationService.T("LabelWorked")} {TimeUtil.FormatDuration(totals.WorkedMinutes)}";
+        LunchText = $"{LocalizationService.T("LabelLunch")} {TimeUtil.FormatDuration(totals.LunchMinutes)}";
+        AwayText = $"{LocalizationService.T("LabelAway")} {TimeUtil.FormatDuration(totals.AwayMinutes)}";
+        XPauseText = $"{LocalizationService.T("LabelXPause")} {TimeUtil.FormatDuration(totals.XPauseMinutes)}";
         Entries = new ObservableCollection<EntryRowViewModel>(
             entries.Select(entry => new EntryRowViewModel(entry, onEdit, onDelete)));
         IsEmpty = Entries.Count == 0;

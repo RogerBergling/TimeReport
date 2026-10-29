@@ -31,7 +31,9 @@ public partial class ProjectsDialog : Window
         var rows = _service.ListProjects(includeArchived: true)
             .Select(project => new ProjectRow(
                 project,
-                project.Archived ? "Archived" : "Active",
+                project.Archived
+                    ? LocalizationService.T("ProjectStatusArchived")
+                    : LocalizationService.T("ProjectStatusActive"),
                 _service.ProjectEntryCount(project.Id)))
             .ToList();
         ProjectsList.ItemsSource = rows;
@@ -57,7 +59,9 @@ public partial class ProjectsDialog : Window
         {
             return;
         }
-        ArchiveButton.Content = SelectedRow?.Project.Archived == true ? "Unarchive" : "Archive";
+        ArchiveButton.Content = SelectedRow?.Project.Archived == true
+            ? LocalizationService.T("ButtonUnarchive")
+            : LocalizationService.T("ButtonArchive");
     }
 
     private async void OnAddClick(object? sender, RoutedEventArgs e)
@@ -67,7 +71,10 @@ public partial class ProjectsDialog : Window
             return;
         }
 
-        var name = await TextInputDialog.ShowAsync(this, "New project", "Project name:");
+        var name = await TextInputDialog.ShowAsync(
+            this,
+            LocalizationService.T("NewProjectTitle"),
+            LocalizationService.T("ProjectNamePrompt"));
         if (string.IsNullOrWhiteSpace(name))
         {
             return;
@@ -80,7 +87,11 @@ public partial class ProjectsDialog : Window
         }
         catch (ValidationException exception)
         {
-            await MessageDialog.ShowAsync(this, "Cannot create project", exception.Message, false);
+            await MessageDialog.ShowAsync(
+                this,
+                LocalizationService.T("MessageCannotCreateProject"),
+                exception.Message,
+                false);
         }
     }
 
@@ -93,8 +104,8 @@ public partial class ProjectsDialog : Window
 
         var name = await TextInputDialog.ShowAsync(
             this,
-            "Rename project",
-            "Project name:",
+            LocalizationService.T("RenameProjectTitle"),
+            LocalizationService.T("ProjectNamePrompt"),
             row.Project.Name);
         if (string.IsNullOrWhiteSpace(name))
         {
@@ -108,7 +119,11 @@ public partial class ProjectsDialog : Window
         }
         catch (ValidationException exception)
         {
-            await MessageDialog.ShowAsync(this, "Cannot rename project", exception.Message, false);
+            await MessageDialog.ShowAsync(
+                this,
+                LocalizationService.T("MessageCannotRenameProject"),
+                exception.Message,
+                false);
         }
     }
 
@@ -126,7 +141,11 @@ public partial class ProjectsDialog : Window
         }
         catch (ValidationException exception)
         {
-            await MessageDialog.ShowAsync(this, "Cannot change project", exception.Message, false);
+            await MessageDialog.ShowAsync(
+                this,
+                LocalizationService.T("MessageCannotChangeProject"),
+                exception.Message,
+                false);
         }
     }
 
@@ -139,8 +158,8 @@ public partial class ProjectsDialog : Window
 
         if (!await MessageDialog.ShowAsync(
                 this,
-                "Delete project",
-                $"Delete \"{row.Project.Name}\"?\n\nProjects with time entries can only be archived.",
+                LocalizationService.T("MessageDeleteProjectTitle"),
+                LocalizationService.T("MessageDeleteProject", row.Project.Name),
                 true))
         {
             return;
@@ -153,7 +172,11 @@ public partial class ProjectsDialog : Window
         }
         catch (ValidationException exception)
         {
-            await MessageDialog.ShowAsync(this, "Cannot delete project", exception.Message, false);
+            await MessageDialog.ShowAsync(
+                this,
+                LocalizationService.T("MessageCannotDeleteProject"),
+                exception.Message,
+                false);
         }
     }
 
