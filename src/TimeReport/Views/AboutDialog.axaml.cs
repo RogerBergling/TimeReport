@@ -14,12 +14,13 @@ public partial class AboutDialog : Window
         InitializeComponent();
     }
 
-    public AboutDialog(TimeReportService service, string dataDir) : this()
+    public AboutDialog(TimeReportService service, string dataDir, string settingsPath) : this()
     {
         _dataDir = dataDir;
         VersionText.Text = $"Version {AppInfo.Version}";
         DatabaseText.Text = service.Database.Path;
         DataFolderText.Text = dataDir;
+        SettingsText.Text = settingsPath;
         SchemaText.Text = $"Schema version: {service.Database.SchemaVersionNumber}";
     }
 

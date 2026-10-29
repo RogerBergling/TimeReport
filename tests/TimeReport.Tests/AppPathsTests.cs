@@ -48,6 +48,20 @@ public sealed class AppPathsTests
     }
 
     [Fact]
+    public void SettingsPathUsesConfigDirectory()
+    {
+        var path = AppPaths.SettingsPath();
+        Assert.Equal("settings.json", Path.GetFileName(path));
+        Assert.Equal("TimeReport", Path.GetFileName(Path.GetDirectoryName(path)));
+    }
+
+    [Fact]
+    public void DefaultDatabasePathEndsWithDatabaseFilename()
+    {
+        Assert.Equal("timereport.db", Path.GetFileName(AppPaths.DefaultDatabasePath()));
+    }
+
+    [Fact]
     public void EnsuresDataDirectoryExists()
     {
         var directory = Path.Combine(

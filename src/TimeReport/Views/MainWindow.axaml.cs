@@ -10,25 +10,30 @@ namespace TimeReport.Views;
 
 public partial class MainWindow : Window
 {
-    private readonly TimeReportService? _service;
-    private readonly string _dataDir = string.Empty;
-    private readonly MainWindowViewModel? _viewModel;
+    private readonly AppSession? _session;
+    private TimeReportService? _service;
+    private MainWindowViewModel? _viewModel;
 
     public MainWindow()
     {
         InitializeComponent();
     }
 
-    public MainWindow(TimeReportService service, string dataDir) : this()
+    public MainWindow(AppSession session) : this()
+    {
+        _session = session;
+        RebindService(session.Service);
+    }
+
+    private void RebindService(TimeReportService service)
     {
         _service = service;
-        _dataDir = dataDir;
-        _viewModel = new MainWindowViewModel(service);
-        DataContext = _viewModel;
-
-        _viewModel.AddEntryRequested += async day => await AddEntryAsync(day);
-        _viewModel.EditEntryRequested += async entry => await EditEntryAsync(entry);
-        _viewModel.DeleteEntryRequested += async entry => await DeleteEntryAsync(entry);
+        var viewModel = new MainWindowViewModel(service);
+        viewModel.AddEntryRequested += async day => await AddEntryAsync(day);
+        viewModel.EditEntryRequested += async entry => await EditEntryAsync(entry);
+        viewModel.DeleteEntryRequested += async entry => await DeleteEntryAsync(entry);
+        _viewModel = viewModel;
+        DataContext = viewModel;
     }
 
     private void OnPreviousWeekClick(object? sender, RoutedEventArgs e) => _viewModel?.ChangeWeek(-1);
@@ -113,6 +118,42 @@ public partial class MainWindow : Window
         var dialog = new ProjectsDialog(_service);
         await dialog.ShowDialog(this);
         _viewModel?.Refresh();
+    }
+
+    private async void OnDatabaseLocationClick(object? sender, RoutedEventArgs e)
+    {
+        if (_session is null)
+        {
+            return;
+        }
+
+        var dialog = new DatabaseLocationDialog(
+            _session.Database.Path,
+            _session.DefaultDatabasePath);
+        var result = await dialog.ShowDialog<DatabaseLocationResult?>(this);
+        if (result is null)
+        {
+            return;
+        }
+
+        try
+        {
+            var service = _session.SwitchDatabase(result.DatabasePath, result.CopyCurrentData);
+            RebindService(service);
+            await MessageDialog.ShowAsync(
+                this,
+                "Database location changed",
+                $"TimeReport is now using:\n{_session.Database.Path}",
+                false);
+        }
+        catch (Exception exception)
+        {
+            await MessageDialog.ShowAsync(
+                this,
+                "Cannot change database location",
+                exception.Message,
+                false);
+        }
     }
 
     private async void OnBackupClick(object? sender, RoutedEventArgs e)
@@ -215,7 +256,10 @@ public partial class MainWindow : Window
             return;
         }
 
-        var dialog = new AboutDialog(_service, _dataDir);
+        var dialog = new AboutDialog(
+            _service,
+            _session?.DataDirectory ?? string.Empty,
+            _session?.SettingsPath ?? string.Empty);
         await dialog.ShowDialog(this);
     }
 

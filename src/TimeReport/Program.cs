@@ -17,6 +17,9 @@ internal static class Program
                 case "--data-dir" when index + 1 < args.Length:
                     AppOptions.DataDir = args[++index];
                     break;
+                case "--database" when index + 1 < args.Length:
+                    AppOptions.DatabasePath = args[++index];
+                    break;
                 case "--smoke-test":
                     AppOptions.SmokeTest = true;
                     break;

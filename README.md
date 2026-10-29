@@ -34,7 +34,7 @@ Ready-to-run self-contained binaries are included in [`release/`](release/):
 - Windows: `release/TimeReport-windows-x86_64.exe`
 - Checksums: `release/SHA256SUMS.txt`
 
-They are also attached to the [v2.0.0 release](https://github.com/RogerBergling/TimeReport/releases/tag/v2.0.0).
+They are also attached to the [v2.1.0 release](https://github.com/RogerBergling/TimeReport/releases/tag/v2.1.0).
 
 ## Data storage
 
@@ -53,15 +53,35 @@ The app also writes a rotating log file, `timereport.log`, in the same data fold
 Backups made automatically before a restore or schema migration are placed in the
 `backups/` subfolder.
 
-You can override the data folder for testing or portable use:
+### Changing the database location
+
+Use **File → Database location…** to choose a different database file or folder. The
+choice is saved in a small settings file:
+
+| Platform | Settings file |
+|---|---|
+| Linux | `$XDG_CONFIG_HOME/TimeReport/settings.json`, normally `~/.config/TimeReport/settings.json` |
+| Windows | `%APPDATA%\TimeReport\settings.json` |
+
+If the selected file already exists, TimeReport validates and opens it. If it does not
+exist, TimeReport can copy the current database to the new location before switching;
+otherwise it creates a new empty database there. The old database file is left
+untouched, so it remains available as a manual backup.
+
+You can also override the location for testing or portable use:
 
 ```bash
+TimeReport --database /path/to/custom.db
 TimeReport --data-dir /path/to/data
 ```
 
 ```powershell
+TimeReport.exe --database C:\path\to\custom.db
 TimeReport.exe --data-dir C:\path\to\data
 ```
+
+The `--database` option points at a database file. `--data-dir` points at a folder and
+uses `timereport.db` inside it.
 
 ## Backup and restore
 
@@ -171,4 +191,4 @@ tests/TimeReport.Tests/     xUnit tests for time, database, validation, totals, 
 
 ## Version
 
-`2.0.0`
+`2.1.0`

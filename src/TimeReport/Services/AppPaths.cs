@@ -31,9 +31,34 @@ public static class AppPaths
 
     public static string DatabasePath(string dataDir) => Path.Combine(dataDir, "timereport.db");
 
+    public static string DefaultDatabasePath() => DatabasePath(ResolveDataDir());
+
     public static string BackupsDir(string dataDir) => Path.Combine(dataDir, "backups");
 
     public static string LogPath(string dataDir) => Path.Combine(dataDir, "timereport.log");
+
+    public static string ConfigDir()
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            var appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+            return Path.Combine(appData, "TimeReport");
+        }
+
+        if (OperatingSystem.IsMacOS())
+        {
+            var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+            return Path.Combine(home, "Library", "Application Support", "TimeReport");
+        }
+
+        var xdg = Environment.GetEnvironmentVariable("XDG_CONFIG_HOME");
+        var baseDir = !string.IsNullOrWhiteSpace(xdg)
+            ? xdg
+            : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".config");
+        return Path.Combine(baseDir, "TimeReport");
+    }
+
+    public static string SettingsPath() => Path.Combine(ConfigDir(), "settings.json");
 
     public static void EnsureDataDir(string dataDir)
     {

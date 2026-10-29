@@ -2,7 +2,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="TimeReport.Views.MainWindow"
         x:CompileBindings="False"
-        Title="TimeReport 2.0.0"
+        Title="TimeReport 2.1.0"
         Width="1180"
         Height="800"
         MinWidth="980"
@@ -11,6 +11,8 @@
   <Grid RowDefinitions="Auto,Auto,*,Auto">
     <Menu Grid.Row="0">
       <MenuItem Header="File">
+        <MenuItem Header="Database location…" Click="OnDatabaseLocationClick" />
+        <Separator />
         <MenuItem Header="Backup database…" Click="OnBackupClick" />
         <MenuItem Header="Restore database…" Click="OnRestoreClick" />
         <Separator />
@@ -32,6 +34,7 @@
       </StackPanel>
       <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
         <Button Content="Projects" Click="OnProjectsClick" />
+        <Button Content="Database" Click="OnDatabaseLocationClick" />
         <Button Content="Backup" Click="OnBackupClick" />
         <Button Content="Restore" Click="OnRestoreClick" />
         <Button Content="About" Click="OnAboutClick" />
