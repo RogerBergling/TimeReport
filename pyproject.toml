@@ -1,0 +1,40 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "timereport"
+version = "1.0.0"
+description = "A local-first desktop time report with projects, lunch, away time and X-Pause."
+readme = "README.md"
+requires-python = ">=3.11"
+authors = [{ name = "Roger Bergling" }]
+dependencies = []
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8",
+    "ruff>=0.6",
+    "pyinstaller>=6.10",
+]
+
+[project.scripts]
+timereport = "timereport.__main__:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.ruff.format]
+quote-style = "double"
