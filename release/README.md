@@ -1,0 +1,28 @@
+# Prebuilt TimeReport executables
+
+These are self-contained single-file builds. No Python or separate .NET runtime is
+required.
+
+## Linux
+
+```bash
+chmod +x TimeReport-linux-x86_64
+./TimeReport-linux-x86_64
+```
+
+## Windows
+
+Run `TimeReport-windows-x86_64.exe`.
+
+The Windows executable is unsigned, so Windows SmartScreen may warn on first launch.
+
+## Data
+
+The database is stored outside this folder:
+
+- Linux: `~/.local/share/timereport/timereport.db`
+- Windows: `%LOCALAPPDATA%\TimeReport\timereport.db`
+
+Use **File → Backup database…** and **File → Restore database…** inside the app.
+
+`SHA256SUMS.txt` contains checksums for both executables.

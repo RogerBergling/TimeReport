@@ -26,6 +26,16 @@ not require Python or a separate .NET installation.
 - 24-hour clock and ISO dates (`YYYY-MM-DD`).
 - No account, cloud service, telemetry or network access.
 
+## Prebuilt executables
+
+Ready-to-run self-contained binaries are included in [`release/`](release/):
+
+- Linux: `release/TimeReport-linux-x86_64`
+- Windows: `release/TimeReport-windows-x86_64.exe`
+- Checksums: `release/SHA256SUMS.txt`
+
+They are also attached to the [v2.0.0 release](https://github.com/RogerBergling/TimeReport/releases/tag/v2.0.0).
+
 ## Data storage
 
 The database is deliberately stored outside the application folder. Replacing or
