@@ -17,8 +17,11 @@
 
       <TextBlock Grid.Row="1" Grid.Column="0" Text="{DynamicResource LabelType}" VerticalAlignment="Center"
                  Margin="0,8,14,0" />
-      <ComboBox Grid.Row="1" Grid.Column="1" x:Name="TypeComboBox" Width="200"
-                HorizontalAlignment="Left" Margin="0,8,0,0" SelectionChanged="OnTypeChanged" />
+      <StackPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal" Spacing="8" Margin="0,8,0,0">
+        <ComboBox x:Name="TypeComboBox" Width="240" SelectionChanged="OnTypeChanged" />
+        <Button Content="{DynamicResource ButtonManageTypes}" Classes="link"
+                Click="OnManageTypesClick" />
+      </StackPanel>
 
       <Grid Grid.Row="2" Grid.ColumnSpan="2" x:Name="ProjectRow" ColumnDefinitions="Auto,*"
             Margin="0,8,0,0">

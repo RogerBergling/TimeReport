@@ -25,6 +25,8 @@ The database is stored outside this folder:
 
 Use **File → Database location…** to choose where the database file is stored.
 
+Use **Data → Entry types…** or the **Types** button to add and manage custom entry types.
+
 Use **File → Dropbox sync…** to configure optional Dropbox synchronization. You will
 need a Dropbox app key and the redirect URI `http://127.0.0.1:53682/dropbox-callback`
 registered in the Dropbox App Console.

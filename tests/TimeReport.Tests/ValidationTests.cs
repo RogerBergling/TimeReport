@@ -83,13 +83,13 @@ public sealed class ValidationTests
     }
 
     [Fact]
-    public void AwayRequiresReason()
+    public void AwayReasonDefaultsToTypeName()
     {
         using var context = new TestContext();
-        var exception = Assert.Throws<ValidationException>(() =>
-            context.Service.SaveEntry(TestData.Entry(
-                TestData.Monday, EntryKind.Away, "09:00", "10:00")));
-        Assert.Contains("reason", exception.Message);
+        var away = context.Service.SaveEntry(TestData.Entry(
+            TestData.Monday, EntryKind.Away, "09:00", "10:00"));
+        Assert.Equal("Away", away.AwayReason);
+        Assert.Equal("Away", away.TypeName);
     }
 
     [Fact]

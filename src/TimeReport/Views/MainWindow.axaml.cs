@@ -280,7 +280,7 @@ public partial class MainWindow : Window
             return;
         }
 
-        var description = entry.Kind.DisplayName().ToLowerInvariant();
+        var description = (entry.TypeName ?? entry.Kind.DisplayName()).ToLowerInvariant();
         if (!await MessageDialog.ShowAsync(
                 this,
                 LocalizationService.T("MessageDeleteEntryTitle"),
@@ -313,6 +313,18 @@ public partial class MainWindow : Window
         await dialog.ShowDialog(this);
         _viewModel?.Refresh();
         await AutoSyncAfterChangeAsync();
+    }
+
+    private async void OnEntryTypesClick(object? sender, RoutedEventArgs e)
+    {
+        if (_service is null)
+        {
+            return;
+        }
+
+        var dialog = new EntryTypesDialog(_service);
+        await dialog.ShowDialog(this);
+        _viewModel?.Refresh();
     }
 
     private async void OnDatabaseLocationClick(object? sender, RoutedEventArgs e)

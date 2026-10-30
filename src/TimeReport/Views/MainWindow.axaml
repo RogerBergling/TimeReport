@@ -2,7 +2,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="TimeReport.Views.MainWindow"
         x:CompileBindings="False"
-        Title="TimeReport 2.2.0"
+        Title="TimeReport 2.3.0"
         Width="1180"
         Height="800"
         MinWidth="980"
@@ -22,6 +22,7 @@
       </MenuItem>
       <MenuItem Header="{DynamicResource MenuData}">
         <MenuItem Header="{DynamicResource MenuProjects}" Click="OnProjectsClick" />
+        <MenuItem Header="{DynamicResource MenuEntryTypes}" Click="OnEntryTypesClick" />
         <MenuItem Header="{DynamicResource MenuRefresh}" Click="OnRefreshClick" />
       </MenuItem>
       <MenuItem Header="{DynamicResource MenuHelp}">
@@ -36,6 +37,7 @@
       </StackPanel>
       <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
         <Button Content="{DynamicResource ButtonProjects}" Click="OnProjectsClick" />
+        <Button Content="{DynamicResource ButtonTypes}" Click="OnEntryTypesClick" />
         <Button Content="{DynamicResource ButtonDatabase}" Click="OnDatabaseLocationClick" />
         <Button Content="{DynamicResource ButtonDropbox}" Click="OnDropboxClick" />
         <Button Content="{DynamicResource ButtonSync}" Click="OnSyncNowClick" />

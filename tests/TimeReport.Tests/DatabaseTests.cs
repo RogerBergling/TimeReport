@@ -23,6 +23,7 @@ public sealed class DatabaseTests
         }
         Assert.Contains("projects", tables);
         Assert.Contains("entries", tables);
+        Assert.Contains("entry_types", tables);
 
         using var foreignKeys = context.Database.Connection.CreateCommand();
         foreignKeys.CommandText = "PRAGMA foreign_keys";
@@ -139,6 +140,68 @@ public sealed class DatabaseTests
 
         context.Service.DeleteEntry(saved.Id!.Value);
         Assert.Null(context.Service.GetEntry(saved.Id!.Value));
+    }
+
+    [Fact]
+    public void MigratesVersionOneDatabaseAndBackfillsEntryTypes()
+    {
+        var directory = Path.Combine(
+            Path.GetTempPath(),
+            "timereport-tests",
+            Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(directory);
+        var path = Path.Combine(directory, "v1.db");
+
+        try
+        {
+            using (var connection = new SqliteConnection($"Data Source={path};Pooling=False"))
+            {
+                connection.Open();
+                using var command = connection.CreateCommand();
+                command.CommandText = """
+                    CREATE TABLE projects (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        name TEXT NOT NULL COLLATE NOCASE UNIQUE,
+                        archived INTEGER NOT NULL DEFAULT 0,
+                        created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
+                    );
+                    CREATE TABLE entries (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        entry_date TEXT NOT NULL,
+                        kind TEXT NOT NULL,
+                        project_id INTEGER REFERENCES projects(id) ON DELETE RESTRICT,
+                        label TEXT,
+                        start_minute INTEGER NOT NULL,
+                        end_minute INTEGER NOT NULL,
+                        created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
+                        updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
+                    );
+                    INSERT INTO projects (name) VALUES ('Acme');
+                    INSERT INTO entries (
+                        entry_date, kind, project_id, start_minute, end_minute
+                    ) VALUES ('2026-10-26', 'work', 1, 480, 960);
+                    PRAGMA user_version = 1;
+                    """;
+                command.ExecuteNonQuery();
+            }
+
+            using var database = new Database(path);
+            database.Open();
+            Assert.Equal(2, database.SchemaVersionNumber);
+            var service = new TimeReportService(database);
+            Assert.Equal(4, service.ListEntryTypes().Count);
+
+            var entry = Assert.Single(service.ListEntries(
+                new DateOnly(2026, 10, 26),
+                new DateOnly(2026, 10, 26)));
+            Assert.Equal("Work", entry.TypeName);
+            Assert.Equal(EntryKind.Work, entry.Kind);
+            Assert.NotNull(entry.TypeId);
+        }
+        finally
+        {
+            Directory.Delete(directory, true);
+        }
     }
 
     [Fact]

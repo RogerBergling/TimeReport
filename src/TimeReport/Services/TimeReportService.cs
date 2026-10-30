@@ -149,6 +149,156 @@ public sealed class TimeReportService
         return cleaned;
     }
 
+    // Entry types --------------------------------------------------------------
+
+    public IReadOnlyList<EntryType> ListEntryTypes(bool includeArchived = false)
+    {
+        var sql = includeArchived
+            ? "SELECT id, name, category, archived FROM entry_types ORDER BY name COLLATE NOCASE"
+            : "SELECT id, name, category, archived FROM entry_types WHERE archived = 0 ORDER BY name COLLATE NOCASE";
+        using var command = Database.Connection.CreateCommand();
+        command.CommandText = sql;
+        using var reader = command.ExecuteReader();
+        var types = new List<EntryType>();
+        while (reader.Read())
+        {
+            types.Add(RowToEntryType(reader));
+        }
+        return types;
+    }
+
+    public EntryType? GetEntryType(long typeId)
+    {
+        using var command = Database.Connection.CreateCommand();
+        command.CommandText = "SELECT id, name, category, archived FROM entry_types WHERE id = $id";
+        command.Parameters.AddWithValue("$id", typeId);
+        using var reader = command.ExecuteReader();
+        return reader.Read() ? RowToEntryType(reader) : null;
+    }
+
+    public EntryType CreateEntryType(string name, EntryKind category)
+    {
+        if (!Enum.IsDefined(category))
+        {
+            throw new ValidationException(LocalizationService.T("ValidationTypeCategory"));
+        }
+
+        var cleaned = CleanEntryTypeName(name);
+        using var transaction = Database.BeginTransaction();
+        try
+        {
+            using var command = Database.Connection.CreateCommand();
+            command.Transaction = transaction;
+            command.CommandText = """
+                INSERT INTO entry_types (name, category)
+                VALUES ($name, $category)
+                RETURNING id
+                """;
+            command.Parameters.AddWithValue("$name", cleaned);
+            command.Parameters.AddWithValue("$category", category.ToDbString());
+            var id = Convert.ToInt64(command.ExecuteScalar(), CultureInfo.InvariantCulture);
+            transaction.Commit();
+            return new EntryType(id, cleaned, category);
+        }
+        catch (SqliteException exception) when (exception.SqliteErrorCode == 19)
+        {
+            throw new ValidationException(LocalizationService.T("ValidationTypeExists", cleaned));
+        }
+    }
+
+    public EntryType RenameEntryType(long typeId, string name)
+    {
+        var cleaned = CleanEntryTypeName(name);
+        using var transaction = Database.BeginTransaction();
+        try
+        {
+            using var command = Database.Connection.CreateCommand();
+            command.Transaction = transaction;
+            command.CommandText = "UPDATE entry_types SET name = $name WHERE id = $id";
+            command.Parameters.AddWithValue("$name", cleaned);
+            command.Parameters.AddWithValue("$id", typeId);
+            if (command.ExecuteNonQuery() == 0)
+            {
+                throw new ValidationException(LocalizationService.T("ValidationTypeNotFound"));
+            }
+
+            using var typeCommand = Database.Connection.CreateCommand();
+            typeCommand.Transaction = transaction;
+            typeCommand.CommandText = "SELECT category, archived FROM entry_types WHERE id = $id";
+            typeCommand.Parameters.AddWithValue("$id", typeId);
+            using var reader = typeCommand.ExecuteReader();
+            if (!reader.Read())
+            {
+                throw new ValidationException(LocalizationService.T("ValidationTypeNotFound"));
+            }
+            var category = EntryKindExtensions.FromDbString(reader.GetString(0));
+            var archived = reader.GetInt64(1) != 0;
+            transaction.Commit();
+            return new EntryType(typeId, cleaned, category, archived);
+        }
+        catch (SqliteException exception) when (exception.SqliteErrorCode == 19)
+        {
+            throw new ValidationException(LocalizationService.T("ValidationTypeExists", cleaned));
+        }
+    }
+
+    public void SetEntryTypeArchived(long typeId, bool archived)
+    {
+        using var command = Database.Connection.CreateCommand();
+        command.CommandText = "UPDATE entry_types SET archived = $archived WHERE id = $id";
+        command.Parameters.AddWithValue("$archived", archived ? 1 : 0);
+        command.Parameters.AddWithValue("$id", typeId);
+        if (command.ExecuteNonQuery() == 0)
+        {
+            throw new ValidationException(LocalizationService.T("ValidationTypeNotFound"));
+        }
+    }
+
+    public void DeleteEntryType(long typeId)
+    {
+        if (EntryTypeUsageCount(typeId) > 0)
+        {
+            throw new ValidationException(LocalizationService.T("ValidationTypeUsed"));
+        }
+
+        using var command = Database.Connection.CreateCommand();
+        command.CommandText = "DELETE FROM entry_types WHERE id = $id";
+        command.Parameters.AddWithValue("$id", typeId);
+        if (command.ExecuteNonQuery() == 0)
+        {
+            throw new ValidationException(LocalizationService.T("ValidationTypeNotFound"));
+        }
+    }
+
+    public int EntryTypeUsageCount(long typeId)
+    {
+        using var command = Database.Connection.CreateCommand();
+        command.CommandText = "SELECT COUNT(*) FROM entries WHERE entry_type_id = $id";
+        command.Parameters.AddWithValue("$id", typeId);
+        return Convert.ToInt32(command.ExecuteScalar(), CultureInfo.InvariantCulture);
+    }
+
+    private static string CleanEntryTypeName(string name)
+    {
+        var cleaned = string.Join(" ", (name ?? string.Empty)
+            .Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
+        if (cleaned.Length == 0)
+        {
+            throw new ValidationException(LocalizationService.T("ValidationTypeNameEmpty"));
+        }
+        if (cleaned.Length > 80)
+        {
+            throw new ValidationException(LocalizationService.T("ValidationTypeNameLength"));
+        }
+        return cleaned;
+    }
+
+    private static EntryType RowToEntryType(SqliteDataReader reader) => new(
+        reader.GetInt64(0),
+        reader.GetString(1),
+        EntryKindExtensions.FromDbString(reader.GetString(2)),
+        reader.GetInt64(3) != 0);
+
     // Entries ------------------------------------------------------------------
 
     public IReadOnlyList<Entry> ListEntries(DateOnly start, DateOnly end) =>
@@ -158,12 +308,14 @@ public sealed class TimeReportService
 
     public Entry SaveEntry(Entry entry)
     {
-        entry = NormalizeEntry(entry);
         var original = entry.Id is long originalId ? GetEntry(originalId) : null;
         if (entry.Id is not null && original is null)
         {
             throw new ValidationException(LocalizationService.T("ValidationEntryNotFound"));
         }
+
+        var entryType = ResolveEntryType(entry, original);
+        entry = NormalizeEntry(entry, entryType);
 
         var firstDay = TimeUtil.WeekStart(entry.Date);
         var lastDay = firstDay.AddDays(6);
@@ -200,10 +352,10 @@ public sealed class TimeReportService
                     command.Transaction = transaction;
                     command.CommandText = """
                         INSERT INTO entries (
-                            entry_date, kind, project_id, label,
+                            entry_date, kind, project_id, label, entry_type_id,
                             start_minute, end_minute, created_at, updated_at
                         ) VALUES (
-                            $date, $kind, $projectId, $label,
+                            $date, $kind, $projectId, $label, $typeId,
                             $start, $end, $created, $updated
                         )
                         RETURNING id
@@ -212,6 +364,7 @@ public sealed class TimeReportService
                     command.Parameters.AddWithValue("$kind", entry.Kind.ToDbString());
                     command.Parameters.AddWithValue("$projectId", (object?)entry.ProjectId ?? DBNull.Value);
                     command.Parameters.AddWithValue("$label", (object?)entry.AwayReason ?? DBNull.Value);
+                    command.Parameters.AddWithValue("$typeId", (object?)entry.TypeId ?? DBNull.Value);
                     command.Parameters.AddWithValue("$start", entry.StartMinute);
                     command.Parameters.AddWithValue("$end", entry.EndMinute);
                     command.Parameters.AddWithValue("$created", now);
@@ -228,6 +381,7 @@ public sealed class TimeReportService
                             kind = $kind,
                             project_id = $projectId,
                             label = $label,
+                            entry_type_id = $typeId,
                             start_minute = $start,
                             end_minute = $end,
                             updated_at = $updated
@@ -237,6 +391,7 @@ public sealed class TimeReportService
                     command.Parameters.AddWithValue("$kind", entry.Kind.ToDbString());
                     command.Parameters.AddWithValue("$projectId", (object?)entry.ProjectId ?? DBNull.Value);
                     command.Parameters.AddWithValue("$label", (object?)entry.AwayReason ?? DBNull.Value);
+                    command.Parameters.AddWithValue("$typeId", (object?)entry.TypeId ?? DBNull.Value);
                     command.Parameters.AddWithValue("$start", entry.StartMinute);
                     command.Parameters.AddWithValue("$end", entry.EndMinute);
                     command.Parameters.AddWithValue("$updated", now);
@@ -300,9 +455,11 @@ public sealed class TimeReportService
         command.CommandText = """
             SELECT
                 e.id, e.entry_date, e.kind, e.project_id, e.label,
-                e.start_minute, e.end_minute, p.name AS project_name
+                e.start_minute, e.end_minute, p.name AS project_name,
+                e.entry_type_id, t.name AS type_name
             FROM entries AS e
             LEFT JOIN projects AS p ON p.id = e.project_id
+            LEFT JOIN entry_types AS t ON t.id = e.entry_type_id
             WHERE e.entry_date BETWEEN $start AND $end
             ORDER BY e.entry_date, e.start_minute, e.id
             """;
@@ -327,9 +484,11 @@ public sealed class TimeReportService
         command.CommandText = """
             SELECT
                 e.id, e.entry_date, e.kind, e.project_id, e.label,
-                e.start_minute, e.end_minute, p.name AS project_name
+                e.start_minute, e.end_minute, p.name AS project_name,
+                e.entry_type_id, t.name AS type_name
             FROM entries AS e
             LEFT JOIN projects AS p ON p.id = e.project_id
+            LEFT JOIN entry_types AS t ON t.id = e.entry_type_id
             WHERE e.id = $id
             """;
         command.Parameters.AddWithValue("$id", entryId);
@@ -345,9 +504,35 @@ public sealed class TimeReportService
         reader.GetInt32(6),
         reader.IsDBNull(3) ? null : reader.GetInt64(3),
         reader.IsDBNull(7) ? null : reader.GetString(7),
-        reader.IsDBNull(4) ? null : reader.GetString(4));
+        reader.IsDBNull(4) ? null : reader.GetString(4),
+        reader.IsDBNull(8) ? null : reader.GetInt64(8),
+        reader.IsDBNull(9) ? null : reader.GetString(9));
 
-    private static Entry NormalizeEntry(Entry entry)
+    private EntryType ResolveEntryType(Entry entry, Entry? original)
+    {
+        if (entry.TypeId is long typeId)
+        {
+            var type = GetEntryType(typeId)
+                ?? throw new ValidationException(LocalizationService.T("ValidationTypeMissing"));
+            if (type.Archived && (original is null || original.TypeId != type.Id))
+            {
+                throw new ValidationException(LocalizationService.T("ValidationTypeArchived"));
+            }
+            return type;
+        }
+
+        var types = ListEntryTypes(includeArchived: true);
+        var defaultName = entry.Kind.DisplayName();
+        return types.FirstOrDefault(item =>
+                   item.Category == entry.Kind &&
+                   !item.Archived &&
+                   string.Equals(item.Name, defaultName, StringComparison.OrdinalIgnoreCase))
+               ?? types.FirstOrDefault(item => item.Category == entry.Kind && !item.Archived)
+               ?? types.FirstOrDefault(item => item.Category == entry.Kind)
+               ?? throw new ValidationException(LocalizationService.T("ValidationTypeMissing"));
+    }
+
+    private static Entry NormalizeEntry(Entry entry, EntryType entryType)
     {
         if (entry.StartMinute < 0 || entry.EndMinute > TimeUtil.MinutesPerDay)
         {
@@ -358,10 +543,11 @@ public sealed class TimeReportService
             throw new ValidationException(LocalizationService.T("ValidationEndAfterStart"));
         }
 
+        var kind = entryType.Category;
         var reason = string.IsNullOrWhiteSpace(entry.AwayReason) ? null : entry.AwayReason.Trim();
         var projectId = entry.ProjectId;
 
-        switch (entry.Kind)
+        switch (kind)
         {
             case EntryKind.Work:
                 if (projectId is null)
@@ -371,10 +557,7 @@ public sealed class TimeReportService
                 reason = null;
                 break;
             case EntryKind.Away:
-                if (reason is null)
-                {
-                    throw new ValidationException(LocalizationService.T("ValidationAwayReason"));
-                }
+                reason ??= entryType.Name;
                 if (reason.Length > 80)
                 {
                     throw new ValidationException(LocalizationService.T("ValidationAwayReasonLength"));
@@ -388,7 +571,8 @@ public sealed class TimeReportService
             default:
                 if (projectId is not null)
                 {
-                    throw new ValidationException(LocalizationService.T("ValidationNonWorkNoProject", entry.Kind.DisplayName()));
+                    throw new ValidationException(
+                        LocalizationService.T("ValidationNonWorkNoProject", kind.DisplayName()));
                 }
                 reason = null;
                 break;
@@ -396,6 +580,9 @@ public sealed class TimeReportService
 
         return entry with
         {
+            Kind = kind,
+            TypeId = entryType.Id,
+            TypeName = entryType.Name,
             ProjectId = projectId,
             ProjectName = null,
             AwayReason = reason,
@@ -412,7 +599,7 @@ public sealed class TimeReportService
                     var other = FindOverlap(candidate, sameDay, [EntryKind.Work, EntryKind.Away]);
                     if (other is not null)
                     {
-                        throw new ValidationException(OverlapMessage(EntryKind.Work, other));
+                        throw new ValidationException(OverlapMessage(candidate, other));
                     }
                     break;
                 }
@@ -424,7 +611,7 @@ public sealed class TimeReportService
                         [EntryKind.Lunch, EntryKind.Away, EntryKind.XPause]);
                     if (other is not null)
                     {
-                        throw new ValidationException(OverlapMessage(EntryKind.Lunch, other));
+                        throw new ValidationException(OverlapMessage(candidate, other));
                     }
                     break;
                 }
@@ -436,7 +623,7 @@ public sealed class TimeReportService
                         [EntryKind.Work, EntryKind.Lunch, EntryKind.Away, EntryKind.XPause]);
                     if (other is not null)
                     {
-                        throw new ValidationException(OverlapMessage(EntryKind.Away, other));
+                        throw new ValidationException(OverlapMessage(candidate, other));
                     }
                     break;
                 }
@@ -489,7 +676,7 @@ public sealed class TimeReportService
                         [EntryKind.Lunch, EntryKind.Away, EntryKind.XPause]);
                     if (other is not null)
                     {
-                        throw new ValidationException(OverlapMessage(EntryKind.XPause, other));
+                        throw new ValidationException(OverlapMessage(candidate, other));
                     }
                     break;
                 }
@@ -546,7 +733,7 @@ public sealed class TimeReportService
             [EntryKind.Lunch, EntryKind.Away, EntryKind.XPause]);
         if (other is not null)
         {
-            throw new ValidationException(OverlapMessage(EntryKind.XPause, other));
+            throw new ValidationException(OverlapMessage(xpause, other));
         }
     }
 
@@ -596,14 +783,14 @@ public sealed class TimeReportService
         return null;
     }
 
-    private static string OverlapMessage(EntryKind candidateKind, Entry other)
+    private static string OverlapMessage(Entry candidate, Entry other)
     {
         var detail = other.ProjectName ?? other.AwayReason;
         var suffix = string.IsNullOrWhiteSpace(detail) ? string.Empty : $" · {detail}";
         return LocalizationService.T(
             "ValidationOverlap",
-            candidateKind.DisplayName().ToLowerInvariant(),
-            other.Kind.DisplayName().ToLowerInvariant(),
+            (candidate.TypeName ?? candidate.Kind.DisplayName()).ToLowerInvariant(),
+            (other.TypeName ?? other.Kind.DisplayName()).ToLowerInvariant(),
             TimeUtil.FormatTime(other.StartMinute),
             TimeUtil.FormatTime(other.EndMinute),
             suffix);

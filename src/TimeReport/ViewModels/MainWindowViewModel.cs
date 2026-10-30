@@ -164,8 +164,13 @@ public sealed class EntryRowViewModel
 {
     public EntryRowViewModel(Entry entry, Action<Entry> onEdit, Action<Entry> onDelete)
     {
-        TypeText = entry.Kind.DisplayName();
-        DetailText = entry.ProjectName ?? entry.AwayReason ?? "—";
+        TypeText = entry.TypeName ?? entry.Kind.DisplayName();
+        DetailText = entry.Kind switch
+        {
+            EntryKind.Work => entry.ProjectName ?? "—",
+            EntryKind.Away => entry.AwayReason ?? entry.TypeName ?? "—",
+            _ => "—",
+        };
         StartText = TimeUtil.FormatTime(entry.StartMinute);
         EndText = TimeUtil.FormatTime(entry.EndMinute);
         DurationText = TimeUtil.FormatDuration(entry.DurationMinutes);

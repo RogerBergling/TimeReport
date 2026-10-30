@@ -49,7 +49,8 @@ public static class TestData
         string end,
         long? projectId = null,
         string? reason = null,
-        long? id = null) =>
+        long? id = null,
+        long? typeId = null) =>
         new(
             id,
             day,
@@ -57,7 +58,8 @@ public static class TestData
             TimeUtil.ParseTime(start),
             TimeUtil.ParseTime(end),
             projectId,
-            AwayReason: reason);
+            AwayReason: reason,
+            TypeId: typeId);
 
     public static readonly DateOnly Monday = new(2026, 10, 26);
     public static readonly DateOnly Tuesday = new(2026, 10, 27);

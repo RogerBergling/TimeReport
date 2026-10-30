@@ -11,6 +11,9 @@ not require Python or a separate .NET installation.
 - Work entries have a project, start time and end time.
 - Projects are stored in the database. Add, rename, archive and delete unused projects
   from the GUI.
+- Entry types are managed like projects. Add custom types such as Meeting, Training or
+  Sick, choose whether each behaves like Work, Lunch, Away or X-Pause, and rename,
+  archive or delete unused types.
 - Lunch is deducted from work time when it overlaps a work entry.
 - Away entries have a free-text reason and a start/end time. They are tracked separately
   from work.
@@ -36,7 +39,7 @@ Ready-to-run self-contained binaries are included in [`release/`](release/):
 - Windows: `release/TimeReport-windows-x86_64.exe`
 - Checksums: `release/SHA256SUMS.txt`
 
-They are also attached to the [v2.2.0 release](https://github.com/RogerBergling/TimeReport/releases/tag/v2.2.0).
+They are also attached to the [v2.3.0 release](https://github.com/RogerBergling/TimeReport/releases/tag/v2.3.0).
 
 ## Data storage
 
@@ -48,8 +51,8 @@ upgrading the executable does not remove your data.
 | Linux | `$XDG_DATA_HOME/timereport/timereport.db`, normally `~/.local/share/timereport/timereport.db` |
 | Windows | `%LOCALAPPDATA%\TimeReport\timereport.db` |
 
-The database schema is unchanged from the earlier Python version, so an existing
-`timereport.db` continues to work.
+Existing TimeReport databases are migrated automatically, including databases created
+by the earlier Python version. A pre-migration backup is created first.
 
 The app also writes a rotating log file, `timereport.log`, in the same data folder.
 Backups made automatically before a restore or schema migration are placed in the
@@ -204,6 +207,22 @@ src/TimeReport/
 tests/TimeReport.Tests/     xUnit tests for time, database, validation, totals, backup
 ```
 
+## Entry types
+
+TimeReport ships with the types **Work**, **Lunch**, **Away** and **X-Pause**. Open
+**Data → Entry types…** or the **Types** button to manage them.
+
+Each custom type has a behavior category:
+
+- **Work** — requires a project, counts as worked time.
+- **Lunch** — deducted from overlapping work time.
+- **Away** — tracked as away time; the type name is used as the away reason when no
+  extra reason is entered.
+- **X-Pause** — follows the weekly X-Pause rules and is tracked separately.
+
+Types used by existing entries cannot be deleted; archive them instead. Archived types
+remain visible on historical entries but are not offered for new entries.
+
 ## Rules and assumptions
 
 - Week starts Monday and includes Saturday/Sunday.
@@ -219,4 +238,4 @@ tests/TimeReport.Tests/     xUnit tests for time, database, validation, totals, 
 
 ## Version
 
-`2.2.0`
+`2.3.0`

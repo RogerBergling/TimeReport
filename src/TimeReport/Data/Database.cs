@@ -26,7 +26,7 @@ public sealed class RestoreException : DatabaseException
 
 public sealed class Database : IDisposable
 {
-    public const int SchemaVersion = 1;
+    public const int SchemaVersion = 2;
 
     private static readonly string[] SchemaV1 =
     [
@@ -65,7 +65,42 @@ public sealed class Database : IDisposable
         "CREATE INDEX IF NOT EXISTS idx_entries_project ON entries(project_id)",
     ];
 
-    private static readonly Dictionary<string, string[]> RequiredTables = new()
+    private static readonly string[] SchemaV2 =
+    [
+        """
+        CREATE TABLE IF NOT EXISTS entry_types (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL COLLATE NOCASE UNIQUE,
+            category TEXT NOT NULL CHECK (category IN ('work', 'lunch', 'away', 'xpause')),
+            archived INTEGER NOT NULL DEFAULT 0 CHECK (archived IN (0, 1)),
+            created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
+        )
+        """,
+        "INSERT OR IGNORE INTO entry_types (name, category) VALUES ('Work', 'work')",
+        "INSERT OR IGNORE INTO entry_types (name, category) VALUES ('Lunch', 'lunch')",
+        "INSERT OR IGNORE INTO entry_types (name, category) VALUES ('Away', 'away')",
+        "INSERT OR IGNORE INTO entry_types (name, category) VALUES ('X-Pause', 'xpause')",
+        "ALTER TABLE entries ADD COLUMN entry_type_id INTEGER REFERENCES entry_types(id) ON DELETE RESTRICT",
+        """
+        UPDATE entries
+        SET entry_type_id = (
+            SELECT id FROM entry_types
+            WHERE category = entries.kind
+            ORDER BY id
+            LIMIT 1
+        )
+        WHERE entry_type_id IS NULL
+        """,
+        "CREATE INDEX IF NOT EXISTS idx_entries_type ON entries(entry_type_id)",
+    ];
+
+    private static readonly Dictionary<int, string[]> Migrations = new()
+    {
+        [1] = SchemaV1,
+        [2] = SchemaV2,
+    };
+
+    private static readonly Dictionary<string, string[]> RequiredTablesV1 = new()
     {
         ["projects"] = ["id", "name", "archived", "created_at"],
         ["entries"] =
@@ -73,6 +108,12 @@ public sealed class Database : IDisposable
             "id", "entry_date", "kind", "project_id", "label",
             "start_minute", "end_minute", "created_at", "updated_at",
         ],
+    };
+
+    private static readonly Dictionary<string, string[]> RequiredTablesV2 = new()
+    {
+        ["entry_types"] = ["id", "name", "category", "archived", "created_at"],
+        ["entries"] = ["entry_type_id"],
     };
 
     private SqliteConnection? _connection;
@@ -225,44 +266,6 @@ public sealed class Database : IDisposable
                 }
             }
 
-            var missingTables = RequiredTables.Keys.Where(table => !tables.Contains(table)).ToList();
-            if (missingTables.Count > 0)
-            {
-                throw new RestoreException(
-                    $"The selected file is not a TimeReport database (missing: {string.Join(", ", missingTables)}).");
-            }
-
-            foreach (var (table, requiredColumns) in RequiredTables)
-            {
-                var columns = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-                using (var command = connection.CreateCommand())
-                {
-                    command.CommandText = $"PRAGMA table_info({table})";
-                    using var reader = command.ExecuteReader();
-                    while (reader.Read())
-                    {
-                        columns.Add(reader.GetString(1));
-                    }
-                }
-
-                var missingColumns = requiredColumns.Where(column => !columns.Contains(column)).ToList();
-                if (missingColumns.Count > 0)
-                {
-                    throw new RestoreException(
-                        $"The selected database is missing columns in {table}: {string.Join(", ", missingColumns)}.");
-                }
-            }
-
-            using (var command = connection.CreateCommand())
-            {
-                command.CommandText = "PRAGMA foreign_key_check";
-                using var reader = command.ExecuteReader();
-                if (reader.Read())
-                {
-                    throw new RestoreException("The selected database has broken project references.");
-                }
-            }
-
             var version = Convert.ToInt32(
                 Scalar(connection, "PRAGMA user_version", null),
                 System.Globalization.CultureInfo.InvariantCulture);
@@ -275,6 +278,23 @@ public sealed class Database : IDisposable
                 throw new RestoreException(
                     $"The selected database uses schema version {version}, but this version of TimeReport supports up to version {SchemaVersion}.");
             }
+
+            ValidateTables(connection, tables, RequiredTablesV1);
+            if (version >= 2)
+            {
+                ValidateTables(connection, tables, RequiredTablesV2);
+            }
+
+            using (var command = connection.CreateCommand())
+            {
+                command.CommandText = "PRAGMA foreign_key_check";
+                using var reader = command.ExecuteReader();
+                if (reader.Read())
+                {
+                    throw new RestoreException("The selected database has broken references.");
+                }
+            }
+
             return version;
         }
         catch (SqliteException exception)
@@ -406,8 +426,12 @@ public sealed class Database : IDisposable
 
         for (var target = version + 1; target <= SchemaVersion; target++)
         {
+            if (!Migrations.TryGetValue(target, out var statements))
+            {
+                throw new DatabaseException($"Missing migration for schema version {target}.");
+            }
             using var transaction = BeginTransaction();
-            foreach (var statement in SchemaV1)
+            foreach (var statement in statements)
             {
                 Execute(statement, transaction);
             }
@@ -438,6 +462,38 @@ public sealed class Database : IDisposable
         command.CommandText = sql;
         command.Transaction = transaction;
         return command.ExecuteScalar();
+    }
+
+    private static void ValidateTables(
+        SqliteConnection connection,
+        HashSet<string> tables,
+        Dictionary<string, string[]> requiredTables)
+    {
+        var missingTables = requiredTables.Keys.Where(table => !tables.Contains(table)).ToList();
+        if (missingTables.Count > 0)
+        {
+            throw new RestoreException(
+                $"The selected file is not a TimeReport database (missing: {string.Join(", ", missingTables)}).");
+        }
+
+        foreach (var (table, requiredColumns) in requiredTables)
+        {
+            var columns = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            using var command = connection.CreateCommand();
+            command.CommandText = $"PRAGMA table_info({table})";
+            using var reader = command.ExecuteReader();
+            while (reader.Read())
+            {
+                columns.Add(reader.GetString(1));
+            }
+
+            var missingColumns = requiredColumns.Where(column => !columns.Contains(column)).ToList();
+            if (missingColumns.Count > 0)
+            {
+                throw new RestoreException(
+                    $"The selected database is missing columns in {table}: {string.Join(", ", missingColumns)}.");
+            }
+        }
     }
 
     private static bool PathsEqual(string first, string second)

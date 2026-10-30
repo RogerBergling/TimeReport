@@ -1,0 +1,47 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="TimeReport.Views.EntryTypesDialog"
+        x:CompileBindings="False"
+        Title="{DynamicResource EntryTypesTitle}"
+        Width="720"
+        Height="520"
+        MinWidth="600"
+        MinHeight="400"
+        WindowStartupLocation="CenterOwner"
+        ShowInTaskbar="False">
+  <Border Padding="18">
+    <Grid RowDefinitions="Auto,Auto,*,Auto">
+      <TextBlock Grid.Row="0" Text="{DynamicResource EntryTypesTitle}" Classes="h2" Margin="0,0,0,10" />
+
+      <Grid Grid.Row="1" ColumnDefinitions="*,160,110,80" Margin="6,0,6,4">
+        <TextBlock Grid.Column="0" Text="{DynamicResource TypeHeaderName}" Classes="columnHeader" />
+        <TextBlock Grid.Column="1" Text="{DynamicResource TypeHeaderCategory}" Classes="columnHeader" />
+        <TextBlock Grid.Column="2" Text="{DynamicResource TypeHeaderStatus}" Classes="columnHeader" HorizontalAlignment="Center" />
+        <TextBlock Grid.Column="3" Text="{DynamicResource TypeHeaderEntries}" Classes="columnHeader" HorizontalAlignment="Center" />
+      </Grid>
+
+      <ListBox Grid.Row="2" x:Name="TypesList" SelectionChanged="OnSelectionChanged">
+        <ListBox.ItemTemplate>
+          <DataTemplate>
+            <Grid ColumnDefinitions="*,160,110,80" Margin="0,2">
+              <TextBlock Grid.Column="0" Text="{Binding Name}" />
+              <TextBlock Grid.Column="1" Text="{Binding Category}" Classes="muted" />
+              <TextBlock Grid.Column="2" Text="{Binding Status}" Classes="muted" HorizontalAlignment="Center" />
+              <TextBlock Grid.Column="3" Text="{Binding EntryCount}" Classes="muted" HorizontalAlignment="Center" />
+            </Grid>
+          </DataTemplate>
+        </ListBox.ItemTemplate>
+      </ListBox>
+
+      <Grid Grid.Row="3" ColumnDefinitions="Auto,Auto,Auto,Auto,*,Auto" Margin="0,12,0,0">
+        <Button Grid.Column="0" Content="{DynamicResource ButtonAdd}" Classes="accent" Click="OnAddClick" />
+        <Button Grid.Column="1" Content="{DynamicResource ButtonRename}" Click="OnRenameClick" Margin="6,0,0,0" />
+        <Button Grid.Column="2" x:Name="ArchiveButton" Content="{DynamicResource ButtonArchive}"
+                Click="OnArchiveClick" Margin="6,0,0,0" />
+        <Button Grid.Column="3" Content="{DynamicResource ButtonDelete}" Classes="danger"
+                Click="OnDeleteClick" Margin="6,0,0,0" />
+        <Button Grid.Column="5" Content="{DynamicResource ButtonClose}" Click="OnCloseClick" />
+      </Grid>
+    </Grid>
+  </Border>
+</Window>

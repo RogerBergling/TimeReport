@@ -11,6 +11,7 @@ public partial class EntryDialog : Window
     private readonly TimeReportService? _service;
     private readonly Entry? _entry;
     private List<Project> _projects = [];
+    private List<EntryType> _entryTypes = [];
 
     public EntryDialog()
     {
@@ -22,19 +23,34 @@ public partial class EntryDialog : Window
         _service = service;
         _entry = entry;
         Title = LocalizationService.T(entry is null ? "EntryDialogAddTitle" : "EntryDialogEditTitle");
-        TypeComboBox.ItemsSource = Enum.GetValues<EntryKind>()
-            .Select(kind => new EntryKindOption(kind, kind.DisplayName()))
-            .ToList();
         DateTextBox.Text = defaultDate.ToString("yyyy-MM-dd");
         StartTextBox.Text = "08:00";
         EndTextBox.Text = "16:00";
+        LoadEntryTypes();
         LoadProjects();
         Populate();
         UpdateTypeUi();
     }
 
-    private EntryKind SelectedKind =>
-        (TypeComboBox.SelectedItem as EntryKindOption)?.Kind ?? EntryKind.Work;
+    private EntryType? SelectedType => TypeComboBox.SelectedItem as EntryType;
+
+    private EntryKind SelectedKind => SelectedType?.Category ?? EntryKind.Work;
+
+    private void LoadEntryTypes()
+    {
+        if (_service is null)
+        {
+            return;
+        }
+
+        var selectedId = SelectedType?.Id ?? _entry?.TypeId;
+        _entryTypes = _service.ListEntryTypes(includeArchived: _entry is not null).ToList();
+        TypeComboBox.ItemsSource = _entryTypes;
+        TypeComboBox.SelectedItem = selectedId is long id
+            ? _entryTypes.FirstOrDefault(type => type.Id == id)
+            : _entryTypes.FirstOrDefault(type => type.Category == EntryKind.Work)
+              ?? _entryTypes.FirstOrDefault();
+    }
 
     private void LoadProjects()
     {
@@ -59,16 +75,15 @@ public partial class EntryDialog : Window
     {
         if (_entry is null)
         {
-            TypeComboBox.SelectedItem = ((IEnumerable<EntryKindOption>)TypeComboBox.ItemsSource!)
-                .First(option => option.Kind == EntryKind.Work);
             return;
         }
 
         DateTextBox.Text = _entry.Date.ToString("yyyy-MM-dd");
         StartTextBox.Text = TimeUtil.FormatTime(_entry.StartMinute);
         EndTextBox.Text = TimeUtil.FormatTime(_entry.EndMinute);
-        TypeComboBox.SelectedItem = ((IEnumerable<EntryKindOption>)TypeComboBox.ItemsSource!)
-            .First(option => option.Kind == _entry.Kind);
+        TypeComboBox.SelectedItem = _entry.TypeId is long typeId
+            ? _entryTypes.FirstOrDefault(type => type.Id == typeId)
+            : _entryTypes.FirstOrDefault(type => type.Category == _entry.Kind);
         if (_entry.AwayReason is not null)
         {
             AwayReasonTextBox.Text = _entry.AwayReason;
@@ -136,6 +151,19 @@ public partial class EntryDialog : Window
             weekdayNote);
     }
 
+    private async void OnManageTypesClick(object? sender, RoutedEventArgs e)
+    {
+        if (_service is null)
+        {
+            return;
+        }
+
+        var dialog = new EntryTypesDialog(_service);
+        await dialog.ShowDialog(this);
+        LoadEntryTypes();
+        UpdateTypeUi();
+    }
+
     private async void OnNewProjectClick(object? sender, RoutedEventArgs e)
     {
         if (_service is null)
@@ -180,7 +208,9 @@ public partial class EntryDialog : Window
             var day = TimeUtil.ParseDate(DateTextBox.Text ?? string.Empty);
             var start = TimeUtil.ParseTime(StartTextBox.Text ?? string.Empty);
             var end = TimeUtil.ParseTime(EndTextBox.Text ?? string.Empty);
-            var kind = SelectedKind;
+            var selectedType = SelectedType
+                ?? throw new ValidationException(LocalizationService.T("ValidationTypeMissing"));
+            var kind = selectedType.Category;
             long? projectId = null;
             string? awayReason = null;
 
@@ -205,7 +235,8 @@ public partial class EntryDialog : Window
                 start,
                 end,
                 projectId,
-                AwayReason: awayReason);
+                AwayReason: awayReason,
+                TypeId: selectedType.Id);
             var saved = _service.SaveEntry(candidate);
             Close(saved);
         }
@@ -228,9 +259,4 @@ public partial class EntryDialog : Window
     }
 
     private void OnCancelClick(object? sender, RoutedEventArgs e) => Close(null);
-}
-
-public sealed record EntryKindOption(EntryKind Kind, string Label)
-{
-    public override string ToString() => Label;
 }
