@@ -2,7 +2,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="TimeReport.Views.MainWindow"
         x:CompileBindings="False"
-        Title="TimeReport 2.3.0"
+        Title="TimeReport 2.4.0"
         Width="1180"
         Height="800"
         MinWidth="980"
@@ -14,6 +14,7 @@
         <MenuItem Header="{DynamicResource MenuDatabaseLocation}" Click="OnDatabaseLocationClick" />
         <MenuItem Header="{DynamicResource MenuDropbox}" Click="OnDropboxClick" />
         <MenuItem Header="{DynamicResource MenuSyncNow}" Click="OnSyncNowClick" />
+        <MenuItem Header="{DynamicResource MenuExportExcel}" Click="OnExportExcelClick" />
         <Separator />
         <MenuItem Header="{DynamicResource MenuBackup}" Click="OnBackupClick" />
         <MenuItem Header="{DynamicResource MenuRestore}" Click="OnRestoreClick" />
@@ -58,7 +59,10 @@
                        VerticalAlignment="Center" Margin="10,0" />
             <Button Grid.Column="2" Content="▶" Classes="icon" Click="OnNextWeekClick" />
             <Button Grid.Column="3" Content="{DynamicResource ButtonThisWeek}" Click="OnThisWeekClick" Margin="10,0,0,0" />
-            <Button Grid.Column="5" Content="{DynamicResource ButtonAddEntry}" Classes="accent" Click="OnAddEntryClick" />
+            <StackPanel Grid.Column="5" Orientation="Horizontal" Spacing="8">
+              <Button Content="{DynamicResource ButtonExport}" Click="OnExportExcelClick" />
+              <Button Content="{DynamicResource ButtonAddEntry}" Classes="accent" Click="OnAddEntryClick" />
+            </StackPanel>
           </Grid>
 
           <Grid Grid.Row="1" ColumnDefinitions="*,*,*,*,*" Margin="0,10,0,10">

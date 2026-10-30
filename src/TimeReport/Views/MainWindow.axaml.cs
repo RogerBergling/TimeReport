@@ -364,6 +364,20 @@ public partial class MainWindow : Window
         }
     }
 
+    private async void OnExportExcelClick(object? sender, RoutedEventArgs e) =>
+        await OpenExportDialogAsync();
+
+    private async Task OpenExportDialogAsync()
+    {
+        if (_service is null)
+        {
+            return;
+        }
+
+        var dialog = new ExportDialog(_service);
+        await dialog.ShowDialog(this);
+    }
+
     private async void OnBackupClick(object? sender, RoutedEventArgs e)
     {
         if (_service is null)

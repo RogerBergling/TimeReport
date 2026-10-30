@@ -27,6 +27,7 @@ not require Python or a separate .NET installation.
 - Daily totals, weekly totals, monthly totals, yearly totals and an all-time total.
 - Backup and restore from the GUI, with automatic safety backups.
 - Optional Dropbox sync with OAuth refresh tokens and conflict detection.
+- Export any date range to an Excel `.xlsx` workbook with summary, entries, daily/monthly totals, projects and types.
 - Switch the interface and calendar between English and Swedish.
 - 24-hour clock and ISO dates (`YYYY-MM-DD`).
 - No account, cloud service, telemetry or network access.
@@ -39,7 +40,7 @@ Ready-to-run self-contained binaries are included in [`release/`](release/):
 - Windows: `release/TimeReport-windows-x86_64.exe`
 - Checksums: `release/SHA256SUMS.txt`
 
-They are also attached to the [v2.3.0 release](https://github.com/RogerBergling/TimeReport/releases/tag/v2.3.0).
+They are also attached to the [v2.4.0 release](https://github.com/RogerBergling/TimeReport/releases/tag/v2.4.0).
 
 ## Data storage
 
@@ -207,6 +208,25 @@ src/TimeReport/
 tests/TimeReport.Tests/     xUnit tests for time, database, validation, totals, backup
 ```
 
+## Excel export
+
+Use **File → Export to Excel (.xlsx)…** or the **Export** button on the timesheet.
+Choose a custom start/end date, or use the quick presets for this/last month,
+this/last year, or all time. A custom range can span any number of months.
+
+The workbook contains:
+
+- **Summary** — period, generated time, totals and database path.
+- **Entries** — every entry with date, weekday, type, category, project, away reason,
+  start, end and duration.
+- **Daily totals** — worked, lunch, away and X-Pause for every day in the range.
+- **Monthly totals** — totals for every month touched by the range.
+- **Projects** — project status, entry count and work hours.
+- **Types** — type category/status, entry count and total hours.
+
+The export uses the modern Excel `.xlsx` format, which Excel, LibreOffice and other
+spreadsheet applications can open.
+
 ## Entry types
 
 TimeReport ships with the types **Work**, **Lunch**, **Away** and **X-Pause**. Open
@@ -238,4 +258,4 @@ remain visible on historical entries but are not offered for new entries.
 
 ## Version
 
-`2.3.0`
+`2.4.0`

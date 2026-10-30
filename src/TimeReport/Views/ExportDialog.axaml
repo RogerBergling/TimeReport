@@ -1,0 +1,43 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="TimeReport.Views.ExportDialog"
+        x:CompileBindings="False"
+        Title="{DynamicResource ExportDialogTitle}"
+        Width="640"
+        SizeToContent="Height"
+        CanResize="False"
+        WindowStartupLocation="CenterOwner"
+        ShowInTaskbar="False">
+  <Border Padding="20">
+    <StackPanel Spacing="10">
+      <TextBlock Text="{DynamicResource ExportDialogTitle}" Classes="h2" />
+
+      <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto">
+        <TextBlock Grid.Row="0" Grid.Column="0" Text="{DynamicResource ExportFrom}"
+                   VerticalAlignment="Center" Margin="0,0,12,0" />
+        <TextBox Grid.Row="0" Grid.Column="1" x:Name="FromTextBox" Width="160"
+                 HorizontalAlignment="Left" TextChanged="OnDateChanged" />
+        <TextBlock Grid.Row="1" Grid.Column="0" Text="{DynamicResource ExportTo}"
+                   VerticalAlignment="Center" Margin="0,8,12,0" />
+        <TextBox Grid.Row="1" Grid.Column="1" x:Name="ToTextBox" Width="160"
+                 HorizontalAlignment="Left" Margin="0,8,0,0" TextChanged="OnDateChanged" />
+      </Grid>
+
+      <WrapPanel Orientation="Horizontal">
+        <Button Content="{DynamicResource ExportThisMonth}" Click="OnThisMonthClick" Margin="0,0,6,6" />
+        <Button Content="{DynamicResource ExportLastMonth}" Click="OnLastMonthClick" Margin="0,0,6,6" />
+        <Button Content="{DynamicResource ExportThisYear}" Click="OnThisYearClick" Margin="0,0,6,6" />
+        <Button Content="{DynamicResource ExportLastYear}" Click="OnLastYearClick" Margin="0,0,6,6" />
+        <Button Content="{DynamicResource PeriodAllTime}" Click="OnAllTimeClick" Margin="0,0,6,6" />
+      </WrapPanel>
+
+      <TextBlock x:Name="InfoText" Classes="muted" TextWrapping="Wrap" />
+      <TextBlock Text="{DynamicResource ExportFileType}" Classes="muted" FontSize="11" />
+
+      <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8" Margin="0,10,0,0">
+        <Button Content="{DynamicResource ButtonCancel}" Click="OnCancelClick" />
+        <Button Content="{DynamicResource ButtonExport}" Classes="accent" Click="OnExportClick" />
+      </StackPanel>
+    </StackPanel>
+  </Border>
+</Window>

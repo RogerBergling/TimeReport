@@ -27,6 +27,8 @@ Use **File → Database location…** to choose where the database file is store
 
 Use **Data → Entry types…** or the **Types** button to add and manage custom entry types.
 
+Use **File → Export to Excel (.xlsx)…** or the **Export** button to export a dynamic date range.
+
 Use **File → Dropbox sync…** to configure optional Dropbox synchronization. You will
 need a Dropbox app key and the redirect URI `http://127.0.0.1:53682/dropbox-callback`
 registered in the Dropbox App Console.
