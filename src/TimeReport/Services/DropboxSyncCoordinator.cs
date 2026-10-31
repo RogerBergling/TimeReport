@@ -90,7 +90,7 @@ public sealed class DropboxSyncCoordinator
 
             if (metadata is null)
             {
-                return await UploadAsync(cancellationToken);
+                return await UploadAsync(null, cancellationToken);
             }
 
             if (lastSync is null)
@@ -106,7 +106,7 @@ public sealed class DropboxSyncCoordinator
             }
             if (localChanged)
             {
-                return await UploadAsync(cancellationToken);
+                return await UploadAsync(metadata, cancellationToken);
             }
             if (remoteChanged)
             {
@@ -150,7 +150,7 @@ public sealed class DropboxSyncCoordinator
             var metadata = await GetMetadataAsync(cancellationToken);
             if (metadata is null)
             {
-                return await UploadAsync(cancellationToken);
+                return await UploadAsync(null, cancellationToken);
             }
 
             var lastSync = _session.Settings.DropboxLastSyncUtc;
@@ -162,7 +162,7 @@ public sealed class DropboxSyncCoordinator
                     LocalizationService.T("DropboxConflict"));
             }
 
-            return await UploadAsync(cancellationToken);
+            return await UploadAsync(metadata, cancellationToken);
         }
         catch (OperationCanceledException)
         {
@@ -197,7 +197,7 @@ public sealed class DropboxSyncCoordinator
             var metadata = await GetMetadataAsync(cancellationToken);
             if (metadata is null)
             {
-                return await UploadAsync(cancellationToken);
+                return await UploadAsync(null, cancellationToken);
             }
 
             var lastSync = _session.Settings.DropboxLastSyncUtc;
@@ -226,7 +226,7 @@ public sealed class DropboxSyncCoordinator
             }
             if (localChanged)
             {
-                return await UploadAsync(cancellationToken);
+                return await UploadAsync(metadata, cancellationToken);
             }
 
             return new DropboxSyncResult(
@@ -260,7 +260,7 @@ public sealed class DropboxSyncCoordinator
         var choice = await conflictResolver();
         return choice switch
         {
-            DropboxConflictChoice.UseLocal => await UploadAsync(cancellationToken),
+            DropboxConflictChoice.UseLocal => await UploadAsync(metadata, cancellationToken),
             DropboxConflictChoice.UseRemote => await DownloadAsync(metadata, cancellationToken),
             _ => new DropboxSyncResult(
                 DropboxSyncStatus.Conflict,
@@ -268,7 +268,9 @@ public sealed class DropboxSyncCoordinator
         };
     }
 
-    private async Task<DropboxSyncResult> UploadAsync(CancellationToken cancellationToken)
+    private async Task<DropboxSyncResult> UploadAsync(
+        DropboxMetadata? expectedRemote,
+        CancellationToken cancellationToken)
     {
         var temporary = Path.Combine(
             _session.DataDirectory,
@@ -277,8 +279,18 @@ public sealed class DropboxSyncCoordinator
         {
             _session.Database.BackupTo(temporary);
             await EnsureFolderAsync(cancellationToken);
-            var metadata = await UploadRemoteAsync(temporary, cancellationToken);
-            SetLastSync(metadata?.ServerModified ?? DateTimeOffset.UtcNow);
+            DropboxMetadata? uploaded;
+            try
+            {
+                uploaded = await UploadRemoteAsync(temporary, expectedRemote?.Rev, cancellationToken);
+            }
+            catch (DropboxSyncException exception) when (exception.IsConflict)
+            {
+                return new DropboxSyncResult(
+                    DropboxSyncStatus.Conflict,
+                    LocalizationService.T("DropboxConflict"));
+            }
+            SetLastSync(uploaded?.ServerModified ?? DateTimeOffset.UtcNow);
             return new DropboxSyncResult(
                 DropboxSyncStatus.Uploaded,
                 LocalizationService.T("DropboxUploaded"));
@@ -325,12 +337,14 @@ public sealed class DropboxSyncCoordinator
 
     private Task<DropboxMetadata?> UploadRemoteAsync(
         string localPath,
+        string? expectedRev,
         CancellationToken cancellationToken) =>
         WithTokenAsync(
             token => _dropbox.UploadAsync(
                 token,
                 RemotePath,
                 localPath,
+                expectedRev,
                 cancellationToken),
             cancellationToken);
 
@@ -386,9 +400,20 @@ public sealed class DropboxSyncCoordinator
         return index <= 0 ? "/" : path[..index];
     }
 
-    private bool HasLocalData() =>
-        _session.Service.ListProjects(includeArchived: true).Count > 0 ||
-        _session.Service.AllTimeBounds() is not null;
+    private bool HasLocalData()
+    {
+        if (_session.Service.ListProjects(includeArchived: true).Count > 0 ||
+            _session.Service.AllTimeBounds() is not null)
+        {
+            return true;
+        }
+
+        var defaultTypeNames = new HashSet<string>(
+            ["Work", "Lunch", "Away", "X-Pause"],
+            StringComparer.OrdinalIgnoreCase);
+        return _session.Service.ListEntryTypes(includeArchived: true)
+            .Any(type => !defaultTypeNames.Contains(type.Name));
+    }
 
     private void SetLastSync(DateTimeOffset value)
     {

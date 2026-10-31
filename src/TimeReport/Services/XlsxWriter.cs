@@ -103,6 +103,7 @@ public static class XlsxWriter
 
     private static string BuildWorkbook(IReadOnlyList<XlsxSheet> sheets)
     {
+        var names = UniqueSheetNames(sheets);
         var builder = new StringBuilder();
         builder.AppendLine("""<?xml version="1.0" encoding="UTF-8" standalone="yes"?>""");
         builder.AppendLine("""<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">""");
@@ -110,7 +111,7 @@ public static class XlsxWriter
         for (var index = 0; index < sheets.Count; index++)
         {
             builder.AppendLine(
-                $"""    <sheet name="{Escape(UniqueSheetName(sheets, index))}" sheetId="{index + 1}" r:id="rId{index + 2}"/>""");
+                $"""    <sheet name="{Escape(names[index])}" sheetId="{index + 1}" r:id="rId{index + 2}"/>""");
         }
         builder.AppendLine("  </sheets>");
         builder.AppendLine("</workbook>");
@@ -245,34 +246,42 @@ public static class XlsxWriter
         writer.Write(content);
     }
 
-    private static string UniqueSheetName(IReadOnlyList<XlsxSheet> sheets, int index)
+    private static List<string> UniqueSheetNames(IReadOnlyList<XlsxSheet> sheets)
     {
-        var baseName = SanitizeSheetName(sheets[index].Name);
-        var candidate = baseName;
-        var suffix = 2;
-        for (var previous = 0; previous < index; previous++)
+        var used = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var names = new List<string>(sheets.Count);
+        foreach (var sheet in sheets)
         {
-            if (string.Equals(
-                    SanitizeSheetName(sheets[previous].Name),
-                    candidate,
-                    StringComparison.OrdinalIgnoreCase))
+            var baseName = SanitizeSheetName(sheet.Name);
+            var candidate = baseName;
+            var suffix = 2;
+            while (!used.Add(candidate))
             {
-                candidate = SanitizeSheetName($"{baseName} {suffix++}");
-                previous = -1;
+                var suffixText = $" {suffix++}";
+                var available = Math.Max(1, 31 - suffixText.Length);
+                var prefix = baseName.Length <= available ? baseName : baseName[..available];
+                candidate = SanitizeSheetName(prefix + suffixText);
             }
+            names.Add(candidate);
         }
-        return candidate;
+        return names;
     }
 
     private static string SanitizeSheetName(string name)
     {
         var invalid = new[] { '\\', '/', '?', '*', '[', ']', ':' };
-        var cleaned = new string(name.Where(character => !invalid.Contains(character)).ToArray()).Trim();
-        if (string.IsNullOrWhiteSpace(cleaned))
+        var cleaned = new string(
+            SanitizeXmlText(name)
+                .Where(character => !invalid.Contains(character))
+                .ToArray())
+            .Trim()
+            .Trim('\'');
+        if (cleaned.Length > 31)
         {
-            cleaned = "Sheet";
+            cleaned = cleaned[..31];
         }
-        return cleaned.Length <= 31 ? cleaned : cleaned[..31];
+        cleaned = cleaned.Trim().Trim('\'');
+        return string.IsNullOrWhiteSpace(cleaned) ? "Sheet" : cleaned;
     }
 
     private static string ColumnName(int index)
@@ -288,7 +297,8 @@ public static class XlsxWriter
     }
 
     private static string Escape(string value) =>
-        value.Replace("&", "&amp;")
+        SanitizeXmlText(value)
+            .Replace("&", "&amp;")
             .Replace("<", "&lt;")
             .Replace(">", "&gt;")
             .Replace("\"", "&quot;")
@@ -296,4 +306,25 @@ public static class XlsxWriter
             .Replace("\r\n", " ")
             .Replace("\n", " ")
             .Replace("\r", " ");
+
+    private static string SanitizeXmlText(string value)
+    {
+        var builder = new StringBuilder(value.Length);
+        foreach (var rune in value.EnumerateRunes())
+        {
+            var scalar = rune.Value;
+            if (scalar is 0x09 or 0x0A or 0x0D ||
+                scalar is >= 0x20 and <= 0xD7FF ||
+                scalar is >= 0xE000 and <= 0xFFFD ||
+                scalar is >= 0x10000 and <= 0x10FFFF)
+            {
+                builder.Append(rune.ToString());
+            }
+            else
+            {
+                builder.Append(' ');
+            }
+        }
+        return builder.ToString();
+    }
 }

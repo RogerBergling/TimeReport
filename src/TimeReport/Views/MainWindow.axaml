@@ -2,32 +2,41 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="TimeReport.Views.MainWindow"
         x:CompileBindings="False"
-        Title="TimeReport 2.4.0"
+        Icon="avares://TimeReport/Assets/timereport.png"
+        Title="TimeReport 2.5.0"
         Width="1180"
         Height="800"
         MinWidth="980"
-        MinHeight="640"
+        MinHeight="560"
         WindowStartupLocation="CenterScreen">
   <Grid RowDefinitions="Auto,Auto,*,Auto">
     <Menu Grid.Row="0">
       <MenuItem Header="{DynamicResource MenuFile}">
         <MenuItem Header="{DynamicResource MenuDatabaseLocation}" Click="OnDatabaseLocationClick" />
         <MenuItem Header="{DynamicResource MenuDropbox}" Click="OnDropboxClick" />
-        <MenuItem Header="{DynamicResource MenuSyncNow}" Click="OnSyncNowClick" />
-        <MenuItem Header="{DynamicResource MenuExportExcel}" Click="OnExportExcelClick" />
+        <MenuItem Header="{DynamicResource MenuSyncNow}" Click="OnSyncNowClick" HotKey="Ctrl+Shift+S" />
+        <MenuItem Header="{DynamicResource MenuExportExcel}" Click="OnExportExcelClick" HotKey="Ctrl+E" />
         <Separator />
-        <MenuItem Header="{DynamicResource MenuBackup}" Click="OnBackupClick" />
-        <MenuItem Header="{DynamicResource MenuRestore}" Click="OnRestoreClick" />
+        <MenuItem Header="{DynamicResource MenuBackupAction}" Click="OnBackupClick" HotKey="Ctrl+B" />
+        <MenuItem Header="{DynamicResource MenuRestoreAction}" Click="OnRestoreClick" />
         <Separator />
-        <MenuItem Header="{DynamicResource MenuExit}" Click="OnExitClick" />
+        <MenuItem Header="{DynamicResource MenuExit}" Click="OnExitClick" HotKey="Ctrl+Q" />
       </MenuItem>
       <MenuItem Header="{DynamicResource MenuData}">
-        <MenuItem Header="{DynamicResource MenuProjects}" Click="OnProjectsClick" />
-        <MenuItem Header="{DynamicResource MenuEntryTypes}" Click="OnEntryTypesClick" />
-        <MenuItem Header="{DynamicResource MenuRefresh}" Click="OnRefreshClick" />
+        <MenuItem Header="{DynamicResource MenuNewEntry}" Click="OnAddEntryClick" HotKey="Ctrl+N" />
+        <MenuItem Header="{DynamicResource MenuProjects}" Click="OnProjectsClick" HotKey="Ctrl+P" />
+        <MenuItem Header="{DynamicResource MenuEntryTypes}" Click="OnEntryTypesClick" HotKey="Ctrl+T" />
+        <MenuItem Header="{DynamicResource MenuRefresh}" Click="OnRefreshClick" HotKey="F5" />
+        <Separator />
+        <MenuItem Header="{DynamicResource MenuTheme}">
+          <MenuItem Header="{DynamicResource ThemeSystem}" Tag="system" Click="OnThemeClick" />
+          <MenuItem Header="{DynamicResource ThemeLight}" Tag="light" Click="OnThemeClick" />
+          <MenuItem Header="{DynamicResource ThemeDark}" Tag="dark" Click="OnThemeClick" />
+          <MenuItem Header="{DynamicResource ThemeHighContrast}" Tag="highcontrast" Click="OnThemeClick" />
+        </MenuItem>
       </MenuItem>
       <MenuItem Header="{DynamicResource MenuHelp}">
-        <MenuItem Header="{DynamicResource MenuAbout}" Click="OnAboutClick" />
+        <MenuItem Header="{DynamicResource MenuAbout}" Click="OnAboutClick" HotKey="F1" />
       </MenuItem>
     </Menu>
 
@@ -46,7 +55,8 @@
         <Button Content="{DynamicResource ButtonRestore}" Click="OnRestoreClick" />
         <Button Content="{DynamicResource ButtonAbout}" Click="OnAboutClick" />
         <ComboBox x:Name="LanguageComboBox" Width="110" Margin="6,0,0,0"
-                  SelectionChanged="OnLanguageChanged" />
+                  SelectionChanged="OnLanguageChanged"
+                  AutomationProperties.Name="{DynamicResource LabelLanguage}" />
       </StackPanel>
     </Grid>
 
@@ -54,10 +64,14 @@
       <TabItem Header="{DynamicResource TabTimesheet}">
         <Grid RowDefinitions="Auto,Auto,*" Margin="0,8,0,0">
           <Grid Grid.Row="0" ColumnDefinitions="Auto,Auto,Auto,Auto,*,Auto">
-            <Button Grid.Column="0" Content="◀" Classes="icon" Click="OnPreviousWeekClick" />
+            <Button Grid.Column="0" Content="◀" Classes="icon" Click="OnPreviousWeekClick"
+                    ToolTip.Tip="{DynamicResource ButtonPreviousWeek}"
+                    AutomationProperties.Name="{DynamicResource ButtonPreviousWeek}" />
             <TextBlock Grid.Column="1" Text="{Binding WeekLabel}" Classes="h2"
                        VerticalAlignment="Center" Margin="10,0" />
-            <Button Grid.Column="2" Content="▶" Classes="icon" Click="OnNextWeekClick" />
+            <Button Grid.Column="2" Content="▶" Classes="icon" Click="OnNextWeekClick"
+                    ToolTip.Tip="{DynamicResource ButtonNextWeek}"
+                    AutomationProperties.Name="{DynamicResource ButtonNextWeek}" />
             <Button Grid.Column="3" Content="{DynamicResource ButtonThisWeek}" Click="OnThisWeekClick" Margin="10,0,0,0" />
             <StackPanel Grid.Column="5" Orientation="Horizontal" Spacing="8">
               <Button Content="{DynamicResource ButtonExport}" Click="OnExportExcelClick" />
@@ -138,9 +152,11 @@
                               <TextBlock Grid.Column="3" Text="{Binding EndText}" HorizontalAlignment="Center" />
                               <TextBlock Grid.Column="4" Text="{Binding DurationText}" HorizontalAlignment="Center" />
                               <Button Grid.Column="5" Content="{DynamicResource ButtonEdit}" Classes="link"
-                                      Command="{Binding EditCommand}" />
+                                      Command="{Binding EditCommand}"
+                                      AutomationProperties.Name="{Binding EditAutomationName}" />
                               <Button Grid.Column="6" Content="{DynamicResource ButtonDelete}" Classes="link danger"
-                                      Command="{Binding DeleteCommand}" />
+                                      Command="{Binding DeleteCommand}"
+                                      AutomationProperties.Name="{Binding DeleteAutomationName}" />
                             </Grid>
                           </DataTemplate>
                         </ItemsControl.ItemTemplate>
@@ -248,10 +264,15 @@
       <Grid ColumnDefinitions="*,Auto,Auto">
         <StackPanel Orientation="Horizontal" Spacing="4">
           <TextBlock Text="{DynamicResource StatusDatabase}" Classes="muted" FontSize="11" />
-          <TextBlock Text="{Binding DatabasePath}" Classes="muted" FontSize="11" />
+          <TextBlock Text="{Binding DatabasePath}" Classes="muted" FontSize="11"
+                     TextTrimming="CharacterEllipsis" />
+          <Button x:Name="UndoDeleteButton" Content="{DynamicResource ButtonUndoDelete}"
+                  Classes="link" FontSize="11" IsVisible="False"
+                  Click="OnUndoDeleteClick"
+                  AutomationProperties.Name="{DynamicResource ButtonUndoDelete}" />
         </StackPanel>
         <TextBlock Grid.Column="1" x:Name="DropboxStatusText" Classes="muted" FontSize="11"
-                   Margin="0,0,18,0" />
+                   Margin="0,0,18,0" AutomationProperties.LiveSetting="Polite" />
         <TextBlock Grid.Column="2" Text="{DynamicResource StatusLocalOnly}"
                    Classes="muted" FontSize="11" />
       </Grid>

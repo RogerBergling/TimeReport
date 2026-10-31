@@ -12,6 +12,9 @@ public partial class EntryDialog : Window
     private readonly Entry? _entry;
     private List<Project> _projects = [];
     private List<EntryType> _entryTypes = [];
+    private bool _initializing = true;
+    private string _lastDefaultStart = "08:00";
+    private string _lastDefaultEnd = "16:00";
 
     public EntryDialog()
     {
@@ -29,7 +32,13 @@ public partial class EntryDialog : Window
         LoadEntryTypes();
         LoadProjects();
         Populate();
+        _initializing = false;
         UpdateTypeUi();
+        Opened += (_, _) =>
+        {
+            DateTextBox.Focus();
+            DateTextBox.SelectAll();
+        };
     }
 
     private EntryType? SelectedType => TypeComboBox.SelectedItem as EntryType;
@@ -90,9 +99,45 @@ public partial class EntryDialog : Window
         }
     }
 
-    private void OnTypeChanged(object? sender, SelectionChangedEventArgs e) => UpdateTypeUi();
+    private void OnTypeChanged(object? sender, SelectionChangedEventArgs e)
+    {
+        ValidationText.Text = string.Empty;
+        if (!_initializing)
+        {
+            ApplyTypeDefaults();
+        }
+        UpdateTypeUi();
+    }
 
-    private void OnDateChanged(object? sender, TextChangedEventArgs e) => UpdateXPauseHint();
+    private void ApplyTypeDefaults()
+    {
+        var (start, end) = SelectedKind switch
+        {
+            EntryKind.Lunch => ("12:00", "12:30"),
+            EntryKind.XPause => ("10:00", "10:15"),
+            _ => ("08:00", "16:00"),
+        };
+
+        var startText = StartTextBox.Text ?? string.Empty;
+        var endText = EndTextBox.Text ?? string.Empty;
+        if ((string.Equals(startText, _lastDefaultStart, StringComparison.Ordinal) &&
+             string.Equals(endText, _lastDefaultEnd, StringComparison.Ordinal)) ||
+            string.IsNullOrWhiteSpace(startText) ||
+            string.IsNullOrWhiteSpace(endText))
+        {
+            StartTextBox.Text = start;
+            EndTextBox.Text = end;
+        }
+
+        _lastDefaultStart = start;
+        _lastDefaultEnd = end;
+    }
+
+    private void OnDateChanged(object? sender, TextChangedEventArgs e)
+    {
+        ValidationText.Text = string.Empty;
+        UpdateXPauseHint();
+    }
 
     private void UpdateTypeUi()
     {
@@ -198,18 +243,13 @@ public partial class EntryDialog : Window
 
     private async void OnSaveClick(object? sender, RoutedEventArgs e)
     {
-        if (_service is null)
+        if (_service is null || !TryReadInput(out var day, out var start, out var end, out var selectedType))
         {
             return;
         }
 
         try
         {
-            var day = TimeUtil.ParseDate(DateTextBox.Text ?? string.Empty);
-            var start = TimeUtil.ParseTime(StartTextBox.Text ?? string.Empty);
-            var end = TimeUtil.ParseTime(EndTextBox.Text ?? string.Empty);
-            var selectedType = SelectedType
-                ?? throw new ValidationException(LocalizationService.T("ValidationTypeMissing"));
             var kind = selectedType.Category;
             long? projectId = null;
             string? awayReason = null;
@@ -218,8 +258,10 @@ public partial class EntryDialog : Window
             {
                 if (ProjectComboBox.SelectedItem is not Project project)
                 {
-                    throw new ValidationException(
-                        LocalizationService.T("EntryDialogChooseProject"));
+                    SetValidation(
+                        LocalizationService.T("EntryDialogChooseProject"),
+                        ProjectComboBox);
+                    return;
                 }
                 projectId = project.Id;
             }
@@ -242,20 +284,80 @@ public partial class EntryDialog : Window
         }
         catch (ValidationException exception)
         {
-            await MessageDialog.ShowAsync(
-                this,
-                LocalizationService.T("MessageCannotSaveEntry"),
-                exception.Message,
-                false);
+            SetValidation(exception.Message);
         }
         catch (DatabaseException exception)
         {
+            AppLog.Error("Could not save entry.", exception);
             await MessageDialog.ShowAsync(
                 this,
                 LocalizationService.T("MessageCannotSaveEntry"),
                 exception.Message,
                 false);
         }
+    }
+
+    private bool TryReadInput(
+        out DateOnly day,
+        out int start,
+        out int end,
+        out EntryType selectedType)
+    {
+        day = default;
+        start = 0;
+        end = 0;
+        selectedType = null!;
+        ValidationText.Text = string.Empty;
+
+        try
+        {
+            day = TimeUtil.ParseDate(DateTextBox.Text ?? string.Empty);
+        }
+        catch (ValidationException exception)
+        {
+            SetValidation(exception.Message, DateTextBox);
+            return false;
+        }
+
+        try
+        {
+            start = TimeUtil.ParseTime(StartTextBox.Text ?? string.Empty);
+        }
+        catch (ValidationException exception)
+        {
+            SetValidation(exception.Message, StartTextBox);
+            return false;
+        }
+
+        try
+        {
+            end = TimeUtil.ParseTime(EndTextBox.Text ?? string.Empty);
+        }
+        catch (ValidationException exception)
+        {
+            SetValidation(exception.Message, EndTextBox);
+            return false;
+        }
+
+        if (end <= start)
+        {
+            SetValidation(LocalizationService.T("ValidationEndAfterStart"), EndTextBox);
+            return false;
+        }
+
+        if (SelectedType is not EntryType type)
+        {
+            SetValidation(LocalizationService.T("ValidationTypeMissing"), TypeComboBox);
+            return false;
+        }
+        selectedType = type;
+        return true;
+    }
+
+    private void SetValidation(string message, Control? focus = null)
+    {
+        ValidationText.Text = message;
+        focus?.Focus();
     }
 
     private void OnCancelClick(object? sender, RoutedEventArgs e) => Close(null);

@@ -115,6 +115,47 @@ public sealed class ExcelExportServiceTests
     }
 
     [Fact]
+    public async Task ExportCannotOverwriteLiveDatabase()
+    {
+        using var context = new TestContext();
+        var project = context.Service.CreateProject("Acme");
+        context.Service.SaveEntry(TestData.Entry(
+            TestData.Monday, EntryKind.Work, "08:00", "12:00", project.Id));
+        var exporter = new ExcelExportService(context.Service);
+
+        await Assert.ThrowsAsync<ValidationException>(() =>
+            exporter.ExportAsync(TestData.Monday, TestData.Monday, context.Database.Path));
+
+        Assert.Equal(["Acme"], context.Service.ListProjects().Select(item => item.Name));
+    }
+
+    [Fact]
+    public async Task WorkHoursReconcileAcrossSummaryProjectsAndTypes()
+    {
+        using var context = new TestContext();
+        var project = context.Service.CreateProject("Acme");
+        context.Service.SaveEntry(TestData.Entry(
+            TestData.Monday, EntryKind.Work, "08:00", "17:00", project.Id));
+        context.Service.SaveEntry(TestData.Entry(
+            TestData.Monday, EntryKind.Lunch, "12:00", "12:30"));
+
+        var path = Path.Combine(context.Directory, "reconcile.xlsx");
+        var exporter = new ExcelExportService(context.Service);
+        await exporter.ExportAsync(TestData.Monday, TestData.Monday, path);
+
+        using var archive = ZipFile.OpenRead(path);
+        var summary = LoadXml(archive, "xl/worksheets/sheet1.xml");
+        var projects = LoadXml(archive, "xl/worksheets/sheet5.xml");
+        var types = LoadXml(archive, "xl/worksheets/sheet6.xml");
+
+        var summaryWorked = CellNumber(summary, "B7");
+        Assert.Equal(8.5d / 24, summaryWorked, 6);
+        Assert.Equal(summaryWorked, CellNumber(projects, "D2"), 6);
+        var workRow = FindRowByFirstCell(types, "Work");
+        Assert.Equal(summaryWorked, CellNumber(types, $"E{workRow}"), 6);
+    }
+
+    [Fact]
     public async Task InvalidRangeIsRejected()
     {
         using var context = new TestContext();
@@ -144,6 +185,26 @@ public sealed class ExcelExportServiceTests
                                (string?)element.Attribute("r") == reference);
         var value = cell.Elements().Single(element => element.Name.LocalName == "v");
         return double.Parse(value.Value, System.Globalization.CultureInfo.InvariantCulture);
+    }
+
+    private static int FindRowByFirstCell(XDocument sheet, string text)
+    {
+        var rows = sheet.Descendants()
+            .Where(element => element.Name.LocalName == "row")
+            .ToList();
+        for (var index = 0; index < rows.Count; index++)
+        {
+            var firstCell = rows[index].Elements()
+                .FirstOrDefault(element => element.Name.LocalName == "c");
+            var value = firstCell?.Descendants()
+                .FirstOrDefault(element => element.Name.LocalName == "t")
+                ?.Value;
+            if (string.Equals(value, text, StringComparison.Ordinal))
+            {
+                return index + 1;
+            }
+        }
+        throw new InvalidOperationException($"Row with first cell '{text}' was not found.");
     }
 
     private static string AllText(XDocument sheet) =>

@@ -60,6 +60,10 @@ internal sealed class FakeDropboxSyncService : IDropboxSyncService
 
     public int DownloadCount { get; private set; }
 
+    public bool FailUploadWithConflict { get; set; }
+
+    public string? LastExpectedRev { get; private set; }
+
     public Task TestConnectionAsync(string accessToken, CancellationToken cancellationToken = default) =>
         Task.CompletedTask;
 
@@ -73,9 +77,15 @@ internal sealed class FakeDropboxSyncService : IDropboxSyncService
         string accessToken,
         string remotePath,
         string localPath,
+        string? expectedRev = null,
         CancellationToken cancellationToken = default)
     {
         UploadCount++;
+        LastExpectedRev = expectedRev;
+        if (FailUploadWithConflict)
+        {
+            throw new DropboxSyncException("conflict", System.Net.HttpStatusCode.Conflict);
+        }
         RemoteContent = File.ReadAllBytes(localPath);
         RemoteMetadata = new DropboxMetadata(DateTimeOffset.UtcNow, "rev", null);
         return Task.FromResult<DropboxMetadata?>(RemoteMetadata);

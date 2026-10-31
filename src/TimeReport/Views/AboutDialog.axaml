@@ -5,10 +5,11 @@
         Title="{DynamicResource AboutTitle}"
         Width="620"
         SizeToContent="Height"
-        CanResize="False"
+        CanResize="True"
         WindowStartupLocation="CenterOwner"
         ShowInTaskbar="False">
-  <Border Padding="22">
+    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+<Border Padding="22">
     <StackPanel Spacing="10">
       <TextBlock Text="TimeReport" Classes="h1" />
       <TextBlock x:Name="VersionText" Classes="muted" />
@@ -20,11 +21,16 @@
       <TextBlock x:Name="DataFolderText" TextWrapping="Wrap" />
       <TextBlock Text="{DynamicResource AboutSettingsFile}" Classes="h3" Margin="0,8,0,0" />
       <TextBlock x:Name="SettingsText" TextWrapping="Wrap" />
+      <TextBlock Text="{DynamicResource AboutLogFile}" Classes="h3" Margin="0,8,0,0" />
+      <TextBlock x:Name="LogFileText" TextWrapping="Wrap" />
       <TextBlock x:Name="SchemaText" Classes="muted" Margin="0,8,0,0" />
       <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,14,0,0">
         <Button Content="{DynamicResource AboutOpenDataFolder}" Click="OnOpenDataFolderClick" />
-        <Button Content="{DynamicResource ButtonClose}" Classes="accent" Click="OnCloseClick" />
+        <Button Content="{DynamicResource AboutOpenLogFile}" Click="OnOpenLogFileClick" />
+        <Button Content="{DynamicResource ButtonClose}" Classes="accent" Click="OnCloseClick"
+                IsDefault="True" IsCancel="True" />
       </StackPanel>
     </StackPanel>
   </Border>
+  </ScrollViewer>
 </Window>

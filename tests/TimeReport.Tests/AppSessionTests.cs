@@ -7,6 +7,28 @@ namespace TimeReport.Tests;
 public sealed class AppSessionTests
 {
     [Fact]
+    public void SecondSessionForSameSettingsIsRejected()
+    {
+        var root = NewTempDirectory();
+        try
+        {
+            var settingsPath = Path.Combine(root, "settings.json");
+            using var first = new AppSession(
+                databaseOverride: Path.Combine(root, "first.db"),
+                settingsPath: settingsPath);
+
+            Assert.Throws<SingleInstanceException>(() =>
+                new AppSession(
+                    databaseOverride: Path.Combine(root, "second.db"),
+                    settingsPath: settingsPath));
+        }
+        finally
+        {
+            Directory.Delete(root, true);
+        }
+    }
+
+    [Fact]
     public void SwitchDatabaseCopiesDataAndPersistsSettings()
     {
         var root = NewTempDirectory();
@@ -159,6 +181,56 @@ public sealed class AppSessionTests
     }
 
     [Fact]
+    public void SwitchingDatabaseDisablesDropboxAutoSync()
+    {
+        var root = NewTempDirectory();
+        try
+        {
+            var originalPath = Path.Combine(root, "original.db");
+            var newPath = Path.Combine(root, "new.db");
+            var settingsPath = Path.Combine(root, "settings.json");
+            using var session = new AppSession(
+                databaseOverride: originalPath,
+                settingsPath: settingsPath);
+            session.Settings.DropboxAccessToken = "token";
+            session.Settings.DropboxAutoSync = true;
+            session.Settings.DropboxLastSyncUtc = DateTimeOffset.UtcNow;
+            session.Settings.Save(settingsPath);
+
+            session.SwitchDatabase(newPath, copyCurrentData: false);
+
+            var saved = AppSettings.Load(settingsPath);
+            Assert.False(saved.DropboxAutoSync);
+            Assert.Null(saved.DropboxLastSyncUtc);
+            Assert.Equal("token", saved.DropboxAccessToken);
+        }
+        finally
+        {
+            Directory.Delete(root, true);
+        }
+    }
+
+    [Fact]
+    public void SettingsSaveIsAtomicAndLeavesNoTemporaryFile()
+    {
+        var root = NewTempDirectory();
+        try
+        {
+            var path = Path.Combine(root, "settings.json");
+            var settings = new AppSettings { Language = "sv" };
+            settings.Save(path);
+
+            Assert.True(File.Exists(path));
+            Assert.Empty(Directory.EnumerateFiles(root, "*.tmp"));
+            Assert.Equal("sv", AppSettings.Load(path).Language);
+        }
+        finally
+        {
+            Directory.Delete(root, true);
+        }
+    }
+
+    [Fact]
     public void SettingsRoundTrip()
     {
         var root = NewTempDirectory();
@@ -169,6 +241,7 @@ public sealed class AppSessionTests
             {
                 DatabasePath = Path.Combine(root, "custom.db"),
                 Language = "sv",
+                Theme = "dark",
                 DropboxAppKey = "app-key",
                 DropboxAppSecret = "app-secret",
                 DropboxRefreshToken = "refresh-token",
@@ -183,6 +256,7 @@ public sealed class AppSessionTests
             var loaded = AppSettings.Load(path);
             Assert.Equal(settings.DatabasePath, loaded.DatabasePath);
             Assert.Equal(settings.Language, loaded.Language);
+            Assert.Equal(settings.Theme, loaded.Theme);
             Assert.Equal(settings.DropboxAppKey, loaded.DropboxAppKey);
             Assert.Equal(settings.DropboxAppSecret, loaded.DropboxAppSecret);
             Assert.Equal(settings.DropboxRefreshToken, loaded.DropboxRefreshToken);

@@ -5,10 +5,11 @@
         Title="{DynamicResource DatabaseLocationTitle}"
         Width="660"
         SizeToContent="Height"
-        CanResize="False"
+        CanResize="True"
         WindowStartupLocation="CenterOwner"
         ShowInTaskbar="False">
-  <Border Padding="20">
+    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+<Border Padding="20">
     <StackPanel Spacing="10">
       <TextBlock Text="{DynamicResource DatabaseLocationTitle}" Classes="h2" />
 
@@ -17,7 +18,8 @@
 
       <TextBlock Text="{DynamicResource NewDatabaseFile}" Classes="h3" Margin="0,8,0,0" />
       <Grid ColumnDefinitions="*,Auto">
-        <TextBox x:Name="PathTextBox" TextChanged="OnPathChanged" />
+        <TextBox x:Name="PathTextBox" TextChanged="OnPathChanged"
+                 AutomationProperties.Name="{DynamicResource NewDatabaseFile}" />
         <Button Grid.Column="1" Content="{DynamicResource ButtonBrowseFolder}" Click="OnBrowseClick" Margin="8,0,0,0" />
       </Grid>
 
@@ -30,10 +32,12 @@
 
       <Grid ColumnDefinitions="Auto,*,Auto,Auto" Margin="0,12,0,0">
         <Button Grid.Column="0" Content="{DynamicResource ButtonUseDefault}" Click="OnUseDefaultClick" />
-        <Button Grid.Column="2" Content="{DynamicResource ButtonCancel}" Click="OnCancelClick" Margin="0,0,8,0" />
+        <Button Grid.Column="2" Content="{DynamicResource ButtonCancel}" Click="OnCancelClick"
+                Margin="0,0,8,0" IsCancel="True" />
         <Button Grid.Column="3" x:Name="SaveButton" Content="{DynamicResource ButtonSave}" Classes="accent"
-                Click="OnSaveClick" />
+                Click="OnSaveClick" IsDefault="True" />
       </Grid>
     </StackPanel>
   </Border>
+  </ScrollViewer>
 </Window>

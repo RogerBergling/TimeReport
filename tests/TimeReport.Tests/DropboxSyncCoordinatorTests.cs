@@ -116,6 +116,26 @@ public sealed class DropboxSyncCoordinatorTests
 
         Assert.Equal(DropboxSyncStatus.Uploaded, result.Status);
         Assert.Equal(1, dropbox.UploadCount);
+        Assert.Equal("remote", dropbox.LastExpectedRev);
+    }
+
+    [Fact]
+    public async Task UploadConflictReturnsConflictInsteadOfOverwritingRemote()
+    {
+        using var context = new SessionContext();
+        context.Session.Service.CreateProject("Local");
+        Configure(context.Session, lastSync: DateTimeOffset.UtcNow.AddHours(-1));
+        var dropbox = new FakeDropboxSyncService
+        {
+            RemoteMetadata = new DropboxMetadata(DateTimeOffset.UtcNow.AddHours(-2), "remote", null),
+            FailUploadWithConflict = true,
+        };
+        var coordinator = new DropboxSyncCoordinator(context.Session, dropbox);
+
+        var result = await coordinator.SyncNowAsync();
+
+        Assert.Equal(DropboxSyncStatus.Conflict, result.Status);
+        Assert.Equal(1, dropbox.UploadCount);
     }
 
     [Fact]

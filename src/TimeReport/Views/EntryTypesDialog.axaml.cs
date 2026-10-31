@@ -183,5 +183,5 @@ public partial class EntryTypesDialog : Window
 
 public sealed record EntryTypeRow(EntryType Type, string Category, string Status, int EntryCount)
 {
-    public string Name => Type.Name;
+    public string Name => Type.DisplayName;
 }

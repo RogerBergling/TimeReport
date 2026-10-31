@@ -21,6 +21,11 @@ public partial class ExportDialog : Window
         _exporter = new ExcelExportService(service);
         var (start, end) = TimeUtil.MonthBounds(DateOnly.FromDateTime(DateTime.Today));
         SetRange(start, end);
+        Opened += (_, _) =>
+        {
+            FromTextBox.Focus();
+            FromTextBox.SelectAll();
+        };
     }
 
     private void OnThisMonthClick(object? sender, RoutedEventArgs e)
@@ -159,6 +164,7 @@ public partial class ExportDialog : Window
         }
         catch (Exception exception)
         {
+            AppLog.Error("Excel export failed.", exception);
             await MessageDialog.ShowAsync(
                 this,
                 LocalizationService.T("ExportFailed"),

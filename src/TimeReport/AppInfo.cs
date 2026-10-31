@@ -3,5 +3,9 @@ namespace TimeReport;
 public static class AppInfo
 {
     public const string Name = "TimeReport";
-    public const string Version = "2.4.0";
+
+    public static string Version =>
+        typeof(AppInfo).Assembly.GetName().Version is { } version
+            ? version.ToString(3)
+            : "0.0.0";
 }

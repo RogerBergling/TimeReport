@@ -24,16 +24,41 @@ public partial class App : Application
         }
 
         AppSession? session = null;
+        var startupFailed = false;
         try
         {
+            LocalizationService.SetLanguage(AppSettings.Load(AppPaths.SettingsPath()).Language);
             session = new AppSession(AppOptions.DatabasePath, AppOptions.DataDir);
+            AppLog.Initialize(session.DataDirectory);
+            RegisterGlobalExceptionLogging();
+            AppLog.Info($"Starting {AppInfo.Name} {AppInfo.Version}; database={session.Database.Path}");
             LocalizationService.SetLanguage(session.Settings.Language);
+            AppThemes.Apply(session.Settings.Theme);
             desktop.MainWindow = new MainWindow(session);
-            desktop.Exit += (_, _) => session.Dispose();
+            desktop.Exit += (_, _) =>
+            {
+                AppLog.Info("Exiting");
+                session.Dispose();
+            };
         }
         catch (Exception exception)
         {
+            startupFailed = true;
             session?.Dispose();
+            try
+            {
+                var logDirectory = string.IsNullOrWhiteSpace(AppOptions.DatabasePath)
+                    ? AppPaths.ResolveDataDir(AppOptions.DataDir)
+                    : Path.GetDirectoryName(Path.GetFullPath(AppOptions.DatabasePath))
+                      ?? AppPaths.ResolveDataDir(AppOptions.DataDir);
+                AppLog.Initialize(logDirectory);
+                RegisterGlobalExceptionLogging();
+            }
+            catch (Exception)
+            {
+            }
+            AppLog.Error("TimeReport could not open its database.", exception);
+            var alreadyRunning = exception is SingleInstanceException;
             var errorWindow = new Window
             {
                 Title = "TimeReport",
@@ -41,16 +66,14 @@ public partial class App : Application
                 Height = 240,
                 Content = new TextBlock
                 {
-                    Text = $"TimeReport could not open its database.\n\n{exception.Message}",
+                    Text = alreadyRunning
+                        ? LocalizationService.T("MessageAlreadyRunning")
+                        : $"TimeReport could not open its database.\n\n{exception.Message}",
                     Margin = new Thickness(24),
                     TextWrapping = Avalonia.Media.TextWrapping.Wrap,
                 },
             };
             desktop.MainWindow = errorWindow;
-            if (AppOptions.SmokeTest)
-            {
-                desktop.Shutdown(1);
-            }
         }
 
         if (AppOptions.SmokeTest && desktop.MainWindow is not null)
@@ -59,11 +82,29 @@ public partial class App : Application
             timer.Tick += (_, _) =>
             {
                 timer.Stop();
-                desktop.Shutdown();
+                desktop.Shutdown(startupFailed ? 1 : 0);
             };
             timer.Start();
         }
 
         base.OnFrameworkInitializationCompleted();
+    }
+
+    private static bool _globalHandlersRegistered;
+
+    private static void RegisterGlobalExceptionLogging()
+    {
+        if (_globalHandlersRegistered)
+        {
+            return;
+        }
+        _globalHandlersRegistered = true;
+        AppDomain.CurrentDomain.UnhandledException += (_, args) =>
+            AppLog.Error("Unhandled application exception.", args.ExceptionObject as Exception);
+        TaskScheduler.UnobservedTaskException += (_, args) =>
+        {
+            AppLog.Error("Unobserved task exception.", args.Exception);
+            args.SetObserved();
+        };
     }
 }

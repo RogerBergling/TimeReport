@@ -10,6 +10,12 @@ chmod +x TimeReport-linux-x86_64
 ./TimeReport-linux-x86_64
 ```
 
+The Linux build expects the usual X11/fontconfig desktop libraries. On a minimal
+server or container install the packages listed in `.github/workflows/build.yml`
+(`libx11-6`, `libxrandr2`, `libxi6`, `libxcursor1`, `libxext6`, `libxrender1`,
+`libfontconfig1`, `libice6`, `libsm6`, `libxfixes3`, `libxinerama1`,
+`libxcomposite1`, `libxdamage1` and the XCB libraries).
+
 ## Windows
 
 Run `TimeReport-windows-x86_64.exe`.
@@ -35,4 +41,22 @@ registered in the Dropbox App Console.
 
 Use **File → Backup database…** and **File → Restore database…** inside the app.
 
-`SHA256SUMS.txt` contains checksums for both executables.
+Linux `.tar.gz`/`.deb` and Windows `.zip` packages can be produced with the scripts
+in `scripts/`; see `packaging/README.md` in the repository.
+
+`SHA256SUMS.txt` contains checksums for both executables. Verify a download with:
+
+```bash
+sha256sum -c SHA256SUMS.txt
+```
+
+```powershell
+Get-FileHash .\TimeReport-windows-x86_64.exe -Algorithm SHA256
+```
+
+The Windows executable is not code-signed. The checksums prove that the file was
+not modified after the release was published, but they do not provide publisher
+identity.
+
+TimeReport is released under the MIT License. See the repository `LICENSE` file
+and `THIRD-PARTY-NOTICES.md` for dependency licenses.

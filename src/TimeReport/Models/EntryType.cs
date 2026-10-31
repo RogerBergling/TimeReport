@@ -1,3 +1,5 @@
+using TimeReport.Services;
+
 namespace TimeReport.Models;
 
 public sealed record EntryType(
@@ -6,5 +8,7 @@ public sealed record EntryType(
     EntryKind Category,
     bool Archived = false)
 {
-    public override string ToString() => Name;
+    public string DisplayName => EntryTypeDisplay.DisplayName(Name, Category);
+
+    public override string ToString() => DisplayName;
 }

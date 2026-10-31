@@ -71,6 +71,18 @@ public static class AppPaths
         Directory.CreateDirectory(
             dataDir,
             UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+        try
+        {
+            File.SetUnixFileMode(
+                dataDir,
+                UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+        }
+        catch (IOException)
+        {
+        }
+        catch (UnauthorizedAccessException)
+        {
+        }
     }
 
     public static void SecureFile(string path)
@@ -95,7 +107,7 @@ public static class AppPaths
     public static string TimestampForFilename() =>
         DateTime.Now.ToString("yyyyMMdd-HHmmss-fff", System.Globalization.CultureInfo.InvariantCulture);
 
-    private static string ExpandHome(string path)
+    public static string ExpandHome(string path)
     {
         if (path == "~")
         {

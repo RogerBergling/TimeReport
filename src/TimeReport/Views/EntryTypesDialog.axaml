@@ -20,7 +20,8 @@
         <TextBlock Grid.Column="3" Text="{DynamicResource TypeHeaderEntries}" Classes="columnHeader" HorizontalAlignment="Center" />
       </Grid>
 
-      <ListBox Grid.Row="2" x:Name="TypesList" SelectionChanged="OnSelectionChanged">
+      <ListBox Grid.Row="2" x:Name="TypesList" SelectionChanged="OnSelectionChanged"
+               AutomationProperties.Name="{DynamicResource EntryTypesTitle}">
         <ListBox.ItemTemplate>
           <DataTemplate>
             <Grid ColumnDefinitions="*,160,110,80" Margin="0,2">
@@ -40,7 +41,8 @@
                 Click="OnArchiveClick" Margin="6,0,0,0" />
         <Button Grid.Column="3" Content="{DynamicResource ButtonDelete}" Classes="danger"
                 Click="OnDeleteClick" Margin="6,0,0,0" />
-        <Button Grid.Column="5" Content="{DynamicResource ButtonClose}" Click="OnCloseClick" />
+        <Button Grid.Column="5" Content="{DynamicResource ButtonClose}" Click="OnCloseClick"
+                IsCancel="True" />
       </Grid>
     </Grid>
   </Border>

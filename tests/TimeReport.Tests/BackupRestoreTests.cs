@@ -104,6 +104,91 @@ public sealed class BackupRestoreTests
     }
 
     [Fact]
+    public void RestoreCanRecoverFromSemanticallyDamagedLiveDatabase()
+    {
+        using var context = new TestContext();
+        var project = context.Service.CreateProject("Acme");
+        context.Service.SaveEntry(TestData.Entry(
+            TestData.Monday, EntryKind.Work, "08:00", "16:00", project.Id));
+        var backup = context.Database.BackupTo(Path.Combine(context.Directory, "good.db"));
+
+        using (var command = context.Database.Connection.CreateCommand())
+        {
+            command.CommandText = "UPDATE entries SET entry_date = 'not-a-date'";
+            command.ExecuteNonQuery();
+        }
+
+        var autoBackup = context.Database.RestoreFrom(backup);
+        Assert.True(File.Exists(autoBackup));
+        Assert.Single(context.Service.ListEntries(TestData.Monday, TestData.Monday));
+    }
+
+    [Fact]
+    public void SemanticInvalidBackupIsRejected()
+    {
+        using var context = new TestContext();
+        var project = context.Service.CreateProject("Acme");
+        context.Service.SaveEntry(TestData.Entry(
+            TestData.Monday, EntryKind.Work, "08:00", "16:00", project.Id));
+        var backup = context.Database.BackupTo(Path.Combine(context.Directory, "backup.db"));
+
+        using (var connection = new SqliteConnection($"Data Source={backup};Pooling=False"))
+        {
+            connection.Open();
+            using var command = connection.CreateCommand();
+            command.CommandText = "UPDATE entries SET entry_date = 'not-a-date'";
+            command.ExecuteNonQuery();
+        }
+
+        var exception = Assert.Throws<RestoreException>(() => Database.ValidateFile(backup));
+        Assert.Contains("invalid entry dates", exception.Message);
+    }
+
+    [Fact]
+    public void RestoreFromVersionOneBackupMigratesData()
+    {
+        using var context = new TestContext();
+        var v1Path = Path.Combine(context.Directory, "v1.db");
+        using (var connection = new SqliteConnection($"Data Source={v1Path};Pooling=False"))
+        {
+            connection.Open();
+            using var command = connection.CreateCommand();
+            command.CommandText = """
+                CREATE TABLE projects (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    name TEXT NOT NULL COLLATE NOCASE UNIQUE,
+                    archived INTEGER NOT NULL DEFAULT 0,
+                    created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
+                );
+                CREATE TABLE entries (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    entry_date TEXT NOT NULL,
+                    kind TEXT NOT NULL,
+                    project_id INTEGER REFERENCES projects(id) ON DELETE RESTRICT,
+                    label TEXT,
+                    start_minute INTEGER NOT NULL,
+                    end_minute INTEGER NOT NULL,
+                    created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
+                    updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
+                );
+                INSERT INTO projects (name) VALUES ('Legacy');
+                INSERT INTO entries (entry_date, kind, project_id, start_minute, end_minute)
+                VALUES ('2026-10-26', 'work', 1, 480, 960);
+                PRAGMA user_version = 1;
+                """;
+            command.ExecuteNonQuery();
+        }
+
+        context.Database.RestoreFrom(v1Path);
+
+        Assert.Equal(Database.SchemaVersion, context.Database.SchemaVersionNumber);
+        var entry = Assert.Single(context.Service.ListEntries(TestData.Monday, TestData.Monday));
+        Assert.Equal("Legacy", entry.ProjectName);
+        Assert.NotNull(entry.TypeId);
+        Assert.Equal("Work", entry.TypeName);
+    }
+
+    [Fact]
     public void RestoreCreatesPreRestoreBackup()
     {
         using var context = new TestContext();

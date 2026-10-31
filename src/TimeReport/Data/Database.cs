@@ -184,10 +184,13 @@ public sealed class Database : IDisposable
 
     public SqliteTransaction BeginTransaction() => Connection.BeginTransaction();
 
-    public string BackupTo(string destination)
+    public string BackupTo(string destination) => BackupToCore(destination, validate: true);
+
+    private string BackupToCore(string destination, bool validate)
     {
         var fullDestination = System.IO.Path.GetFullPath(destination);
-        if (PathsEqual(fullDestination, Path))
+        if (Services.PathSafety.IsDatabaseFile(fullDestination, Path) ||
+            Services.PathSafety.AreSameFile(fullDestination, Path))
         {
             throw new DatabaseException("Choose a backup location other than the live database.");
         }
@@ -213,7 +216,10 @@ public sealed class Database : IDisposable
                 Connection.BackupDatabase(destinationConnection);
             }
 
-            ValidateFile(temporary);
+            if (validate)
+            {
+                ValidateFile(temporary);
+            }
             File.Move(temporary, fullDestination, true);
             Services.AppPaths.SecureFile(fullDestination);
             return fullDestination;
@@ -284,6 +290,7 @@ public sealed class Database : IDisposable
             {
                 ValidateTables(connection, tables, RequiredTablesV2);
             }
+            ValidateData(connection, version);
 
             using (var command = connection.CreateCommand())
             {
@@ -310,7 +317,8 @@ public sealed class Database : IDisposable
         {
             throw new RestoreException("The selected file does not exist.");
         }
-        if (PathsEqual(fullSource, Path))
+        if (Services.PathSafety.IsDatabaseFile(fullSource, Path) ||
+            Services.PathSafety.AreSameFile(fullSource, Path))
         {
             throw new RestoreException("The selected file is already the live database.");
         }
@@ -354,7 +362,9 @@ public sealed class Database : IDisposable
             var autoBackup = System.IO.Path.Combine(
                 Services.AppPaths.BackupsDir(directory),
                 $"pre-restore-{Services.AppPaths.TimestampForFilename()}.db");
-            BackupTo(autoBackup);
+            // The live database may be exactly what is damaged. Copy it without
+            // validating the copy so the user can still recover from a good backup.
+            BackupToCore(autoBackup, validate: false);
 
             Close();
             foreach (var suffix in new[] { "-wal", "-shm", "-journal" })
@@ -413,15 +423,19 @@ public sealed class Database : IDisposable
         }
         if (version == SchemaVersion)
         {
+            ValidateOpenSchema();
             return;
         }
 
         if (version > 0)
         {
             var directory = System.IO.Path.GetDirectoryName(Path)!;
-            BackupTo(System.IO.Path.Combine(
-                Services.AppPaths.BackupsDir(directory),
-                $"pre-migration-v{version}-{Services.AppPaths.TimestampForFilename()}.db"));
+            // Keep a raw copy even when the old database has data problems.
+            BackupToCore(
+                System.IO.Path.Combine(
+                    Services.AppPaths.BackupsDir(directory),
+                    $"pre-migration-v{version}-{Services.AppPaths.TimestampForFilename()}.db"),
+                validate: false);
         }
 
         for (var target = version + 1; target <= SchemaVersion; target++)
@@ -433,10 +447,129 @@ public sealed class Database : IDisposable
             using var transaction = BeginTransaction();
             foreach (var statement in statements)
             {
+                if (target == 2 &&
+                    statement.Contains("ALTER TABLE entries ADD COLUMN entry_type_id", StringComparison.Ordinal) &&
+                    HasColumn("entries", "entry_type_id"))
+                {
+                    continue;
+                }
                 Execute(statement, transaction);
             }
             Execute($"PRAGMA user_version = {target}", transaction);
             transaction.Commit();
+        }
+
+        ValidateOpenSchema();
+    }
+
+    private void ValidateOpenSchema()
+    {
+        var tables = GetTables(Connection);
+        try
+        {
+            ValidateTables(Connection, tables, RequiredTablesV1);
+            if (SchemaVersionNumber >= 2)
+            {
+                ValidateTables(Connection, tables, RequiredTablesV2);
+            }
+        }
+        catch (RestoreException exception)
+        {
+            throw new DatabaseException(exception.Message, exception);
+        }
+    }
+
+    private static HashSet<string> GetTables(SqliteConnection connection)
+    {
+        var tables = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        using var command = connection.CreateCommand();
+        command.CommandText = "SELECT name FROM sqlite_master WHERE type = 'table'";
+        using var reader = command.ExecuteReader();
+        while (reader.Read())
+        {
+            tables.Add(reader.GetString(0));
+        }
+        return tables;
+    }
+
+    private bool HasColumn(string table, string column)
+    {
+        using var command = Connection.CreateCommand();
+        command.CommandText = $"PRAGMA table_info({table})";
+        using var reader = command.ExecuteReader();
+        while (reader.Read())
+        {
+            if (string.Equals(reader.GetString(1), column, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static void ValidateData(SqliteConnection connection, int version)
+    {
+        RejectRows(
+            connection,
+            "SELECT COUNT(*) FROM entries " +
+            "WHERE entry_date NOT GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]' " +
+            "OR date(entry_date) IS NULL OR date(entry_date) <> entry_date",
+            "invalid entry dates");
+
+        RejectRows(
+            connection,
+            "SELECT COUNT(*) FROM entries WHERE kind NOT IN ('work', 'lunch', 'away', 'xpause')",
+            "invalid entry kinds");
+
+        RejectRows(
+            connection,
+            "SELECT COUNT(*) FROM entries " +
+            "WHERE start_minute < 0 OR start_minute >= 1440 " +
+            "OR end_minute <= start_minute OR end_minute > 1440",
+            "invalid entry times");
+
+        RejectRows(
+            connection,
+            """
+            SELECT COUNT(*) FROM entries
+            WHERE (kind = 'work' AND (project_id IS NULL OR label IS NOT NULL))
+               OR (kind = 'away' AND (project_id IS NOT NULL OR label IS NULL OR length(trim(label)) = 0))
+               OR (kind IN ('lunch', 'xpause') AND (project_id IS NOT NULL OR label IS NOT NULL))
+            """,
+            "invalid entry project or reason data");
+
+        if (version >= 2)
+        {
+            RejectRows(
+                connection,
+                "SELECT COUNT(*) FROM entry_types WHERE category NOT IN ('work', 'lunch', 'away', 'xpause')",
+                "invalid entry type categories");
+
+            RejectRows(
+                connection,
+                "SELECT COUNT(*) FROM entries WHERE entry_type_id IS NULL",
+                "entries without an entry type");
+
+            RejectRows(
+                connection,
+                """
+                SELECT COUNT(*) FROM entries AS e
+                JOIN entry_types AS t ON t.id = e.entry_type_id
+                WHERE t.category <> e.kind
+                """,
+                "entries whose type category does not match the entry kind");
+        }
+    }
+
+    private static void RejectRows(SqliteConnection connection, string sql, string description)
+    {
+        var count = Convert.ToInt32(
+            Scalar(connection, sql, null),
+            System.Globalization.CultureInfo.InvariantCulture);
+        if (count > 0)
+        {
+            throw new RestoreException(
+                $"The selected database contains {count} row(s) with {description}.");
         }
     }
 
@@ -494,17 +627,6 @@ public sealed class Database : IDisposable
                     $"The selected database is missing columns in {table}: {string.Join(", ", missingColumns)}.");
             }
         }
-    }
-
-    private static bool PathsEqual(string first, string second)
-    {
-        var comparison = OperatingSystem.IsWindows()
-            ? StringComparison.OrdinalIgnoreCase
-            : StringComparison.Ordinal;
-        return string.Equals(
-            System.IO.Path.GetFullPath(first),
-            System.IO.Path.GetFullPath(second),
-            comparison);
     }
 
     private static void TryDelete(string path)

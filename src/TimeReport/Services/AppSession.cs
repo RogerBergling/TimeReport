@@ -4,19 +4,33 @@ namespace TimeReport.Services;
 
 public sealed class AppSession : IDisposable
 {
+    private readonly SingleInstanceGuard _instanceGuard;
+
     public AppSession(
         string? databaseOverride = null,
         string? dataDirOverride = null,
         string? settingsPath = null)
     {
         SettingsPath = settingsPath ?? AppPaths.SettingsPath();
-        Settings = AppSettings.Load(SettingsPath);
+        var settingsDirectory = Path.GetDirectoryName(Path.GetFullPath(SettingsPath))
+            ?? throw new DatabaseException("The settings path has no directory.");
+        _instanceGuard = SingleInstanceGuard.Acquire(
+            Path.Combine(settingsDirectory, "timereport.lock"));
+        try
+        {
+            Settings = AppSettings.Load(SettingsPath);
+        }
+        catch
+        {
+            _instanceGuard.Dispose();
+            throw;
+        }
         DefaultDatabasePath = AppPaths.DefaultDatabasePath();
 
         var initialPath = databaseOverride;
         if (string.IsNullOrWhiteSpace(initialPath) && !string.IsNullOrWhiteSpace(dataDirOverride))
         {
-            initialPath = Path.Combine(dataDirOverride, "timereport.db");
+            initialPath = AppPaths.DatabasePath(AppPaths.ResolveDataDir(dataDirOverride));
         }
         if (string.IsNullOrWhiteSpace(initialPath))
         {
@@ -31,7 +45,15 @@ public sealed class AppSession : IDisposable
             initialPath = DefaultDatabasePath;
         }
 
-        OpenDatabase(Path.GetFullPath(initialPath));
+        try
+        {
+            OpenDatabase(Path.GetFullPath(AppPaths.ExpandHome(initialPath)));
+        }
+        catch
+        {
+            _instanceGuard.Dispose();
+            throw;
+        }
     }
 
     public Database Database { get; private set; } = null!;
@@ -84,18 +106,28 @@ public sealed class AppSession : IDisposable
             Database = newDatabase;
             Service = new TimeReportService(newDatabase);
             Settings.DatabasePath = fullPath;
+            // Never let an existing Dropbox remote silently receive a different
+            // local database after a switch. The user can re-enable sync explicitly.
+            Settings.DropboxAutoSync = false;
+            Settings.DropboxLastSyncUtc = null;
             Settings.Save(SettingsPath);
             previousDatabase.Dispose();
             return Service;
         }
         catch
         {
+            Database = previousDatabase;
+            Service = new TimeReportService(previousDatabase);
             previousDatabase.Open();
             throw;
         }
     }
 
-    public void Dispose() => Database.Dispose();
+    public void Dispose()
+    {
+        Database.Dispose();
+        _instanceGuard.Dispose();
+    }
 
     private void OpenDatabase(string path)
     {

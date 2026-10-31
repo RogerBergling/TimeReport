@@ -61,6 +61,21 @@ public sealed class LocalizationServiceTests
     }
 
     [Fact]
+    public void BuiltInEntryTypeNamesFollowLanguageButCustomNamesDoNot()
+    {
+        try
+        {
+            LocalizationService.SetLanguage("sv");
+            Assert.Equal("Arbete", EntryTypeDisplay.DisplayName("Work", TimeReport.Models.EntryKind.Work));
+            Assert.Equal("Meeting", EntryTypeDisplay.DisplayName("Meeting", TimeReport.Models.EntryKind.Work));
+        }
+        finally
+        {
+            LocalizationService.SetLanguage("en");
+        }
+    }
+
+    [Fact]
     public void UnknownLanguageFallsBackToEnglish()
     {
         try

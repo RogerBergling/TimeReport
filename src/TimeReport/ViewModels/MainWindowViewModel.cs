@@ -164,7 +164,7 @@ public sealed class EntryRowViewModel
 {
     public EntryRowViewModel(Entry entry, Action<Entry> onEdit, Action<Entry> onDelete)
     {
-        TypeText = entry.TypeName ?? entry.Kind.DisplayName();
+        TypeText = EntryTypeDisplay.DisplayName(entry.TypeName, entry.Kind);
         DetailText = entry.Kind switch
         {
             EntryKind.Work => entry.ProjectName ?? "—",
@@ -174,6 +174,9 @@ public sealed class EntryRowViewModel
         StartText = TimeUtil.FormatTime(entry.StartMinute);
         EndText = TimeUtil.FormatTime(entry.EndMinute);
         DurationText = TimeUtil.FormatDuration(entry.DurationMinutes);
+        var context = $"{TypeText} {DetailText} {StartText}–{EndText}";
+        EditAutomationName = $"{LocalizationService.T("ButtonEdit")} {context}";
+        DeleteAutomationName = $"{LocalizationService.T("ButtonDelete")} {context}";
         EditCommand = new RelayCommand(() => onEdit(entry));
         DeleteCommand = new RelayCommand(() => onDelete(entry));
     }
@@ -187,6 +190,10 @@ public sealed class EntryRowViewModel
     public string EndText { get; }
 
     public string DurationText { get; }
+
+    public string EditAutomationName { get; }
+
+    public string DeleteAutomationName { get; }
 
     public IRelayCommand EditCommand { get; }
 

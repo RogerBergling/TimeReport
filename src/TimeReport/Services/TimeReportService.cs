@@ -522,14 +522,23 @@ public sealed class TimeReportService
         }
 
         var types = ListEntryTypes(includeArchived: true);
-        var defaultName = entry.Kind.DisplayName();
-        return types.FirstOrDefault(item =>
-                   item.Category == entry.Kind &&
-                   !item.Archived &&
-                   string.Equals(item.Name, defaultName, StringComparison.OrdinalIgnoreCase))
-               ?? types.FirstOrDefault(item => item.Category == entry.Kind && !item.Archived)
-               ?? types.FirstOrDefault(item => item.Category == entry.Kind)
-               ?? throw new ValidationException(LocalizationService.T("ValidationTypeMissing"));
+        var active = types
+            .Where(item => item.Category == entry.Kind && !item.Archived)
+            .ToList();
+        var defaultName = EntryTypeDisplay.DefaultName(entry.Kind);
+        var resolved = active.FirstOrDefault(item =>
+                           string.Equals(item.Name, defaultName, StringComparison.OrdinalIgnoreCase))
+                       ?? active.FirstOrDefault();
+        if (resolved is not null)
+        {
+            return resolved;
+        }
+
+        throw new ValidationException(
+            LocalizationService.T(
+                types.Any(item => item.Category == entry.Kind)
+                    ? "ValidationTypeArchived"
+                    : "ValidationTypeMissing"));
     }
 
     private static Entry NormalizeEntry(Entry entry, EntryType entryType)
@@ -789,8 +798,8 @@ public sealed class TimeReportService
         var suffix = string.IsNullOrWhiteSpace(detail) ? string.Empty : $" · {detail}";
         return LocalizationService.T(
             "ValidationOverlap",
-            (candidate.TypeName ?? candidate.Kind.DisplayName()).ToLowerInvariant(),
-            (other.TypeName ?? other.Kind.DisplayName()).ToLowerInvariant(),
+            EntryTypeDisplay.DisplayName(candidate.TypeName, candidate.Kind).ToLowerInvariant(),
+            EntryTypeDisplay.DisplayName(other.TypeName, other.Kind).ToLowerInvariant(),
             TimeUtil.FormatTime(other.StartMinute),
             TimeUtil.FormatTime(other.EndMinute),
             suffix);
@@ -828,7 +837,7 @@ public sealed class TimeReportService
         for (var month = 1; month <= 12; month++)
         {
             var start = new DateOnly(year, month, 1);
-            var end = start.AddMonths(1).AddDays(-1);
+            var end = new DateOnly(year, month, DateTime.DaysInMonth(year, month));
             results.Add((start, RangeTotals(start, end)));
         }
         return results;

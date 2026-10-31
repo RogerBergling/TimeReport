@@ -5,21 +5,24 @@
         Title="{DynamicResource NewTypeTitle}"
         Width="480"
         SizeToContent="Height"
-        CanResize="False"
+        CanResize="True"
         WindowStartupLocation="CenterOwner"
         ShowInTaskbar="False">
-  <Border Padding="20">
+    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+<Border Padding="20">
     <StackPanel Spacing="10">
       <TextBlock Text="{DynamicResource NewTypeTitle}" Classes="h2" />
       <TextBlock Text="{DynamicResource TypeNamePrompt}" Classes="h3" Margin="0,6,0,0" />
-      <TextBox x:Name="NameTextBox" />
+      <TextBox x:Name="NameTextBox" AutomationProperties.Name="{DynamicResource TypeNamePrompt}" />
       <TextBlock Text="{DynamicResource LabelCategory}" Classes="h3" Margin="0,6,0,0" />
-      <ComboBox x:Name="CategoryComboBox" Width="220" HorizontalAlignment="Left" />
+      <ComboBox x:Name="CategoryComboBox" Width="220" HorizontalAlignment="Left"
+                AutomationProperties.Name="{DynamicResource LabelCategory}" />
       <TextBlock x:Name="ErrorText" Foreground="{DynamicResource DangerBrush}" TextWrapping="Wrap" />
       <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8" Margin="0,12,0,0">
-        <Button Content="{DynamicResource ButtonCancel}" Click="OnCancelClick" />
-        <Button Content="{DynamicResource ButtonSave}" Classes="accent" Click="OnSaveClick" />
+        <Button Content="{DynamicResource ButtonCancel}" Click="OnCancelClick" IsCancel="True" />
+        <Button Content="{DynamicResource ButtonSave}" Classes="accent" Click="OnSaveClick" IsDefault="True" />
       </StackPanel>
     </StackPanel>
   </Border>
+  </ScrollViewer>
 </Window>

@@ -21,7 +21,11 @@ public sealed class DropboxSyncServiceTests
         Assert.NotNull(metadata);
         Assert.Equal("abc123", metadata.Rev);
         Assert.Equal("hash", metadata.ContentHash);
-        Assert.Equal(DateTimeOffset.Parse("2026-10-29T12:34:56Z"), metadata.ServerModified);
+        Assert.Equal(
+            DateTimeOffset.Parse(
+                "2026-10-29T12:34:56Z",
+                System.Globalization.CultureInfo.InvariantCulture),
+            metadata.ServerModified);
         var request = Assert.Single(handler.Requests);
         Assert.Equal("https://api.dropboxapi.com/2/files/get_metadata", request.Uri);
         Assert.Equal("Bearer token", request.Headers["Authorization"]);
@@ -66,6 +70,37 @@ public sealed class DropboxSyncServiceTests
             Assert.Equal("Bearer token", request.Headers["Authorization"]);
             Assert.Contains("/TimeReport/timereport.db", request.Headers["Dropbox-API-Arg"]);
             Assert.Equal(bytes, request.Body);
+            Assert.Contains("\"mode\":\"add\"", request.Headers["Dropbox-API-Arg"]);
+        }
+        finally
+        {
+            Directory.Delete(directory, true);
+        }
+    }
+
+    [Fact]
+    public async Task UploadWithExpectedRevUsesUpdateMode()
+    {
+        var directory = NewTempDirectory();
+        try
+        {
+            var localPath = Path.Combine(directory, "local.db");
+            await File.WriteAllBytesAsync(localPath, [1, 2, 3]);
+            var handler = new FakeHttpMessageHandler();
+            handler.Responses.Enqueue(_ => FakeHttpMessageHandler.Json(MetadataJson));
+            using var client = new HttpClient(handler);
+            var service = new DropboxSyncService(client);
+
+            await service.UploadAsync(
+                "token",
+                "/TimeReport/timereport.db",
+                localPath,
+                expectedRev: "abc123");
+
+            var request = Assert.Single(handler.Requests);
+            var argument = request.Headers["Dropbox-API-Arg"];
+            Assert.Contains("\"mode\":\"update\"", argument);
+            Assert.Contains("\"rev\":\"abc123\"", argument);
         }
         finally
         {

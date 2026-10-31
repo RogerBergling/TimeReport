@@ -27,12 +27,18 @@ public partial class DatabaseLocationDialog : Window
         CurrentPathText.Text = currentPath;
         PathTextBox.Text = currentPath;
         UpdateStatus();
+        Opened += (_, _) =>
+        {
+            PathTextBox.Focus();
+            PathTextBox.SelectAll();
+        };
     }
 
     private void OnKeyDown(object? sender, KeyEventArgs e)
     {
         if (e.Key == Key.Escape)
         {
+            e.Handled = true;
             Close(null);
         }
     }
@@ -41,7 +47,7 @@ public partial class DatabaseLocationDialog : Window
     {
         var folders = await StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
         {
-            Title = "Choose the database folder",
+            Title = LocalizationService.T("DatabaseFolderPickerTitle"),
             AllowMultiple = false,
         });
         if (folders.Count == 0)

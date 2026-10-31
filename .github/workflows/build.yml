@@ -3,25 +3,46 @@ name: Build
 on:
   push:
     branches: [main]
+  pull_request:
   workflow_dispatch:
 
 permissions:
   contents: read
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   test-linux:
     runs-on: ubuntu-24.04
+    timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-dotnet@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4
         with:
           dotnet-version: "10.0.x"
+          cache: true
+          cache-dependency-path: "**/*.csproj"
       - name: Restore
-        run: dotnet restore TimeReport.slnx
+        run: dotnet restore TimeReport.slnx --locked-mode
       - name: Build
         run: dotnet build TimeReport.slnx -c Release --no-restore
-      - name: Test
-        run: dotnet test TimeReport.slnx -c Release --no-build
+      - name: Test with coverage
+        run: |
+          dotnet test TimeReport.slnx -c Release --no-build \
+            --collect:"XPlat Code Coverage" \
+            --results-directory TestResults
+      - name: Check vulnerable packages
+        run: |
+          dotnet list src/TimeReport/TimeReport.csproj package --vulnerable --include-transitive
+          dotnet list tests/TimeReport.Tests/TimeReport.Tests.csproj package --vulnerable --include-transitive
+      - name: Upload coverage
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: coverage-linux
+          path: TestResults/**/coverage.cobertura.xml
+          if-no-files-found: error
       - name: Format check
         run: dotnet format TimeReport.slnx --verify-no-changes --no-restore
       - name: Install GUI dependencies
@@ -38,17 +59,24 @@ jobs:
 
   test-windows:
     runs-on: windows-2022
+    timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-dotnet@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4
         with:
           dotnet-version: "10.0.x"
+          cache: true
+          cache-dependency-path: "**/*.csproj"
       - name: Restore
-        run: dotnet restore TimeReport.slnx
+        run: dotnet restore TimeReport.slnx --locked-mode
       - name: Build
         run: dotnet build TimeReport.slnx -c Release --no-restore
       - name: Test
         run: dotnet test TimeReport.slnx -c Release --no-build
+      - name: Check vulnerable packages
+        run: |
+          dotnet list src/TimeReport/TimeReport.csproj package --vulnerable --include-transitive
+          dotnet list tests/TimeReport.Tests/TimeReport.Tests.csproj package --vulnerable --include-transitive
       - name: Format check
         run: dotnet format TimeReport.slnx --verify-no-changes --no-restore
       - name: GUI smoke test
@@ -60,13 +88,16 @@ jobs:
   build-linux:
     needs: test-linux
     runs-on: ubuntu-24.04
+    timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-dotnet@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4
         with:
           dotnet-version: "10.0.x"
+          cache: true
+          cache-dependency-path: "**/*.csproj"
       - name: Restore
-        run: dotnet restore TimeReport.slnx
+        run: dotnet restore TimeReport.slnx --locked-mode
       - name: Publish Linux executable
         run: |
           dotnet publish src/TimeReport/TimeReport.csproj \
@@ -75,6 +106,8 @@ jobs:
             --self-contained true \
             -p:PublishSingleFile=true \
             -p:IncludeNativeLibrariesForSelfExtract=true \
+            -p:EnableCompressionInSingleFile=true \
+            --no-restore \
             -o dist/linux
       - name: Install GUI dependencies
         run: |
@@ -87,22 +120,34 @@ jobs:
         run: |
           xvfb-run -a dist/linux/TimeReport --smoke-test \
             --data-dir "$RUNNER_TEMP/timereport-binary-test"
-      - uses: actions/upload-artifact@v4
+      - name: Create checksum
+        run: |
+          cd dist/linux
+          sha256sum TimeReport > TimeReport.sha256
+      - name: Create packages
+        run: ./scripts/package-linux.sh
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: TimeReport-linux-x86_64
-          path: dist/linux/TimeReport
+          path: |
+            dist/linux/TimeReport
+            dist/linux/TimeReport.sha256
+            dist/packages/*
           if-no-files-found: error
 
   build-windows:
     needs: test-windows
     runs-on: windows-2022
+    timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-dotnet@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4
         with:
           dotnet-version: "10.0.x"
+          cache: true
+          cache-dependency-path: "**/*.csproj"
       - name: Restore
-        run: dotnet restore TimeReport.slnx
+        run: dotnet restore TimeReport.slnx --locked-mode
       - name: Publish Windows executable
         run: |
           dotnet publish src/TimeReport/TimeReport.csproj `
@@ -111,6 +156,8 @@ jobs:
             --self-contained true `
             -p:PublishSingleFile=true `
             -p:IncludeNativeLibrariesForSelfExtract=true `
+            -p:EnableCompressionInSingleFile=true `
+            --no-restore `
             -o dist/windows
       - name: Smoke test executable
         shell: pwsh
@@ -119,8 +166,19 @@ jobs:
           $process = Start-Process -FilePath "dist\windows\TimeReport.exe" `
             -ArgumentList $arguments -Wait -PassThru
           if ($process.ExitCode -ne 0) { exit $process.ExitCode }
-      - uses: actions/upload-artifact@v4
+      - name: Create checksum
+        shell: pwsh
+        run: |
+          $hash = (Get-FileHash "dist\windows\TimeReport.exe" -Algorithm SHA256).Hash.ToLowerInvariant()
+          "$hash  TimeReport.exe" | Set-Content "dist\windows\TimeReport.exe.sha256"
+      - name: Create packages
+        shell: pwsh
+        run: ./scripts/package-windows.ps1
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: TimeReport-windows-x86_64
-          path: dist/windows/TimeReport.exe
+          path: |
+            dist/windows/TimeReport.exe
+            dist/windows/TimeReport.exe.sha256
+            dist/packages/*
           if-no-files-found: error

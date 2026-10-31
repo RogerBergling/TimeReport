@@ -205,6 +205,111 @@ public sealed class DatabaseTests
     }
 
     [Fact]
+    public void VersionOneDatabaseWithExistingTypeColumnMigrates()
+    {
+        var directory = Path.Combine(
+            Path.GetTempPath(),
+            "timereport-tests",
+            Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(directory);
+        var path = Path.Combine(directory, "v1-with-type-column.db");
+        try
+        {
+            using (var connection = new SqliteConnection($"Data Source={path};Pooling=False"))
+            {
+                connection.Open();
+                using var command = connection.CreateCommand();
+                command.CommandText = """
+                    CREATE TABLE projects (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        name TEXT NOT NULL COLLATE NOCASE UNIQUE,
+                        archived INTEGER NOT NULL DEFAULT 0,
+                        created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
+                    );
+                    CREATE TABLE entries (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        entry_date TEXT NOT NULL,
+                        kind TEXT NOT NULL,
+                        project_id INTEGER REFERENCES projects(id) ON DELETE RESTRICT,
+                        label TEXT,
+                        start_minute INTEGER NOT NULL,
+                        end_minute INTEGER NOT NULL,
+                        entry_type_id INTEGER,
+                        created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
+                        updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
+                    );
+                    INSERT INTO projects (name) VALUES ('Legacy');
+                    INSERT INTO entries (entry_date, kind, project_id, start_minute, end_minute)
+                    VALUES ('2026-10-26', 'work', 1, 480, 960);
+                    PRAGMA user_version = 1;
+                    """;
+                command.ExecuteNonQuery();
+            }
+
+            using var database = new Database(path);
+            database.Open();
+            Assert.Equal(2, database.SchemaVersionNumber);
+            var service = new TimeReportService(database);
+            var entry = Assert.Single(service.ListEntries(TestData.Monday, TestData.Monday));
+            Assert.Equal("Work", entry.TypeName);
+        }
+        finally
+        {
+            Directory.Delete(directory, true);
+        }
+    }
+
+    [Fact]
+    public void DeletedEntryCanBeRecreatedForUndo()
+    {
+        using var context = new TestContext();
+        var project = context.Service.CreateProject("Acme");
+        var saved = context.Service.SaveEntry(TestData.Entry(
+            TestData.Monday, EntryKind.Work, "08:00", "16:00", project.Id));
+
+        context.Service.DeleteEntry(saved.Id!.Value);
+        var restored = context.Service.SaveEntry(saved with { Id = null });
+
+        Assert.NotNull(restored.Id);
+        Assert.NotEqual(saved.Id, restored.Id);
+        Assert.Equal(480, restored.DurationMinutes);
+        Assert.Equal("Acme", restored.ProjectName);
+    }
+
+    [Fact]
+    public void CurrentSchemaWithoutRequiredTableIsRejected()
+    {
+        var directory = Path.Combine(
+            Path.GetTempPath(),
+            "timereport-tests",
+            Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(directory);
+        var path = Path.Combine(directory, "broken.db");
+        try
+        {
+            using (var database = new Database(path))
+            {
+                database.Open();
+            }
+
+            using (var connection = new SqliteConnection($"Data Source={path};Pooling=False"))
+            {
+                connection.Open();
+                using var command = connection.CreateCommand();
+                command.CommandText = "DROP TABLE entry_types";
+                command.ExecuteNonQuery();
+            }
+
+            using var reopened = new Database(path);
+            Assert.Throws<DatabaseException>(() => reopened.Open());
+        }
+        finally
+        {
+            Directory.Delete(directory, true);
+        }
+    }
+
+    [Fact]
     public void BackupFileIsValidAndUnlocked()
     {
         using var context = new TestContext();
@@ -222,6 +327,65 @@ public sealed class DatabaseTests
     {
         using var context = new TestContext();
         Assert.Throws<DatabaseException>(() => context.Database.BackupTo(context.Database.Path));
+    }
+
+    [Fact]
+    public void BackupToHardLinkOfLiveDatabaseIsRejected()
+    {
+        if (!OperatingSystem.IsLinux())
+        {
+            return;
+        }
+
+        using var context = new TestContext();
+        var link = Path.Combine(context.Directory, "hardlink.db");
+        try
+        {
+            using var process = System.Diagnostics.Process.Start(
+                "ln",
+                [context.Database.Path, link]);
+            process?.WaitForExit(2000);
+            if (!File.Exists(link))
+            {
+                return;
+            }
+
+            Assert.Throws<DatabaseException>(() => context.Database.BackupTo(link));
+        }
+        finally
+        {
+            if (File.Exists(link))
+            {
+                File.Delete(link);
+            }
+        }
+    }
+
+    [Fact]
+    public void BackupToLiveDatabaseThroughSymlinkedDirectoryIsRejected()
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        using var context = new TestContext();
+        var link = Path.Combine(context.Directory, "linked");
+        try
+        {
+            Directory.CreateSymbolicLink(link, context.Directory);
+        }
+        catch (IOException)
+        {
+            return;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return;
+        }
+
+        var linkedLivePath = Path.Combine(link, Path.GetFileName(context.Database.Path));
+        Assert.Throws<DatabaseException>(() => context.Database.BackupTo(linkedLivePath));
     }
 
     [Fact]

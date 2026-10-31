@@ -5,16 +5,19 @@
         Title="TimeReport"
         Width="480"
         SizeToContent="Height"
-        CanResize="False"
+        CanResize="True"
         WindowStartupLocation="CenterOwner"
         ShowInTaskbar="False">
-  <Border Padding="20">
+    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+<Border Padding="20">
     <StackPanel Spacing="16">
-      <TextBlock x:Name="MessageText" TextWrapping="Wrap" />
+      <TextBlock x:Name="MessageText" TextWrapping="Wrap"
+                 AutomationProperties.LiveSetting="Assertive" />
       <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
-        <Button x:Name="CancelButton" Content="{DynamicResource MessageCancel}" Click="OnCancelClick" />
-        <Button Content="{DynamicResource MessageOK}" Classes="accent" Click="OnOkClick" />
+        <Button x:Name="CancelButton" Content="{DynamicResource MessageCancel}" Click="OnCancelClick" IsCancel="True" />
+        <Button x:Name="OkButton" Content="{DynamicResource MessageOK}" Classes="accent" Click="OnOkClick" IsDefault="True" />
       </StackPanel>
     </StackPanel>
   </Border>
+  </ScrollViewer>
 </Window>

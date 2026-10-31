@@ -113,6 +113,26 @@ public sealed class EntryTypeTests
     }
 
     [Fact]
+    public void ImplicitTypeSelectionDoesNotUseArchivedTypes()
+    {
+        using var context = new TestContext();
+        var project = context.Service.CreateProject("Acme");
+        var workType = context.Service.ListEntryTypes()
+            .Single(type => type.Category == EntryKind.Work);
+        context.Service.SetEntryTypeArchived(workType.Id, true);
+
+        var exception = Assert.Throws<ValidationException>(() =>
+            context.Service.SaveEntry(TestData.Entry(
+                TestData.Monday,
+                EntryKind.Work,
+                "08:00",
+                "09:00",
+                project.Id)));
+
+        Assert.Contains("archived", exception.Message);
+    }
+
+    [Fact]
     public void UsedTypeCannotBeDeletedButUnusedTypeCan()
     {
         using var context = new TestContext();

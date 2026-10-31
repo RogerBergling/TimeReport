@@ -26,11 +26,15 @@ not require Python or a separate .NET installation.
   - It does not reduce worked hours.
 - Daily totals, weekly totals, monthly totals, yearly totals and an all-time total.
 - Backup and restore from the GUI, with automatic safety backups.
-- Optional Dropbox sync with OAuth refresh tokens and conflict detection.
+- Optional Dropbox sync with encrypted OAuth refresh tokens, revision-checked uploads
+  and conflict detection.
 - Export any date range to an Excel `.xlsx` workbook with summary, entries, daily/monthly totals, projects and types.
 - Switch the interface and calendar between English and Swedish.
 - 24-hour clock and ISO dates (`YYYY-MM-DD`).
-- No account, cloud service, telemetry or network access.
+- Keyboard-friendly operation with shortcuts and default/cancel dialog buttons.
+- Inline validation, undo for the last deleted entry and a single-instance guard.
+- Light, dark, high-contrast and system theme variants under **Data → Theme**.
+- No account or telemetry. Optional Dropbox sync is the only network feature.
 
 ## Prebuilt executables
 
@@ -40,7 +44,24 @@ Ready-to-run self-contained binaries are included in [`release/`](release/):
 - Windows: `release/TimeReport-windows-x86_64.exe`
 - Checksums: `release/SHA256SUMS.txt`
 
-They are also attached to the [v2.4.0 release](https://github.com/RogerBergling/TimeReport/releases/tag/v2.4.0).
+They are also attached to the [latest release](https://github.com/RogerBergling/TimeReport/releases/latest).
+
+## Keyboard shortcuts
+
+| Shortcut | Action |
+|---|---|
+| `Ctrl+N` | Add an entry |
+| `Ctrl+E` | Export to Excel |
+| `Ctrl+B` | Back up the database |
+| `Ctrl+P` | Manage projects |
+| `Ctrl+T` | Manage entry types |
+| `Ctrl+Shift+S` | Sync with Dropbox |
+| `F5` | Refresh |
+| `F1` | About |
+| `Ctrl+Q` | Exit |
+| `Ctrl+Left` / `Ctrl+Right` | Previous / next week |
+
+Dialogs support `Enter` for the primary action and `Escape` for cancel.
 
 ## Data storage
 
@@ -79,6 +100,8 @@ You can also override the location for testing or portable use:
 ```bash
 TimeReport --database /path/to/custom.db
 TimeReport --data-dir /path/to/data
+TimeReport --version
+TimeReport --help
 ```
 
 ```powershell
@@ -126,9 +149,12 @@ To configure it:
 
 The app uses Dropbox OAuth with a long-lived refresh token, so it can keep syncing
 without asking you to paste a new short-lived access token every few hours. Tokens are
-stored in the TimeReport settings file. On Linux the file is given owner-only
-permissions, but the tokens are still sensitive; protect the settings file and the
-Dropbox account. Dropbox sync is optional and the app works fully offline.
+encrypted with AES-GCM before they are written to the settings file. The encryption key
+is stored in a separate owner-only file; on Windows that key is additionally protected
+with the current user's DPAPI key. The settings file and key are still sensitive, so
+protect the account and the data folder. If you back up the settings file, keep
+`settings.json.key` with it; without the key the stored tokens cannot be decrypted.
+Dropbox sync is optional and the app works fully offline.
 
 ## Building from source
 
@@ -158,6 +184,7 @@ dotnet publish src/TimeReport/TimeReport.csproj \
   --self-contained true \
   -p:PublishSingleFile=true \
   -p:IncludeNativeLibrariesForSelfExtract=true \
+  -p:EnableCompressionInSingleFile=true \
   -o dist/linux
 
 # Result: dist/linux/TimeReport
@@ -172,6 +199,7 @@ dotnet publish src/TimeReport/TimeReport.csproj `
   --self-contained true `
   -p:PublishSingleFile=true `
   -p:IncludeNativeLibrariesForSelfExtract=true `
+  -p:EnableCompressionInSingleFile=true `
   -o dist/windows
 
 # Result: dist\windows\TimeReport.exe
@@ -179,6 +207,22 @@ dotnet publish src/TimeReport/TimeReport.csproj `
 
 The GitHub Actions workflow in `.github/workflows/build.yml` runs tests on Linux and
 Windows, builds both executables, and uploads them as build artifacts.
+
+## Packaging
+
+After publishing, create distributable archives with:
+
+```bash
+./scripts/package-linux.sh 2.5.0
+```
+
+```powershell
+./scripts/package-windows.ps1 2.5.0
+```
+
+The Linux script creates a `.tar.gz` and, when `dpkg-deb` is available, a `.deb`
+with a desktop entry and icon. The Windows script creates a `.zip`. Both include
+the README, MIT license and third-party notices. See [`packaging/README.md`](packaging/README.md).
 
 ## Testing
 
@@ -201,11 +245,17 @@ src/TimeReport/
   Program.cs                CLI and Avalonia bootstrap
   Data/Database.cs          SQLite schema, migrations, backup and restore
   Models/                   Projects, entries, totals
-  Services/                 Validation, totals, paths, time utilities
+  Services/                 Validation, totals, paths, time utilities, logging
+  Services/ExcelExportService.cs  Excel workbook generation
+  Services/XlsxWriter.cs    Dependency-free XLSX writer
   ViewModels/               Main timesheet and totals view models
   Views/                    Main window and dialogs
-  Styles/AppStyles.axaml    Shared visual theme
-tests/TimeReport.Tests/     xUnit tests for time, database, validation, totals, backup
+  Styles/AppStyles.axaml    Shared light/dark theme resources
+  Assets/                   Application icon
+packaging/                  Linux desktop entry and packaging notes
+scripts/                    Linux/Windows packaging scripts
+tests/TimeReport.Tests/     xUnit tests for time, database, validation, totals,
+                            backup, Dropbox sync, token protection and Excel export
 ```
 
 ## Excel export
@@ -223,6 +273,9 @@ The workbook contains:
 - **Monthly totals** — totals for every month touched by the range.
 - **Projects** — project status, entry count and work hours.
 - **Types** — type category/status, entry count and total hours.
+
+Work hours in the Summary, Daily, Projects and Types sheets deduct overlapping
+lunch, so the sheets reconcile with each other.
 
 The export uses the modern Excel `.xlsx` format, which Excel, LibreOffice and other
 spreadsheet applications can open.
@@ -243,6 +296,17 @@ Each custom type has a behavior category:
 Types used by existing entries cannot be deleted; archive them instead. Archived types
 remain visible on historical entries but are not offered for new entries.
 
+## Troubleshooting
+
+TimeReport writes a rolling `timereport.log` in the data folder. The **About**
+dialog shows the exact path and has an **Open log file** button. The log contains
+startup information and errors; it does not contain time entries.
+
+If the application cannot open its database, keep the database file and the log.
+Start TimeReport against a known-good backup or an empty database with
+`--database /path/to/file.db`, then use **Restore database…** to recover the data.
+A pre-restore backup is created automatically before a restore.
+
 ## Rules and assumptions
 
 - Week starts Monday and includes Saturday/Sunday.
@@ -256,6 +320,18 @@ remain visible on historical entries but are not offered for new entries.
 - The database is single-user and unencrypted. It is intended for local use.
 - Dates are ISO dates and times use the 24-hour clock.
 
+## License
+
+TimeReport is released under the [MIT License](LICENSE).
+
+## Contributing and security
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for build, test and release steps,
+[CHANGELOG.md](CHANGELOG.md) for release history, [SECURITY.md](SECURITY.md) for
+the security policy, [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md) for
+dependency licenses and [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the
+architecture overview.
+
 ## Version
 
-`2.4.0`
+`2.5.0`

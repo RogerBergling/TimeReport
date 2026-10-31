@@ -14,6 +14,7 @@ public partial class EntryTypeEditDialog : Window
             .Select(category => new EntryTypeCategoryOption(category, category.DisplayName()))
             .ToList();
         CategoryComboBox.SelectedIndex = 0;
+        Opened += (_, _) => NameTextBox.Focus();
     }
 
     public static async Task<EntryTypeDraft?> ShowAsync(Window owner)

@@ -9,7 +9,7 @@ public static class TimeUtil
     public const int XPauseWeeklyLimit = 60;
     public const int XPauseStep = 15;
 
-    private static readonly Regex TimeRegex = new(@"^(\d{1,2}):(\d{2})$", RegexOptions.Compiled);
+    private static readonly Regex TimeRegex = new(@"^([0-9]{1,2}):([0-9]{2})$", RegexOptions.Compiled);
 
     public static int ParseTime(string value, bool allowEndOfDay = true)
     {
@@ -89,6 +89,10 @@ public static class TimeUtil
     public static (DateOnly Start, DateOnly End) MonthBounds(DateOnly day)
     {
         var start = new DateOnly(day.Year, day.Month, 1);
+        if (day.Year == DateOnly.MaxValue.Year && day.Month == DateOnly.MaxValue.Month)
+        {
+            return (start, DateOnly.MaxValue);
+        }
         return (start, start.AddMonths(1).AddDays(-1));
     }
 
@@ -99,9 +103,17 @@ public static class TimeUtil
 
     public static IEnumerable<DateOnly> DateRangeDays(DateOnly start, DateOnly end)
     {
-        for (var day = start; day <= end; day = day.AddDays(1))
+        if (end < start)
+        {
+            throw new ValidationException(LocalizationService.T("ValidationDateRange"));
+        }
+        for (var day = start; ; day = day.AddDays(1))
         {
             yield return day;
+            if (day == end)
+            {
+                yield break;
+            }
         }
     }
 

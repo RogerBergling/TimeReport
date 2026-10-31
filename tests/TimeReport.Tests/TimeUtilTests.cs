@@ -47,6 +47,25 @@ public sealed class TimeUtilTests
     }
 
     [Fact]
+    public void RejectsNonAsciiDigits()
+    {
+        Assert.Throws<ValidationException>(() => TimeUtil.ParseTime("٠٨:٠٠"));
+    }
+
+    [Fact]
+    public void DateRangeHandlesMaximumDateAndInvalidRanges()
+    {
+        Assert.Equal(
+            [DateOnly.MaxValue],
+            TimeUtil.DateRangeDays(DateOnly.MaxValue, DateOnly.MaxValue).ToList());
+        Assert.Equal(
+            (new DateOnly(9999, 12, 1), DateOnly.MaxValue),
+            TimeUtil.MonthBounds(DateOnly.MaxValue));
+        Assert.Throws<ValidationException>(() =>
+            TimeUtil.DateRangeDays(TestData.Tuesday, TestData.Monday).ToList());
+    }
+
+    [Fact]
     public void ParsesIsoDates()
     {
         Assert.Equal(new DateOnly(2026, 10, 26), TimeUtil.ParseDate("2026-10-26"));

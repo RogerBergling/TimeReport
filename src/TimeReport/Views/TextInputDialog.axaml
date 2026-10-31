@@ -5,17 +5,19 @@
         Title="TimeReport"
         Width="440"
         SizeToContent="Height"
-        CanResize="False"
+        CanResize="True"
         WindowStartupLocation="CenterOwner"
         ShowInTaskbar="False">
-  <Border Padding="20">
+    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+<Border Padding="20">
     <StackPanel Spacing="12">
       <TextBlock x:Name="PromptText" TextWrapping="Wrap" />
       <TextBox x:Name="InputTextBox" />
       <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
-        <Button Content="{DynamicResource ButtonCancel}" Click="OnCancelClick" />
-        <Button Content="{DynamicResource MessageOK}" Classes="accent" Click="OnOkClick" />
+        <Button Content="{DynamicResource ButtonCancel}" Click="OnCancelClick" IsCancel="True" />
+        <Button Content="{DynamicResource MessageOK}" Classes="accent" Click="OnOkClick" IsDefault="True" />
       </StackPanel>
     </StackPanel>
   </Border>
+  </ScrollViewer>
 </Window>

@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=TimeReport
+Comment=Local-first time reporting
+Exec=TimeReport
+Icon=timereport
+Terminal=false
+Categories=Office;Utility;
+StartupWMClass=TimeReport

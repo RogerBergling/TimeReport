@@ -13,6 +13,9 @@ TestResults/
 dist/
 build/
 artifacts/
+*.zip
+*.tar.gz
+*.deb
 
 # Local development tools
 .venv/

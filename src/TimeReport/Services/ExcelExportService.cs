@@ -23,6 +23,12 @@ public sealed class ExcelExportService
             throw new ValidationException(LocalizationService.T("ExportInvalidRange"));
         }
 
+        if (PathSafety.IsDatabaseFile(path, _service.Database.Path) ||
+            PathSafety.AreSameFile(path, _service.Database.Path))
+        {
+            throw new ValidationException(LocalizationService.T("ExportPathIsDatabase"));
+        }
+
         var entries = _service.ListEntries(start, end);
         var totals = _service.RangeTotals(start, end);
         var dailyTotals = _service.TotalsByDay(start, end);
@@ -44,7 +50,9 @@ public sealed class ExcelExportService
             () =>
             {
                 XlsxWriter.Write(path, sheets);
-                return Path.GetFullPath(path);
+                var fullPath = Path.GetFullPath(path);
+                AppPaths.SecureFile(fullPath);
+                return fullPath;
             },
             cancellationToken);
     }
@@ -108,7 +116,7 @@ public sealed class ExcelExportService
             {
                 XlsxCell.DateCell(entry.Date),
                 Text(LocalizationService.WeekdayNames[(int)entry.Date.DayOfWeek]),
-                Text(entry.TypeName ?? entry.Kind.DisplayName()),
+                Text(EntryTypeDisplay.DisplayName(entry.TypeName, entry.Kind)),
                 Text(entry.Kind.DisplayName()),
                 Text(entry.ProjectName ?? string.Empty),
                 Text(entry.AwayReason ?? string.Empty),
@@ -211,12 +219,13 @@ public sealed class ExcelExportService
             },
         };
 
+        var lunchEntries = entries.Where(entry => entry.Kind == EntryKind.Lunch).ToList();
         foreach (var project in projects)
         {
             var projectEntries = entries.Where(entry => entry.ProjectId == project.Id).ToList();
-            var workMinutes = projectEntries
-                .Where(entry => entry.Kind == EntryKind.Work)
-                .Sum(entry => entry.DurationMinutes);
+            var workMinutes = NetWorkedMinutes(
+                projectEntries.Where(entry => entry.Kind == EntryKind.Work),
+                lunchEntries);
             rows.Add(new[]
             {
                 Text(project.Name),
@@ -248,16 +257,20 @@ public sealed class ExcelExportService
             },
         };
 
+        var lunchEntries = entries.Where(entry => entry.Kind == EntryKind.Lunch).ToList();
         foreach (var type in types)
         {
             var typeEntries = entries.Where(entry => entry.TypeId == type.Id).ToList();
+            var totalMinutes = type.Category == EntryKind.Work
+                ? NetWorkedMinutes(typeEntries, lunchEntries)
+                : typeEntries.Sum(entry => entry.DurationMinutes);
             rows.Add(new[]
             {
-                Text(type.Name),
+                Text(type.DisplayName),
                 Text(type.Category.DisplayName()),
                 Text(LocalizationService.T(type.Archived ? "ProjectStatusArchived" : "ProjectStatusActive")),
                 Number(typeEntries.Count),
-                Duration(typeEntries.Sum(entry => entry.DurationMinutes)),
+                Duration(totalMinutes),
             });
         }
 
@@ -278,9 +291,35 @@ public sealed class ExcelExportService
             var rangeStart = monthStart < start ? start : monthStart;
             var rangeEnd = monthEnd > end ? end : monthEnd;
             result.Add((monthStart, _service.RangeTotals(rangeStart, rangeEnd)));
+            if (month == lastMonth)
+            {
+                break;
+            }
             month = month.AddMonths(1);
         }
         return result;
+    }
+
+    private static int NetWorkedMinutes(
+        IEnumerable<Entry> workEntries,
+        IReadOnlyList<Entry> lunchEntries)
+    {
+        var lunchByDate = lunchEntries
+            .GroupBy(entry => entry.Date)
+            .ToDictionary(
+                group => group.Key,
+                group => group.Select(entry => (entry.StartMinute, entry.EndMinute)).ToList());
+        return workEntries
+            .GroupBy(entry => entry.Date)
+            .Sum(day =>
+            {
+                var lunch = lunchByDate.TryGetValue(day.Key, out var intervals)
+                    ? intervals
+                    : new List<(int Start, int End)>();
+                return TimeUtil.TotalCovered(TimeUtil.SubtractIntervals(
+                    day.Select(entry => (entry.StartMinute, entry.EndMinute)),
+                    lunch));
+            });
     }
 
     private static XlsxCell Header(string key) => XlsxCell.HeaderCell(LocalizationService.T(key));

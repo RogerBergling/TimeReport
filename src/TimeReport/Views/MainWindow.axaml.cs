@@ -1,4 +1,5 @@
 using Avalonia.Controls;
+using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Platform.Storage;
 using TimeReport.Data;
@@ -19,10 +20,28 @@ public partial class MainWindow : Window
     private bool _initializingLanguage;
     private DropboxSyncStatus _dropboxStatus = DropboxSyncStatus.NotConfigured;
     private string? _dropboxStatusDetail;
+    private Entry? _lastDeletedEntry;
 
     public MainWindow()
     {
         InitializeComponent();
+        AddHandler(KeyDownEvent, OnMainKeyDown, RoutingStrategies.Tunnel);
+        Opened += (_, _) => ConstrainToScreen();
+    }
+
+    private void ConstrainToScreen()
+    {
+        var screen = Screens.ScreenFromWindow(this) ?? Screens.Primary;
+        if (screen is null)
+        {
+            return;
+        }
+
+        var scale = screen.Scaling <= 0 ? 1 : screen.Scaling;
+        var maxWidth = screen.WorkingArea.Width / scale;
+        var maxHeight = screen.WorkingArea.Height / scale;
+        Width = Math.Min(Width, Math.Max(MinWidth, maxWidth));
+        Height = Math.Min(Height, Math.Max(MinHeight, maxHeight));
     }
 
     public MainWindow(AppSession session) : this()
@@ -75,6 +94,8 @@ public partial class MainWindow : Window
         viewModel.DeleteEntryRequested += async entry => await DeleteEntryAsync(entry);
         _viewModel = viewModel;
         DataContext = viewModel;
+        _lastDeletedEntry = null;
+        UndoDeleteButton.IsVisible = false;
     }
 
     private void InitializeDropboxStatus()
@@ -161,6 +182,7 @@ public partial class MainWindow : Window
             _viewModel?.Refresh();
         }
         SetDropboxStatus(result.Status, result.Message);
+        LogSyncResult(result);
 
         if (interactive)
         {
@@ -186,6 +208,7 @@ public partial class MainWindow : Window
             _viewModel?.Refresh();
         }
         SetDropboxStatus(result.Status, result.Message);
+        LogSyncResult(result);
     }
 
     private async Task AutoSyncOnStartupAsync()
@@ -202,6 +225,15 @@ public partial class MainWindow : Window
             _viewModel?.Refresh();
         }
         SetDropboxStatus(result.Status, result.Message);
+        LogSyncResult(result);
+    }
+
+    private static void LogSyncResult(DropboxSyncResult result)
+    {
+        if (result.Status == DropboxSyncStatus.Error)
+        {
+            AppLog.Error($"Dropbox sync failed: {result.Message}");
+        }
     }
 
     private async Task<DropboxConflictChoice> ResolveDropboxConflictAsync()
@@ -225,6 +257,15 @@ public partial class MainWindow : Window
         }
 
         return DropboxConflictChoice.Cancel;
+    }
+
+    private void OnMainKeyDown(object? sender, KeyEventArgs e)
+    {
+        if (e.KeyModifiers == KeyModifiers.Control && e.Key is Key.Left or Key.Right)
+        {
+            _viewModel?.ChangeWeek(e.Key == Key.Left ? -1 : 1);
+            e.Handled = true;
+        }
     }
 
     private void OnPreviousWeekClick(object? sender, RoutedEventArgs e) => _viewModel?.ChangeWeek(-1);
@@ -280,7 +321,7 @@ public partial class MainWindow : Window
             return;
         }
 
-        var description = (entry.TypeName ?? entry.Kind.DisplayName()).ToLowerInvariant();
+        var description = EntryTypeDisplay.DisplayName(entry.TypeName, entry.Kind).ToLowerInvariant();
         if (!await MessageDialog.ShowAsync(
                 this,
                 LocalizationService.T("MessageDeleteEntryTitle"),
@@ -293,12 +334,41 @@ public partial class MainWindow : Window
         try
         {
             _service.DeleteEntry(entry.Id.Value);
+            _lastDeletedEntry = entry;
+            UndoDeleteButton.IsVisible = true;
             _viewModel?.Refresh();
             await AutoSyncAfterChangeAsync();
         }
         catch (Exception exception) when (exception is ValidationException or DatabaseException)
         {
+            AppLog.Error("Could not delete entry.", exception);
             await MessageDialog.ShowAsync(this, LocalizationService.T("MessageCannotDeleteEntry"), exception.Message, false);
+        }
+    }
+
+    private async void OnUndoDeleteClick(object? sender, RoutedEventArgs e)
+    {
+        if (_service is null || _lastDeletedEntry is null)
+        {
+            return;
+        }
+
+        try
+        {
+            var restored = _service.SaveEntry(_lastDeletedEntry with { Id = null });
+            _lastDeletedEntry = null;
+            UndoDeleteButton.IsVisible = false;
+            _viewModel?.SetWeekForDate(restored.Date);
+            await AutoSyncAfterChangeAsync();
+        }
+        catch (Exception exception) when (exception is ValidationException or DatabaseException)
+        {
+            AppLog.Error("Could not undo entry deletion.", exception);
+            await MessageDialog.ShowAsync(
+                this,
+                LocalizationService.T("MessageCannotUndoDelete"),
+                exception.Message,
+                false);
         }
     }
 
@@ -345,17 +415,27 @@ public partial class MainWindow : Window
 
         try
         {
+            var dropboxWasEnabled = _session.Settings.DropboxAutoSync;
             var service = _session.SwitchDatabase(result.DatabasePath, result.CopyCurrentData);
             RebindService(service);
+            InitializeDropboxStatus();
             await MessageDialog.ShowAsync(
                 this,
                 LocalizationService.T("MessageDatabaseLocationChanged"),
                 LocalizationService.T("MessageNowUsing", _session.Database.Path),
                 false);
-            await AutoSyncAfterChangeAsync();
+            if (dropboxWasEnabled)
+            {
+                await MessageDialog.ShowAsync(
+                    this,
+                    LocalizationService.T("MessageDatabaseLocationChanged"),
+                    LocalizationService.T("MessageDropboxDisabledForNewDatabase"),
+                    false);
+            }
         }
         catch (Exception exception)
         {
+            AppLog.Error("Could not change database location.", exception);
             await MessageDialog.ShowAsync(
                 this,
                 LocalizationService.T("MessageCannotChangeDatabase"),
@@ -393,7 +473,10 @@ public partial class MainWindow : Window
             ShowOverwritePrompt = true,
             FileTypeChoices =
             [
-                new FilePickerFileType("SQLite database") { Patterns = ["*.db"] },
+                new FilePickerFileType(LocalizationService.T("FileTypeSqliteDatabase"))
+                {
+                    Patterns = ["*.db"],
+                },
             ],
         });
 
@@ -413,6 +496,7 @@ public partial class MainWindow : Window
         }
         catch (DatabaseException exception)
         {
+            AppLog.Error("Could not create backup.", exception);
             await MessageDialog.ShowAsync(this, LocalizationService.T("MessageBackupFailed"), exception.Message, false);
         }
     }
@@ -430,7 +514,7 @@ public partial class MainWindow : Window
             AllowMultiple = false,
             FileTypeFilter =
             [
-                new FilePickerFileType("SQLite database")
+                new FilePickerFileType(LocalizationService.T("FileTypeSqliteDatabase"))
                 {
                     Patterns = ["*.db", "*.sqlite", "*.sqlite3"],
                 },
@@ -464,11 +548,34 @@ public partial class MainWindow : Window
         }
         catch (DatabaseException exception)
         {
+            AppLog.Error("Could not restore database.", exception);
             await MessageDialog.ShowAsync(this, LocalizationService.T("MessageRestoreFailed"), exception.Message, false);
         }
     }
 
     private void OnRefreshClick(object? sender, RoutedEventArgs e) => _viewModel?.Refresh();
+
+    private void OnThemeClick(object? sender, RoutedEventArgs e)
+    {
+        if (sender is not MenuItem { Tag: string theme })
+        {
+            return;
+        }
+
+        AppThemes.Apply(theme);
+        if (_session is not null)
+        {
+            _session.Settings.Theme = theme;
+            try
+            {
+                _session.Settings.Save(_session.SettingsPath);
+            }
+            catch (Exception exception)
+            {
+                AppLog.Error("Could not save the theme setting.", exception);
+            }
+        }
+    }
 
     private async void OnAboutClick(object? sender, RoutedEventArgs e)
     {
@@ -480,7 +587,8 @@ public partial class MainWindow : Window
         var dialog = new AboutDialog(
             _service,
             _session?.DataDirectory ?? string.Empty,
-            _session?.SettingsPath ?? string.Empty);
+            _session?.SettingsPath ?? string.Empty,
+            AppLog.CurrentPath ?? string.Empty);
         await dialog.ShowDialog(this);
     }
 
@@ -496,10 +604,6 @@ public partial class MainWindow : Window
         if (_viewModel.Totals.SelectedPeriod == "All time")
         {
             _viewModel.Totals.Refresh();
-        }
-        else
-        {
-            _viewModel.Totals.SetAnchor(_viewModel.CurrentWeekStart);
         }
     }
 }

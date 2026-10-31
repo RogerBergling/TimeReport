@@ -1,3 +1,4 @@
+using Avalonia.Automation;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
@@ -16,6 +17,7 @@ public partial class TextInputDialog : Window
     {
         Title = title;
         PromptText.Text = prompt;
+        AutomationProperties.SetName(InputTextBox, prompt);
         InputTextBox.Text = initialValue;
         Opened += (_, _) =>
         {
@@ -43,10 +45,12 @@ public partial class TextInputDialog : Window
     {
         if (e.Key == Key.Enter)
         {
+            e.Handled = true;
             Close(InputTextBox.Text?.Trim());
         }
         else if (e.Key == Key.Escape)
         {
+            e.Handled = true;
             Close(null);
         }
     }

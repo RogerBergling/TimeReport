@@ -36,6 +36,11 @@ public partial class DropboxSyncDialog : Window
         {
             StatusText.Text = LocalizationService.T("DropboxConnected");
         }
+        Opened += (_, _) =>
+        {
+            AppKeyTextBox.Focus();
+            AppKeyTextBox.SelectAll();
+        };
     }
 
     private async void OnConnectClick(object? sender, RoutedEventArgs e)
@@ -60,6 +65,7 @@ public partial class DropboxSyncDialog : Window
         }
         catch (Exception exception)
         {
+            AppLog.Error("Dropbox authorization failed.", exception);
             StatusText.Text = LocalizationService.T("DropboxAuthFailed", exception.Message);
         }
     }
@@ -86,6 +92,7 @@ public partial class DropboxSyncDialog : Window
         }
         catch (Exception exception)
         {
+            AppLog.Error("Dropbox connection test failed.", exception);
             StatusText.Text = exception.Message;
         }
     }

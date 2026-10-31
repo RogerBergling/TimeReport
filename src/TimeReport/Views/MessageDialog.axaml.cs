@@ -15,6 +15,22 @@ public partial class MessageDialog : Window
         Title = title;
         MessageText.Text = message;
         CancelButton.IsVisible = confirm;
+        if (confirm)
+        {
+            OkButton.IsDefault = false;
+            CancelButton.IsDefault = true;
+        }
+        Opened += (_, _) =>
+        {
+            if (confirm)
+            {
+                CancelButton.Focus();
+            }
+            else
+            {
+                OkButton.Focus();
+            }
+        };
     }
 
     public static async Task<bool> ShowAsync(

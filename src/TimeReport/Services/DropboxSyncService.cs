@@ -19,6 +19,8 @@ public sealed class DropboxSyncException : Exception
     public HttpStatusCode? StatusCode { get; }
 
     public bool IsUnauthorized => StatusCode == HttpStatusCode.Unauthorized;
+
+    public bool IsConflict => StatusCode == HttpStatusCode.Conflict;
 }
 
 public sealed record DropboxMetadata(
@@ -39,6 +41,7 @@ public interface IDropboxSyncService
         string accessToken,
         string remotePath,
         string localPath,
+        string? expectedRev = null,
         CancellationToken cancellationToken = default);
 
     Task DownloadAsync(
@@ -112,23 +115,30 @@ public sealed class DropboxSyncService : IDropboxSyncService
         string accessToken,
         string remotePath,
         string localPath,
+        string? expectedRev = null,
         CancellationToken cancellationToken = default)
     {
-        var bytes = await File.ReadAllBytesAsync(localPath, cancellationToken);
+        await using var stream = File.OpenRead(localPath);
         using var request = new HttpRequestMessage(
             HttpMethod.Post,
             $"{ContentBase}files/upload");
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+        var hasRevision = !string.IsNullOrWhiteSpace(expectedRev);
+        var arguments = new Dictionary<string, object?>
+        {
+            ["path"] = remotePath,
+            ["mode"] = hasRevision ? "update" : "add",
+            ["autorename"] = false,
+            ["mute"] = false,
+        };
+        if (hasRevision)
+        {
+            arguments["rev"] = expectedRev;
+        }
         request.Headers.Add(
             "Dropbox-API-Arg",
-            JsonSerializer.Serialize(new
-            {
-                path = remotePath,
-                mode = "overwrite",
-                autorename = false,
-                mute = false,
-            }));
-        request.Content = new ByteArrayContent(bytes);
+            JsonSerializer.Serialize(arguments));
+        request.Content = new StreamContent(stream);
         request.Content.Headers.ContentType = new MediaTypeHeaderValue("application/octet-stream");
 
         using var response = await _httpClient.SendAsync(request, cancellationToken);
@@ -163,6 +173,8 @@ public sealed class DropboxSyncService : IDropboxSyncService
 
         await using var stream = File.Create(destinationPath);
         await response.Content.CopyToAsync(stream, cancellationToken);
+        await stream.FlushAsync(cancellationToken);
+        AppPaths.SecureFile(destinationPath);
     }
 
     public async Task EnsureFolderAsync(
@@ -188,8 +200,7 @@ public sealed class DropboxSyncService : IDropboxSyncService
             if (response.StatusCode == HttpStatusCode.Conflict)
             {
                 var body = await response.Content.ReadAsStringAsync(cancellationToken);
-                if (body.Contains("path/conflict/folder", StringComparison.OrdinalIgnoreCase) ||
-                    body.Contains("folder", StringComparison.OrdinalIgnoreCase))
+                if (body.Contains("path/conflict/folder", StringComparison.OrdinalIgnoreCase))
                 {
                     continue;
                 }
