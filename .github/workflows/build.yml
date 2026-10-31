@@ -38,7 +38,7 @@ jobs:
           dotnet list src/TimeReport/TimeReport.csproj package --vulnerable --include-transitive
           dotnet list tests/TimeReport.Tests/TimeReport.Tests.csproj package --vulnerable --include-transitive
       - name: Upload coverage
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: coverage-linux
           path: TestResults/**/coverage.cobertura.xml
@@ -126,7 +126,7 @@ jobs:
           sha256sum TimeReport > TimeReport.sha256
       - name: Create packages
         run: ./scripts/package-linux.sh
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: TimeReport-linux-x86_64
           path: |
@@ -174,7 +174,7 @@ jobs:
       - name: Create packages
         shell: pwsh
         run: ./scripts/package-windows.ps1
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: TimeReport-windows-x86_64
           path: |
