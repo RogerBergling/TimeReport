@@ -23,7 +23,7 @@ install -m 0644 "$root/THIRD-PARTY-NOTICES.md" "$stage/THIRD-PARTY-NOTICES.md"
 install -m 0644 "$root/README.md" "$stage/README.md"
 
 tar -C "$out" -czf "$out/$name.tar.gz" "$name"
-sha256sum "$out/$name.tar.gz" > "$out/$name.tar.gz.sha256"
+(cd "$out" && sha256sum "$name.tar.gz" > "$name.tar.gz.sha256")
 
 if command -v dpkg-deb >/dev/null 2>&1; then
   debroot="$out/debroot"
@@ -51,7 +51,7 @@ Depends: libx11-6, libxrandr2, libxi6, libxcursor1, libxext6, libxrender1,
  libxcb-util1
 EOF
   dpkg-deb --build --root-owner-group "$debroot" "$out/$name.deb" >/dev/null
-  sha256sum "$out/$name.deb" > "$out/$name.deb.sha256"
+  (cd "$out" && sha256sum "$name.deb" > "$name.deb.sha256")
   rm -rf "$debroot"
 fi
 
