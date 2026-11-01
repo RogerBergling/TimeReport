@@ -4,6 +4,16 @@ A local-first desktop time report for Linux and Windows, written in C#/.NET 10 w
 Avalonia. The published executables are self-contained single-file binaries: they do
 not require Python or a separate .NET installation.
 
+## Screenshots
+
+![TimeReport main window](docs/screenshots/main-window.png)
+
+*Main window with a demo week, overtime, build number and live date/time.*
+
+![TimeReport totals view](docs/screenshots/totals.png)
+
+*Totals view with daily rows, X-Pause and overtime.*
+
 ## Features
 
 - Weekly timesheet showing all seven days, Monday–Sunday.
