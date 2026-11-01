@@ -24,7 +24,9 @@ SQLite file
 `Program` parses `--database`, `--data-dir`, `--version` and `--smoke-test`.
 `App` creates an `AppSession`, which loads settings, resolves the database path,
 opens SQLite, applies migrations and exposes a `TimeReportService`. The main window
-binds to `MainWindowViewModel` and `TotalsViewModel`.
+binds to `MainWindowViewModel` and `TotalsViewModel`. The header displays the
+version/build number and a live date/time clock driven by a `DispatcherTimer` in the
+configured time zone.
 
 ### Domain rules
 

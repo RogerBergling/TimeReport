@@ -3,6 +3,7 @@ using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Platform.Storage;
+using Avalonia.Threading;
 using TimeReport.Data;
 using TimeReport.Models;
 using TimeReport.Services;
@@ -23,12 +24,54 @@ public partial class MainWindow : Window
     private DropboxSyncStatus _dropboxStatus = DropboxSyncStatus.NotConfigured;
     private string? _dropboxStatusDetail;
     private Entry? _lastDeletedEntry;
+    private DispatcherTimer? _clockTimer;
 
     public MainWindow()
     {
         InitializeComponent();
         AddHandler(KeyDownEvent, OnMainKeyDown, RoutingStrategies.Tunnel);
+        UpdateBuildInfo();
+        _clockTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
+        _clockTimer.Tick += (_, _) => UpdateClock();
+        _clockTimer.Start();
+        Closed += (_, _) => _clockTimer?.Stop();
         Opened += (_, _) => ConstrainToScreen();
+    }
+
+    private void UpdateBuildInfo()
+    {
+        if (BuildInfoText is null)
+        {
+            return;
+        }
+
+        BuildInfoText.Text =
+            $"{LocalizationService.T("VersionLabel")} {AppInfo.Version} · " +
+            $"{LocalizationService.T("BuildLabel")} {AppInfo.BuildNumber}";
+        ToolTip.SetTip(
+            BuildInfoText,
+            string.IsNullOrWhiteSpace(AppInfo.BuildCommit)
+                ? AppInfo.BuildNumber
+                : AppInfo.BuildCommit);
+    }
+
+    private void UpdateClock()
+    {
+        if (ClockText is null)
+        {
+            return;
+        }
+
+        var now = TimeZoneService.Now(_service?.TimeZoneId);
+        ClockText.Text =
+            $"{LocalizationService.T("LabelDate")}: {now:yyyy-MM-dd} · " +
+            $"{LocalizationService.T("LabelTime")}: {now:HH:mm:ss}";
+    }
+
+    private void UpdateRuntimeInfo()
+    {
+        UpdateBuildInfo();
+        UpdateClock();
     }
 
     private void ConstrainToScreen()
@@ -97,6 +140,7 @@ public partial class MainWindow : Window
         }
         _viewModel?.Totals.RefreshLocalization();
         _viewModel?.Refresh();
+        UpdateRuntimeInfo();
         RefreshDropboxStatusText();
     }
 
@@ -729,6 +773,7 @@ public partial class MainWindow : Window
             _session.ApplyRuntimeSettings();
             _viewModel?.Totals.RefreshLocalization();
             _viewModel?.Refresh();
+            UpdateRuntimeInfo();
         }
         catch (Exception exception)
         {

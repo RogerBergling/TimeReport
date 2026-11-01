@@ -107,6 +107,8 @@ jobs:
             -p:PublishSingleFile=true \
             -p:IncludeNativeLibrariesForSelfExtract=true \
             -p:EnableCompressionInSingleFile=true \
+            -p:BuildNumber=${{ github.run_number }} \
+            -p:BuildCommit=${{ github.sha }} \
             --no-restore \
             -o dist/linux
       - name: Install GUI dependencies
@@ -157,6 +159,8 @@ jobs:
             -p:PublishSingleFile=true `
             -p:IncludeNativeLibrariesForSelfExtract=true `
             -p:EnableCompressionInSingleFile=true `
+            -p:BuildNumber=${{ github.run_number }} `
+            -p:BuildCommit=${{ github.sha }} `
             --no-restore `
             -o dist/windows
       - name: Smoke test executable

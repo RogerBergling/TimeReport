@@ -12,7 +12,7 @@ internal static class Program
             switch (args[index])
             {
                 case "--version":
-                    Console.WriteLine($"{AppInfo.Name} {AppInfo.Version}");
+                    Console.WriteLine($"{AppInfo.Name} {AppInfo.Version} (build {AppInfo.BuildNumber})");
                     return 0;
                 case "--help" or "-h":
                     PrintUsage();

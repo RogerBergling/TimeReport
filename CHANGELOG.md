@@ -5,6 +5,16 @@ All notable changes to TimeReport are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and the project uses [Semantic Versioning](https://semver.org/).
 
+## [2.6.1] - 2026-11-01
+
+### Added
+
+- Main-window header shows the application version, build number, current date and
+  live time in the configured time zone.
+- CI publishes the GitHub run number and commit SHA as assembly metadata; local builds
+  show `Build local`.
+- About dialog includes the build number.
+
 ## [2.6.0] - 2026-11-01
 
 ### Added

@@ -41,6 +41,7 @@ not require Python or a separate .NET installation.
 - Keyboard-friendly operation with shortcuts and default/cancel dialog buttons.
 - Inline validation, undo for the last deleted entry and a single-instance guard.
 - Light, dark, high-contrast and system theme variants under **Data → Theme**.
+- Main window shows the application version, build number and a live date/time clock in the selected time zone.
 - No account or telemetry. Optional Dropbox sync and update checks are the only network features.
 
 ## Prebuilt executables
@@ -194,6 +195,9 @@ dotnet build TimeReport.slnx -c Release
 dotnet run --project src/TimeReport/TimeReport.csproj -c Release
 ```
 
+Local builds show `Build local`. CI passes the GitHub run number and commit SHA as
+MSBuild metadata, so released binaries show the actual build number.
+
 ## Publishing self-contained executables
 
 The project is configured for self-contained single-file publishing. No .NET runtime is
@@ -237,11 +241,11 @@ Windows, builds both executables, and uploads them as build artifacts.
 After publishing, create distributable archives with:
 
 ```bash
-./scripts/package-linux.sh 2.6.0
+./scripts/package-linux.sh 2.6.1
 ```
 
 ```powershell
-./scripts/package-windows.ps1 2.6.0
+./scripts/package-windows.ps1 2.6.1
 ```
 
 The Linux script creates a `.tar.gz` and, when `dpkg-deb` is available, a `.deb`
@@ -389,4 +393,4 @@ architecture overview.
 
 ## Version
 
-`2.6.0`
+`2.6.1`

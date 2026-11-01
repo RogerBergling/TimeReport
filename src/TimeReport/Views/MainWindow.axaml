@@ -3,7 +3,7 @@
         x:Class="TimeReport.Views.MainWindow"
         x:CompileBindings="False"
         Icon="avares://TimeReport/Assets/timereport.png"
-        Title="TimeReport 2.6.0"
+        Title="TimeReport 2.6.1"
         Width="1180"
         Height="800"
         MinWidth="980"
@@ -51,6 +51,10 @@
       <StackPanel>
         <TextBlock Text="TimeReport" Classes="h1" />
         <TextBlock Text="{DynamicResource HeaderSubtitle}" Classes="muted" Margin="0,2,0,0" />
+        <StackPanel Orientation="Horizontal" Spacing="12" Margin="0,4,0,0">
+          <TextBlock x:Name="BuildInfoText" Classes="muted" FontSize="11" />
+          <TextBlock x:Name="ClockText" Classes="muted" FontSize="11" />
+        </StackPanel>
       </StackPanel>
       <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
         <Button Content="{DynamicResource ButtonProjects}" Click="OnProjectsClick" />

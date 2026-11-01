@@ -13,7 +13,7 @@ dotnet publish src/TimeReport/TimeReport.csproj \
   -p:EnableCompressionInSingleFile=true \
   -o dist/linux
 
-./scripts/package-linux.sh 2.6.0
+./scripts/package-linux.sh 2.6.1
 ```
 
 This creates:
@@ -36,7 +36,7 @@ dotnet publish src/TimeReport/TimeReport.csproj `
   -p:EnableCompressionInSingleFile=true `
   -o dist/windows
 
-./scripts/package-windows.ps1 2.6.0
+./scripts/package-windows.ps1 2.6.1
 ```
 
 This creates `dist/packages/TimeReport-<version>-windows-x86_64.zip` plus a

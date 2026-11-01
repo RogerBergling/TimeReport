@@ -23,7 +23,7 @@ public partial class AboutDialog : Window
     {
         _dataDir = dataDir;
         _logPath = logPath;
-        VersionText.Text = $"{LocalizationService.T("VersionLabel")} {AppInfo.Version}";
+        VersionText.Text = $"{LocalizationService.T("VersionLabel")} {AppInfo.Version} · {LocalizationService.T("BuildLabel")} {AppInfo.BuildNumber}";
         DatabaseText.Text = service.Database.Path;
         DataFolderText.Text = dataDir;
         SettingsText.Text = settingsPath;

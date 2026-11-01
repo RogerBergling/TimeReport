@@ -8,9 +8,11 @@
     <AnalysisLevel>latest-recommended</AnalysisLevel>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationIcon>Assets/timereport.ico</ApplicationIcon>
-    <Version>2.6.0</Version>
-    <AssemblyVersion>2.6.0.0</AssemblyVersion>
-    <FileVersion>2.6.0.0</FileVersion>
+    <Version>2.6.1</Version>
+    <AssemblyVersion>2.6.1.0</AssemblyVersion>
+    <FileVersion>2.6.1.0</FileVersion>
+    <BuildNumber Condition="'$(BuildNumber)' == ''">local</BuildNumber>
+    <BuildCommit Condition="'$(BuildCommit)' == ''">$(SourceRevisionId)</BuildCommit>
     <Authors>Roger Bergling</Authors>
     <Company>Roger Bergling</Company>
     <Description>Local-first desktop time reporting for Linux and Windows.</Description>
@@ -27,6 +29,8 @@
 
   <ItemGroup>
     <AvaloniaResource Include="Assets/**" />
+    <AssemblyMetadata Include="BuildNumber" Value="$(BuildNumber)" />
+    <AssemblyMetadata Include="BuildCommit" Value="$(BuildCommit)" />
   </ItemGroup>
 
   <ItemGroup>
