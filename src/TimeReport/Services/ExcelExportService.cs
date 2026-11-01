@@ -38,8 +38,8 @@ public sealed class ExcelExportService
 
         var sheets = new List<XlsxSheet>
         {
-            BuildSummarySheet(start, end, entries, totals, projects.Count, types.Count, _service.Database.Path),
-            BuildEntriesSheet(entries),
+            BuildSummarySheet(start, end, entries, totals, projects.Count, types.Count, _service.Database.Path, _service.TimeZoneId),
+            BuildEntriesSheet(entries, _service.TimeZoneId),
             BuildDailySheet(dailyTotals),
             BuildMonthlySheet(monthlyTotals),
             BuildProjectsSheet(projects, entries),
@@ -64,12 +64,13 @@ public sealed class ExcelExportService
         Totals totals,
         int projectCount,
         int typeCount,
-        string databasePath)
+        string databasePath,
+        string timeZoneId)
     {
         var rows = new List<IReadOnlyList<XlsxCell>>
         {
             new[] { Header("ExportTitle"), Text("TimeReport") },
-            new[] { Text(LocalizationService.T("ExportGenerated")), Text(DateTime.Now.ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture)) },
+            new[] { Text(LocalizationService.T("ExportGenerated")), Text(TimeZoneService.Now(timeZoneId).ToString("yyyy-MM-dd HH:mm zzz", CultureInfo.InvariantCulture)) },
             new[] { Text(LocalizationService.T("ExportPeriod")), Text($"{start:yyyy-MM-dd} – {end:yyyy-MM-dd}") },
             new[] { Text(LocalizationService.T("ExportDays")), Number((end.DayNumber - start.DayNumber) + 1) },
             new[] { Text(LocalizationService.T("ExportEntries")), Number(entries.Count) },
@@ -78,12 +79,14 @@ public sealed class ExcelExportService
             new[] { Text(LocalizationService.T("LabelLunch")), Duration(totals.LunchMinutes) },
             new[] { Text(LocalizationService.T("LabelAway")), Duration(totals.AwayMinutes) },
             new[] { Text(LocalizationService.T("LabelXPause")), Duration(totals.XPauseMinutes) },
+            new[] { Text(LocalizationService.T("LabelOvertime")), Duration(totals.OvertimeMinutes) },
             new[] { Text(LocalizationService.T("LabelDaysWorked")), Number(totals.DaysWorked) },
             new[] { Text(LocalizationService.T("LabelDaysAway")), Number(totals.DaysAway) },
             Array.Empty<XlsxCell>(),
             new[] { Text(LocalizationService.T("ExportDatabase")), Text(databasePath) },
             new[] { Text(LocalizationService.T("ExportProjects")), Number(projectCount) },
             new[] { Text(LocalizationService.T("ExportTypes")), Number(typeCount) },
+            new[] { Text(LocalizationService.T("ExportTimeZone")), Text(timeZoneId) },
         };
 
         return new XlsxSheet(
@@ -92,7 +95,7 @@ public sealed class ExcelExportService
             rows);
     }
 
-    private static XlsxSheet BuildEntriesSheet(IReadOnlyList<Entry> entries)
+    private static XlsxSheet BuildEntriesSheet(IReadOnlyList<Entry> entries, string defaultTimeZoneId)
     {
         var rows = new List<IReadOnlyList<XlsxCell>>
         {
@@ -107,6 +110,7 @@ public sealed class ExcelExportService
                 Header("ExportStart"),
                 Header("ExportEnd"),
                 Header("ExportDuration"),
+                Header("ExportTimeZone"),
             },
         };
 
@@ -123,12 +127,13 @@ public sealed class ExcelExportService
                 Text(TimeUtil.FormatTime(entry.StartMinute)),
                 Text(TimeUtil.FormatTime(entry.EndMinute)),
                 Duration(entry.DurationMinutes),
+                Text(entry.TimeZoneId ?? defaultTimeZoneId),
             });
         }
 
         return new XlsxSheet(
             LocalizationService.T("ExportSheetEntries"),
-            [12, 12, 20, 14, 30, 30, 10, 10, 12],
+            [12, 12, 20, 14, 30, 30, 10, 10, 12, 28],
             rows);
     }
 
@@ -145,6 +150,7 @@ public sealed class ExcelExportService
                 Header("LabelLunch"),
                 Header("LabelAway"),
                 Header("LabelXPause"),
+                Header("LabelOvertime"),
             },
         };
 
@@ -158,12 +164,13 @@ public sealed class ExcelExportService
                 Duration(totals.LunchMinutes),
                 Duration(totals.AwayMinutes),
                 Duration(totals.XPauseMinutes),
+                Duration(totals.OvertimeMinutes),
             });
         }
 
         return new XlsxSheet(
             LocalizationService.T("ExportSheetDaily"),
-            [12, 12, 12, 12, 12, 12],
+            [12, 12, 12, 12, 12, 12, 12],
             rows);
     }
 
@@ -179,6 +186,7 @@ public sealed class ExcelExportService
                 Header("LabelLunch"),
                 Header("LabelAway"),
                 Header("LabelXPause"),
+                Header("LabelOvertime"),
                 Header("LabelDaysWorked"),
                 Header("LabelDaysAway"),
             },
@@ -193,6 +201,7 @@ public sealed class ExcelExportService
                 Duration(totals.LunchMinutes),
                 Duration(totals.AwayMinutes),
                 Duration(totals.XPauseMinutes),
+                Duration(totals.OvertimeMinutes),
                 Number(totals.DaysWorked),
                 Number(totals.DaysAway),
             });
@@ -200,7 +209,7 @@ public sealed class ExcelExportService
 
         return new XlsxSheet(
             LocalizationService.T("ExportSheetMonthly"),
-            [20, 12, 12, 12, 12, 12, 12],
+            [20, 12, 12, 12, 12, 12, 12, 12],
             rows);
     }
 

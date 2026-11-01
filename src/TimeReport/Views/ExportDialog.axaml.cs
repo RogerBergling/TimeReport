@@ -10,6 +10,8 @@ public partial class ExportDialog : Window
     private readonly TimeReportService? _service;
     private readonly ExcelExportService? _exporter;
 
+    private DateOnly Today => _service?.Today ?? TimeZoneService.Today(null);
+
     public ExportDialog()
     {
         InitializeComponent();
@@ -19,7 +21,7 @@ public partial class ExportDialog : Window
     {
         _service = service;
         _exporter = new ExcelExportService(service);
-        var (start, end) = TimeUtil.MonthBounds(DateOnly.FromDateTime(DateTime.Today));
+        var (start, end) = TimeUtil.MonthBounds(Today);
         SetRange(start, end);
         Opened += (_, _) =>
         {
@@ -30,26 +32,26 @@ public partial class ExportDialog : Window
 
     private void OnThisMonthClick(object? sender, RoutedEventArgs e)
     {
-        var (start, end) = TimeUtil.MonthBounds(DateOnly.FromDateTime(DateTime.Today));
+        var (start, end) = TimeUtil.MonthBounds(Today);
         SetRange(start, end);
     }
 
     private void OnLastMonthClick(object? sender, RoutedEventArgs e)
     {
-        var previous = TimeUtil.AddMonths(DateOnly.FromDateTime(DateTime.Today), -1);
+        var previous = TimeUtil.AddMonths(Today, -1);
         var (start, end) = TimeUtil.MonthBounds(previous);
         SetRange(start, end);
     }
 
     private void OnThisYearClick(object? sender, RoutedEventArgs e)
     {
-        var today = DateOnly.FromDateTime(DateTime.Today);
+        var today = Today;
         SetRange(new DateOnly(today.Year, 1, 1), new DateOnly(today.Year, 12, 31));
     }
 
     private void OnLastYearClick(object? sender, RoutedEventArgs e)
     {
-        var year = DateTime.Today.Year - 1;
+        var year = Today.Year - 1;
         SetRange(new DateOnly(year, 1, 1), new DateOnly(year, 12, 31));
     }
 

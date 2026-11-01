@@ -9,11 +9,12 @@ namespace TimeReport.ViewModels;
 public sealed class MainWindowViewModel : ViewModelBase
 {
     private readonly TimeReportService _service;
-    private DateOnly _currentWeekStart = TimeUtil.WeekStart(DateOnly.FromDateTime(DateTime.Today));
+    private DateOnly _currentWeekStart = TimeUtil.WeekStart(TimeZoneService.Today(TimeZoneInfo.Local.Id));
 
     public MainWindowViewModel(TimeReportService service)
     {
         _service = service;
+        _currentWeekStart = TimeUtil.WeekStart(service.Today);
         Totals = new TotalsViewModel(service);
         Refresh();
     }
@@ -35,6 +36,8 @@ public sealed class MainWindowViewModel : ViewModelBase
     public string WeekAwayText { get; private set; } = "0:00";
 
     public string WeekXPauseText { get; private set; } = "0:00 / 1:00";
+
+    public string WeekOvertimeText { get; private set; } = "0:00";
 
     public string WeekDaysWorkedText { get; private set; } = "0";
 
@@ -59,9 +62,11 @@ public sealed class MainWindowViewModel : ViewModelBase
         WeekLunchText = TimeUtil.FormatDuration(totals.LunchMinutes);
         WeekAwayText = TimeUtil.FormatDuration(totals.AwayMinutes);
         WeekXPauseText = $"{TimeUtil.FormatDuration(totals.XPauseMinutes)} / 1:00";
+        WeekOvertimeText = TimeUtil.FormatDuration(totals.OvertimeMinutes);
         WeekDaysWorkedText = totals.DaysWorked.ToString();
 
         DayCards.Clear();
+        var today = _service.Today;
         for (var offset = 0; offset < 7; offset++)
         {
             var day = _currentWeekStart.AddDays(offset);
@@ -71,6 +76,7 @@ public sealed class MainWindowViewModel : ViewModelBase
                 day,
                 dayEntries,
                 dayTotals,
+                today,
                 onAdd: _ => AddEntryRequested?.Invoke(day),
                 onEdit: entry => EditEntryRequested?.Invoke(entry),
                 onDelete: entry => DeleteEntryRequested?.Invoke(entry)));
@@ -81,6 +87,7 @@ public sealed class MainWindowViewModel : ViewModelBase
         OnPropertyChanged(nameof(WeekLunchText));
         OnPropertyChanged(nameof(WeekAwayText));
         OnPropertyChanged(nameof(WeekXPauseText));
+        OnPropertyChanged(nameof(WeekOvertimeText));
         OnPropertyChanged(nameof(WeekDaysWorkedText));
         OnPropertyChanged(nameof(CurrentWeekStart));
 
@@ -95,7 +102,7 @@ public sealed class MainWindowViewModel : ViewModelBase
 
     public void GoToday()
     {
-        _currentWeekStart = TimeUtil.WeekStart(DateOnly.FromDateTime(DateTime.Today));
+        _currentWeekStart = TimeUtil.WeekStart(_service.Today);
         Refresh();
     }
 
@@ -107,7 +114,7 @@ public sealed class MainWindowViewModel : ViewModelBase
 
     public DateOnly DefaultEntryDate()
     {
-        var today = DateOnly.FromDateTime(DateTime.Today);
+        var today = _service.Today;
         return _currentWeekStart <= today && today <= _currentWeekStart.AddDays(6)
             ? today
             : _currentWeekStart;
@@ -120,13 +127,14 @@ public sealed class DayCardViewModel : ViewModelBase
         DateOnly day,
         IReadOnlyList<Entry> entries,
         Totals totals,
+        DateOnly today,
         Action<DateOnly> onAdd,
         Action<Entry> onEdit,
         Action<Entry> onDelete)
     {
         Day = day;
         Title = TimeUtil.FormatDateLong(day);
-        if (day == DateOnly.FromDateTime(DateTime.Today))
+        if (day == today)
         {
             Title += $" · {LocalizationService.T("LabelToday")}";
         }
@@ -135,6 +143,7 @@ public sealed class DayCardViewModel : ViewModelBase
         LunchText = $"{LocalizationService.T("LabelLunch")} {TimeUtil.FormatDuration(totals.LunchMinutes)}";
         AwayText = $"{LocalizationService.T("LabelAway")} {TimeUtil.FormatDuration(totals.AwayMinutes)}";
         XPauseText = $"{LocalizationService.T("LabelXPause")} {TimeUtil.FormatDuration(totals.XPauseMinutes)}";
+        OvertimeText = $"{LocalizationService.T("LabelOvertime")} {TimeUtil.FormatDuration(totals.OvertimeMinutes)}";
         Entries = new ObservableCollection<EntryRowViewModel>(
             entries.Select(entry => new EntryRowViewModel(entry, onEdit, onDelete)));
         IsEmpty = Entries.Count == 0;
@@ -152,6 +161,8 @@ public sealed class DayCardViewModel : ViewModelBase
     public string AwayText { get; }
 
     public string XPauseText { get; }
+
+    public string OvertimeText { get; }
 
     public ObservableCollection<EntryRowViewModel> Entries { get; }
 

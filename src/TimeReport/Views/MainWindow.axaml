@@ -3,7 +3,7 @@
         x:Class="TimeReport.Views.MainWindow"
         x:CompileBindings="False"
         Icon="avares://TimeReport/Assets/timereport.png"
-        Title="TimeReport 2.5.0"
+        Title="TimeReport 2.6.0"
         Width="1180"
         Height="800"
         MinWidth="980"
@@ -19,6 +19,11 @@
         <Separator />
         <MenuItem Header="{DynamicResource MenuBackupAction}" Click="OnBackupClick" HotKey="Ctrl+B" />
         <MenuItem Header="{DynamicResource MenuRestoreAction}" Click="OnRestoreClick" />
+        <MenuItem Header="{DynamicResource MenuVerifyBackup}" Click="OnVerifyBackupClick" />
+        <Separator />
+        <MenuItem Header="{DynamicResource MenuCheckDatabase}" Click="OnCheckDatabaseClick" />
+        <MenuItem Header="{DynamicResource MenuCompactDatabase}" Click="OnCompactDatabaseClick" />
+        <MenuItem Header="{DynamicResource MenuRepairDatabase}" Click="OnRepairDatabaseClick" />
         <Separator />
         <MenuItem Header="{DynamicResource MenuExit}" Click="OnExitClick" HotKey="Ctrl+Q" />
       </MenuItem>
@@ -28,6 +33,7 @@
         <MenuItem Header="{DynamicResource MenuEntryTypes}" Click="OnEntryTypesClick" HotKey="Ctrl+T" />
         <MenuItem Header="{DynamicResource MenuRefresh}" Click="OnRefreshClick" HotKey="F5" />
         <Separator />
+        <MenuItem Header="{DynamicResource MenuSettings}" Click="OnSettingsClick" />
         <MenuItem Header="{DynamicResource MenuTheme}">
           <MenuItem Header="{DynamicResource ThemeSystem}" Tag="system" Click="OnThemeClick" />
           <MenuItem Header="{DynamicResource ThemeLight}" Tag="light" Click="OnThemeClick" />
@@ -36,6 +42,7 @@
         </MenuItem>
       </MenuItem>
       <MenuItem Header="{DynamicResource MenuHelp}">
+        <MenuItem Header="{DynamicResource MenuCheckUpdates}" Click="OnCheckUpdatesClick" />
         <MenuItem Header="{DynamicResource MenuAbout}" Click="OnAboutClick" HotKey="F1" />
       </MenuItem>
     </Menu>
@@ -79,7 +86,7 @@
             </StackPanel>
           </Grid>
 
-          <Grid Grid.Row="1" ColumnDefinitions="*,*,*,*,*" Margin="0,10,0,10">
+          <Grid Grid.Row="1" ColumnDefinitions="*,*,*,*,*,*" Margin="0,10,0,10">
             <Border Grid.Column="0" Classes="card" Margin="0,0,8,0">
               <StackPanel Spacing="2">
                 <TextBlock Text="{DynamicResource LabelWorked}" Classes="cardLabel" />
@@ -104,7 +111,13 @@
                 <TextBlock Text="{Binding WeekXPauseText}" Classes="cardValueAccent" />
               </StackPanel>
             </Border>
-            <Border Grid.Column="4" Classes="card">
+            <Border Grid.Column="4" Classes="card" Margin="0,0,8,0">
+              <StackPanel Spacing="2">
+                <TextBlock Text="{DynamicResource LabelOvertime}" Classes="cardLabel" />
+                <TextBlock Text="{Binding WeekOvertimeText}" Classes="cardValueAccent" />
+              </StackPanel>
+            </Border>
+            <Border Grid.Column="5" Classes="card">
               <StackPanel Spacing="2">
                 <TextBlock Text="{DynamicResource LabelDaysWorked}" Classes="cardLabel" />
                 <TextBlock Text="{Binding WeekDaysWorkedText}" Classes="cardValue" />
@@ -127,6 +140,7 @@
                             <TextBlock Text="{Binding LunchText}" Classes="muted" />
                             <TextBlock Text="{Binding AwayText}" Classes="muted" />
                             <TextBlock Text="{Binding XPauseText}" Classes="muted" />
+                            <TextBlock Text="{Binding OvertimeText}" Classes="muted" />
                           </StackPanel>
                         </StackPanel>
                         <Button Grid.Column="1" Content="{DynamicResource ButtonAdd}" Classes="accent"
@@ -188,7 +202,7 @@
                     IsEnabled="{Binding Totals.CanNavigate}" />
           </StackPanel>
 
-          <Grid Grid.Row="1" ColumnDefinitions="*,*,*,*,*,*" Margin="0,10,0,10">
+          <Grid Grid.Row="1" ColumnDefinitions="*,*,*,*,*,*,*" Margin="0,10,0,10">
             <Border Grid.Column="0" Classes="card" Margin="0,0,8,0">
               <StackPanel Spacing="2">
                 <TextBlock Text="{DynamicResource LabelWorked}" Classes="cardLabel" />
@@ -215,11 +229,17 @@
             </Border>
             <Border Grid.Column="4" Classes="card" Margin="0,0,8,0">
               <StackPanel Spacing="2">
+                <TextBlock Text="{DynamicResource LabelOvertime}" Classes="cardLabel" />
+                <TextBlock Text="{Binding Totals.OvertimeText}" Classes="cardValueAccent" />
+              </StackPanel>
+            </Border>
+            <Border Grid.Column="5" Classes="card" Margin="0,0,8,0">
+              <StackPanel Spacing="2">
                 <TextBlock Text="{DynamicResource LabelDaysWorked}" Classes="cardLabel" />
                 <TextBlock Text="{Binding Totals.DaysWorkedText}" Classes="cardValue" />
               </StackPanel>
             </Border>
-            <Border Grid.Column="5" Classes="card">
+            <Border Grid.Column="6" Classes="card">
               <StackPanel Spacing="2">
                 <TextBlock Text="{DynamicResource LabelDaysAway}" Classes="cardLabel" />
                 <TextBlock Text="{Binding Totals.DaysAwayText}" Classes="cardValue" />
@@ -230,26 +250,28 @@
           <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto"
                         HorizontalScrollBarVisibility="Disabled">
             <StackPanel>
-              <Grid ColumnDefinitions="2*,*,*,*,*,*,*" Margin="0,0,0,6">
+              <Grid ColumnDefinitions="2*,*,*,*,*,*,*,*" Margin="0,0,0,6">
                 <TextBlock Grid.Column="0" Text="{DynamicResource LabelPeriod}" Classes="columnHeader" />
                 <TextBlock Grid.Column="1" Text="{DynamicResource LabelWorked}" Classes="columnHeader" HorizontalAlignment="Center" />
                 <TextBlock Grid.Column="2" Text="{DynamicResource LabelLunch}" Classes="columnHeader" HorizontalAlignment="Center" />
                 <TextBlock Grid.Column="3" Text="{DynamicResource LabelAway}" Classes="columnHeader" HorizontalAlignment="Center" />
                 <TextBlock Grid.Column="4" Text="{DynamicResource LabelXPause}" Classes="columnHeader" HorizontalAlignment="Center" />
-                <TextBlock Grid.Column="5" Text="{DynamicResource LabelDaysWorked}" Classes="columnHeader" HorizontalAlignment="Center" />
-                <TextBlock Grid.Column="6" Text="{DynamicResource LabelDaysAway}" Classes="columnHeader" HorizontalAlignment="Center" />
+                <TextBlock Grid.Column="5" Text="{DynamicResource LabelOvertime}" Classes="columnHeader" HorizontalAlignment="Center" />
+                <TextBlock Grid.Column="6" Text="{DynamicResource LabelDaysWorked}" Classes="columnHeader" HorizontalAlignment="Center" />
+                <TextBlock Grid.Column="7" Text="{DynamicResource LabelDaysAway}" Classes="columnHeader" HorizontalAlignment="Center" />
               </Grid>
               <ItemsControl ItemsSource="{Binding Totals.Rows}">
                 <ItemsControl.ItemTemplate>
                   <DataTemplate>
-                    <Grid ColumnDefinitions="2*,*,*,*,*,*,*" Margin="0,4">
+                    <Grid ColumnDefinitions="2*,*,*,*,*,*,*,*" Margin="0,4">
                       <TextBlock Grid.Column="0" Text="{Binding Period}" />
                       <TextBlock Grid.Column="1" Text="{Binding WorkedText}" HorizontalAlignment="Center" />
                       <TextBlock Grid.Column="2" Text="{Binding LunchText}" HorizontalAlignment="Center" />
                       <TextBlock Grid.Column="3" Text="{Binding AwayText}" HorizontalAlignment="Center" />
                       <TextBlock Grid.Column="4" Text="{Binding XPauseText}" HorizontalAlignment="Center" />
-                      <TextBlock Grid.Column="5" Text="{Binding DaysWorkedText}" HorizontalAlignment="Center" />
-                      <TextBlock Grid.Column="6" Text="{Binding DaysAwayText}" HorizontalAlignment="Center" />
+                      <TextBlock Grid.Column="5" Text="{Binding OvertimeText}" HorizontalAlignment="Center" />
+                      <TextBlock Grid.Column="6" Text="{Binding DaysWorkedText}" HorizontalAlignment="Center" />
+                      <TextBlock Grid.Column="7" Text="{Binding DaysAwayText}" HorizontalAlignment="Center" />
                     </Grid>
                   </DataTemplate>
                 </ItemsControl.ItemTemplate>

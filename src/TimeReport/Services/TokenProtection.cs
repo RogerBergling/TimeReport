@@ -1,4 +1,3 @@
-using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Text;
 
@@ -113,7 +112,24 @@ public static class TokenProtection
             if (File.Exists(_keyPath))
             {
                 var stored = File.ReadAllBytes(_keyPath);
-                _key = OperatingSystem.IsWindows() ? DpapiUnprotect(stored) : stored;
+                if (OperatingSystem.IsWindows())
+                {
+                    try
+                    {
+                        _key = DpapiUnprotect(stored);
+                    }
+                    catch (CryptographicException) when (stored.Length == KeySize)
+                    {
+                        // Migrate the legacy unprotected key file written by 2.5.x.
+                        _key = stored;
+                        File.WriteAllBytes(_keyPath, DpapiProtect(stored));
+                        AppPaths.SecureFile(_keyPath);
+                    }
+                }
+                else
+                {
+                    _key = stored;
+                }
             }
             else
             {
@@ -132,77 +148,21 @@ public static class TokenProtection
         }
     }
 
-    private static byte[] DpapiProtect(byte[] data) => TransformDpapi(data, protect: true);
-
-    private static byte[] DpapiUnprotect(byte[] data) => TransformDpapi(data, protect: false);
-
-    private static byte[] TransformDpapi(byte[] data, bool protect)
+    private static byte[] DpapiProtect(byte[] data)
     {
-        var input = new DataBlob
+        if (!OperatingSystem.IsWindows())
         {
-            cbData = data.Length,
-            pbData = Marshal.AllocHGlobal(data.Length),
-        };
-        try
-        {
-            Marshal.Copy(data, 0, input.pbData, data.Length);
-            var output = new DataBlob();
-            var success = protect
-                ? CryptProtectData(ref input, "TimeReport token key", IntPtr.Zero, IntPtr.Zero, IntPtr.Zero, 0, out output)
-                : CryptUnprotectData(ref input, IntPtr.Zero, IntPtr.Zero, IntPtr.Zero, IntPtr.Zero, 0, out output);
-            if (!success)
-            {
-                throw new CryptographicException(
-                    $"DPAPI operation failed with error {Marshal.GetLastWin32Error()}.");
-            }
-
-            try
-            {
-                var result = new byte[output.cbData];
-                Marshal.Copy(output.pbData, result, 0, output.cbData);
-                return result;
-            }
-            finally
-            {
-                if (output.pbData != IntPtr.Zero)
-                {
-                    LocalFree(output.pbData);
-                }
-            }
+            throw new PlatformNotSupportedException("DPAPI is only available on Windows.");
         }
-        finally
-        {
-            Marshal.FreeHGlobal(input.pbData);
-        }
+        return ProtectedData.Protect(data, null, DataProtectionScope.CurrentUser);
     }
 
-    [StructLayout(LayoutKind.Sequential)]
-    private struct DataBlob
+    private static byte[] DpapiUnprotect(byte[] data)
     {
-        public int cbData;
-        public IntPtr pbData;
+        if (!OperatingSystem.IsWindows())
+        {
+            throw new PlatformNotSupportedException("DPAPI is only available on Windows.");
+        }
+        return ProtectedData.Unprotect(data, null, DataProtectionScope.CurrentUser);
     }
-
-    [DllImport("crypt32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
-    private static extern bool CryptProtectData(
-        ref DataBlob pDataIn,
-        string? szDataDescr,
-        IntPtr pOptionalEntropy,
-        IntPtr pvReserved,
-        IntPtr pPromptStruct,
-        int dwFlags,
-        out DataBlob pDataOut);
-
-    [DllImport("crypt32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
-    private static extern bool CryptUnprotectData(
-        ref DataBlob pDataIn,
-        IntPtr ppszDataDescr,
-        IntPtr pOptionalEntropy,
-        IntPtr pvReserved,
-        IntPtr pPromptStruct,
-        int dwFlags,
-        out DataBlob pDataOut);
-
-    [DllImport("kernel32.dll")]
-    private static extern IntPtr LocalFree(IntPtr hMem);
 }

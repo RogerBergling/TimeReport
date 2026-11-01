@@ -5,6 +5,35 @@ All notable changes to TimeReport are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and the project uses [Semantic Versioning](https://semver.org/).
 
+## [2.6.0] - 2026-11-01
+
+### Added
+
+- SQLCipher encryption at rest for the local database, with automatic migration of
+  existing plaintext databases and encrypted backups.
+- Per-installation database encryption keys protected by the existing token-protection
+  layer.
+- Client-side AES-GCM encryption for Dropbox uploads, with a portable sync passphrase.
+- Dropbox proxy, custom CA certificate, retry/backoff for transient errors, and a
+  conflict dialog showing local and remote modification times.
+- In-client update checking against GitHub releases, with startup policy control.
+- Time-zone support, per-entry time zones, and time-zone-aware "today" handling.
+- Configurable daily and weekly overtime thresholds, totals cards, and Excel columns.
+- Backup retention pruning and a backup verification action.
+- Database integrity check, compaction and repair actions with automatic pre-repair
+  backups.
+- Central Settings dialog for time zone, theme, overtime, backup retention and updates.
+- Terms/disclaimer documentation for free MIT use at the user's own risk.
+- Additional tests for encryption, sync encryption, time zones, overtime, backup
+  retention, maintenance and update parsing.
+
+### Changed
+
+- Schema version 3 adds entry time zones and performance indexes.
+- SQLCipher export is used for backup, restore and plaintext sync snapshots.
+- README and architecture documentation updated for encryption, time zones and
+  enterprise operation.
+
 ## [2.5.0] - 2026-10-31
 
 ### Added

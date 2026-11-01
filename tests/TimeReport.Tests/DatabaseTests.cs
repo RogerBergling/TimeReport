@@ -187,7 +187,7 @@ public sealed class DatabaseTests
 
             using var database = new Database(path);
             database.Open();
-            Assert.Equal(2, database.SchemaVersionNumber);
+            Assert.Equal(Database.SchemaVersion, database.SchemaVersionNumber);
             var service = new TimeReportService(database);
             Assert.Equal(4, service.ListEntryTypes().Count);
 
@@ -248,7 +248,7 @@ public sealed class DatabaseTests
 
             using var database = new Database(path);
             database.Open();
-            Assert.Equal(2, database.SchemaVersionNumber);
+            Assert.Equal(Database.SchemaVersion, database.SchemaVersionNumber);
             var service = new TimeReportService(database);
             var entry = Assert.Single(service.ListEntries(TestData.Monday, TestData.Monday));
             Assert.Equal("Work", entry.TypeName);

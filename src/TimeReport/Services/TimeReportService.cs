@@ -14,6 +14,12 @@ public sealed class TimeReportService
 
     public Database Database { get; }
 
+    public string TimeZoneId { get; set; } = TimeZoneInfo.Local.Id;
+
+    public DateOnly Today => TimeZoneService.Today(TimeZoneId);
+
+    public OvertimePolicy OvertimePolicy { get; set; } = OvertimePolicy.Disabled;
+
     // Projects -----------------------------------------------------------------
 
     public IReadOnlyList<Project> ListProjects(bool includeArchived = false)
@@ -353,10 +359,10 @@ public sealed class TimeReportService
                     command.CommandText = """
                         INSERT INTO entries (
                             entry_date, kind, project_id, label, entry_type_id,
-                            start_minute, end_minute, created_at, updated_at
+                            timezone_id, start_minute, end_minute, created_at, updated_at
                         ) VALUES (
                             $date, $kind, $projectId, $label, $typeId,
-                            $start, $end, $created, $updated
+                            $timeZone, $start, $end, $created, $updated
                         )
                         RETURNING id
                         """;
@@ -365,6 +371,7 @@ public sealed class TimeReportService
                     command.Parameters.AddWithValue("$projectId", (object?)entry.ProjectId ?? DBNull.Value);
                     command.Parameters.AddWithValue("$label", (object?)entry.AwayReason ?? DBNull.Value);
                     command.Parameters.AddWithValue("$typeId", (object?)entry.TypeId ?? DBNull.Value);
+                    command.Parameters.AddWithValue("$timeZone", (object?)entry.TimeZoneId ?? DBNull.Value);
                     command.Parameters.AddWithValue("$start", entry.StartMinute);
                     command.Parameters.AddWithValue("$end", entry.EndMinute);
                     command.Parameters.AddWithValue("$created", now);
@@ -382,6 +389,7 @@ public sealed class TimeReportService
                             project_id = $projectId,
                             label = $label,
                             entry_type_id = $typeId,
+                            timezone_id = $timeZone,
                             start_minute = $start,
                             end_minute = $end,
                             updated_at = $updated
@@ -392,6 +400,7 @@ public sealed class TimeReportService
                     command.Parameters.AddWithValue("$projectId", (object?)entry.ProjectId ?? DBNull.Value);
                     command.Parameters.AddWithValue("$label", (object?)entry.AwayReason ?? DBNull.Value);
                     command.Parameters.AddWithValue("$typeId", (object?)entry.TypeId ?? DBNull.Value);
+                    command.Parameters.AddWithValue("$timeZone", (object?)entry.TimeZoneId ?? DBNull.Value);
                     command.Parameters.AddWithValue("$start", entry.StartMinute);
                     command.Parameters.AddWithValue("$end", entry.EndMinute);
                     command.Parameters.AddWithValue("$updated", now);
@@ -456,7 +465,7 @@ public sealed class TimeReportService
             SELECT
                 e.id, e.entry_date, e.kind, e.project_id, e.label,
                 e.start_minute, e.end_minute, p.name AS project_name,
-                e.entry_type_id, t.name AS type_name
+                e.entry_type_id, t.name AS type_name, e.timezone_id
             FROM entries AS e
             LEFT JOIN projects AS p ON p.id = e.project_id
             LEFT JOIN entry_types AS t ON t.id = e.entry_type_id
@@ -485,7 +494,7 @@ public sealed class TimeReportService
             SELECT
                 e.id, e.entry_date, e.kind, e.project_id, e.label,
                 e.start_minute, e.end_minute, p.name AS project_name,
-                e.entry_type_id, t.name AS type_name
+                e.entry_type_id, t.name AS type_name, e.timezone_id
             FROM entries AS e
             LEFT JOIN projects AS p ON p.id = e.project_id
             LEFT JOIN entry_types AS t ON t.id = e.entry_type_id
@@ -506,7 +515,8 @@ public sealed class TimeReportService
         reader.IsDBNull(7) ? null : reader.GetString(7),
         reader.IsDBNull(4) ? null : reader.GetString(4),
         reader.IsDBNull(8) ? null : reader.GetInt64(8),
-        reader.IsDBNull(9) ? null : reader.GetString(9));
+        reader.IsDBNull(9) ? null : reader.GetString(9),
+        reader.IsDBNull(10) ? null : reader.GetString(10));
 
     private EntryType ResolveEntryType(Entry entry, Entry? original)
     {
@@ -827,9 +837,36 @@ public sealed class TimeReportService
             .ToList();
     }
 
-    public Totals RangeTotals(DateOnly start, DateOnly end) =>
-        TotalsByDay(start, end, false)
-            .Aggregate(new Totals(), (total, row) => total + row.Totals);
+    public Totals RangeTotals(DateOnly start, DateOnly end)
+    {
+        var days = TotalsByDay(start, end, false);
+        var totals = days.Aggregate(new Totals(), (total, row) => total + row.Totals);
+        if (OvertimePolicy.WeeklyThresholdMinutes <= 0)
+        {
+            return totals;
+        }
+
+        return totals with
+        {
+            OvertimeMinutes = totals.OvertimeMinutes + CalculateWeeklyOvertime(days),
+        };
+    }
+
+    private int CalculateWeeklyOvertime(
+        IReadOnlyList<(DateOnly Date, Totals Totals)> days)
+    {
+        var extra = 0;
+        foreach (var week in days.GroupBy(row => TimeUtil.WeekStart(row.Date)))
+        {
+            var worked = week.Sum(row => row.Totals.WorkedMinutes);
+            var weeklyOvertime = Math.Max(
+                0,
+                worked - OvertimePolicy.WeeklyThresholdMinutes);
+            var dailyOvertime = week.Sum(row => row.Totals.OvertimeMinutes);
+            extra += Math.Max(0, weeklyOvertime - dailyOvertime);
+        }
+        return extra;
+    }
 
     public List<(DateOnly Date, Totals Totals)> TotalsByMonth(int year)
     {
@@ -886,7 +923,7 @@ public sealed class TimeReportService
             TimeUtil.XPauseWeeklyLimit -
             XPauseUsedInWeek(TimeUtil.WeekStart(day), excludeEntryId));
 
-    private static Totals CalculateTotals(IReadOnlyList<Entry> entries)
+    private Totals CalculateTotals(IReadOnlyList<Entry> entries)
     {
         var work = entries
             .Where(entry => entry.Kind == EntryKind.Work)
@@ -909,13 +946,17 @@ public sealed class TimeReportService
         var lunchTotal = TimeUtil.TotalCovered(lunch);
         var awayTotal = TimeUtil.TotalCovered(away);
         var xpauseTotal = TimeUtil.TotalCovered(xpause);
+        var overtime = OvertimePolicy.DailyThresholdMinutes > 0
+            ? Math.Max(0, worked - OvertimePolicy.DailyThresholdMinutes)
+            : 0;
         return new Totals(
             worked,
             lunchTotal,
             awayTotal,
             xpauseTotal,
             worked > 0 ? 1 : 0,
-            awayTotal > 0 ? 1 : 0);
+            awayTotal > 0 ? 1 : 0,
+            overtime);
     }
 
     private static string FormatDbDate(DateOnly day) =>

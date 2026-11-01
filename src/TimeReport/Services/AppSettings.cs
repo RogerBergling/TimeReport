@@ -11,9 +11,23 @@ public sealed class AppSettings
 
     public string? DatabasePath { get; set; }
 
+    public string? DatabaseEncryptionKey { get; set; }
+
     public string? Language { get; set; }
 
     public string? Theme { get; set; }
+
+    public string? TimeZoneId { get; set; }
+
+    public int OvertimeDailyMinutes { get; set; }
+
+    public int OvertimeWeeklyMinutes { get; set; }
+
+    public int BackupRetentionCount { get; set; } = 20;
+
+    public bool CheckForUpdates { get; set; } = true;
+
+    public DateTimeOffset? LastUpdateCheckUtc { get; set; }
 
     public string? DropboxAppKey { get; set; }
 
@@ -26,6 +40,14 @@ public sealed class AppSettings
     public DateTimeOffset? DropboxAccessTokenExpiresUtc { get; set; }
 
     public string? DropboxRemotePath { get; set; }
+
+    public string? DropboxSyncKey { get; set; }
+
+    public bool DropboxSyncEncryptionEnabled { get; set; } = true;
+
+    public string? DropboxProxyUrl { get; set; }
+
+    public string? DropboxCaCertificatePath { get; set; }
 
     public bool DropboxAutoSync { get; set; }
 
@@ -44,6 +66,8 @@ public sealed class AppSettings
             var settings = JsonSerializer.Deserialize<AppSettings>(File.ReadAllText(path), JsonOptions)
                 ?? new AppSettings();
             var migrated = false;
+            settings.DatabaseEncryptionKey = LoadSecret(settings.DatabaseEncryptionKey, ref migrated);
+            settings.DropboxSyncKey = LoadSecret(settings.DropboxSyncKey, ref migrated);
             settings.DropboxAppSecret = LoadSecret(settings.DropboxAppSecret, ref migrated);
             settings.DropboxRefreshToken = LoadSecret(settings.DropboxRefreshToken, ref migrated);
             settings.DropboxAccessToken = LoadSecret(settings.DropboxAccessToken, ref migrated);
@@ -89,6 +113,8 @@ public sealed class AppSettings
 
         TokenProtection.Initialize(path);
         var stored = (AppSettings)MemberwiseClone();
+        stored.DatabaseEncryptionKey = TokenProtection.Protect(DatabaseEncryptionKey);
+        stored.DropboxSyncKey = TokenProtection.Protect(DropboxSyncKey);
         stored.DropboxAppSecret = TokenProtection.Protect(DropboxAppSecret);
         stored.DropboxRefreshToken = TokenProtection.Protect(DropboxRefreshToken);
         stored.DropboxAccessToken = TokenProtection.Protect(DropboxAccessToken);

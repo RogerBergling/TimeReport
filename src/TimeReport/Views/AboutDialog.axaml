@@ -15,6 +15,8 @@
       <TextBlock x:Name="VersionText" Classes="muted" />
       <TextBlock Text="{DynamicResource AboutDescription}"
                  Classes="muted" TextWrapping="Wrap" />
+      <TextBlock Text="{DynamicResource AboutWarranty}"
+                 Classes="muted" TextWrapping="Wrap" FontSize="11" />
       <TextBlock Text="{DynamicResource AboutDatabase}" Classes="h3" Margin="0,10,0,0" />
       <TextBlock x:Name="DatabaseText" TextWrapping="Wrap" />
       <TextBlock Text="{DynamicResource AboutDataFolder}" Classes="h3" Margin="0,8,0,0" />

@@ -24,10 +24,13 @@ The Windows executable is unsigned, so Windows SmartScreen may warn on first lau
 
 ## Data
 
-The database is stored outside this folder:
+The encrypted database is stored outside this folder:
 
 - Linux: `~/.local/share/timereport/timereport.db`
 - Windows: `%LOCALAPPDATA%\TimeReport\timereport.db`
+
+Keep `settings.json.key` with the database; it contains the protected database and
+sync keys. Without it, encrypted data cannot be recovered.
 
 Use **File → Database location…** to choose where the database file is stored.
 
@@ -58,5 +61,5 @@ The Windows executable is not code-signed. The checksums prove that the file was
 not modified after the release was published, but they do not provide publisher
 identity.
 
-TimeReport is released under the MIT License. See the repository `LICENSE` file
-and `THIRD-PARTY-NOTICES.md` for dependency licenses.
+TimeReport is released under the MIT License. See `LICENSE`, `TERMS.md` and
+`THIRD-PARTY-NOTICES.md` for the license, disclaimer and dependency licenses.

@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
@@ -12,9 +13,10 @@ namespace TimeReport.Views;
 public partial class MainWindow : Window
 {
     private readonly AppSession? _session;
-    private readonly IDropboxSyncService? _dropboxSync;
-    private readonly DropboxTokenProvider? _tokenProvider;
-    private readonly DropboxSyncCoordinator? _syncCoordinator;
+    private IDropboxSyncService? _dropboxSync;
+    private DropboxTokenProvider? _tokenProvider;
+    private DropboxSyncCoordinator? _syncCoordinator;
+    private HttpClient? _dropboxHttpClient;
     private TimeReportService? _service;
     private MainWindowViewModel? _viewModel;
     private bool _initializingLanguage;
@@ -47,13 +49,26 @@ public partial class MainWindow : Window
     public MainWindow(AppSession session) : this()
     {
         _session = session;
-        _dropboxSync = new DropboxSyncService();
-        _tokenProvider = new DropboxTokenProvider(session);
-        _syncCoordinator = new DropboxSyncCoordinator(session, _dropboxSync, _tokenProvider);
+        RebuildDropboxServices();
         RebindService(session.Service);
         InitializeLanguageSelector();
         InitializeDropboxStatus();
         Opened += async (_, _) => await AutoSyncOnStartupAsync();
+        Opened += async (_, _) => await CheckForUpdatesOnStartupAsync();
+    }
+
+    private void RebuildDropboxServices()
+    {
+        if (_session is null)
+        {
+            return;
+        }
+
+        _dropboxHttpClient?.Dispose();
+        _dropboxHttpClient = HttpClientFactory.Create(_session.Settings);
+        _dropboxSync = new DropboxSyncService(_dropboxHttpClient);
+        _tokenProvider = new DropboxTokenProvider(_session, _dropboxHttpClient);
+        _syncCoordinator = new DropboxSyncCoordinator(_session, _dropboxSync, _tokenProvider);
     }
 
     private void InitializeLanguageSelector()
@@ -157,6 +172,7 @@ public partial class MainWindow : Window
             return;
         }
 
+        RebuildDropboxServices();
         InitializeDropboxStatus();
         if (_syncCoordinator?.AutoSyncEnabled == true)
         {
@@ -236,27 +252,23 @@ public partial class MainWindow : Window
         }
     }
 
-    private async Task<DropboxConflictChoice> ResolveDropboxConflictAsync()
+    private async Task<DropboxConflictChoice> ResolveDropboxConflictAsync(
+        DropboxMetadata metadata)
     {
-        if (await MessageDialog.ShowAsync(
-                this,
-                LocalizationService.T("DropboxConflictTitle"),
-                LocalizationService.T("DropboxConflictUpload"),
-                true))
+        if (_session is null || _syncCoordinator is null)
         {
-            return DropboxConflictChoice.UseLocal;
+            return DropboxConflictChoice.Cancel;
         }
 
-        if (await MessageDialog.ShowAsync(
-                this,
-                LocalizationService.T("DropboxConflictTitle"),
-                LocalizationService.T("DropboxConflictDownload"),
-                true))
-        {
-            return DropboxConflictChoice.UseRemote;
-        }
-
-        return DropboxConflictChoice.Cancel;
+        var localModified = DateTime.SpecifyKind(
+            File.GetLastWriteTimeUtc(_session.Database.Path),
+            DateTimeKind.Utc);
+        return await DropboxConflictDialog.ShowAsync(
+            this,
+            _session.Database.Path,
+            new DateTimeOffset(localModified),
+            _syncCoordinator.RemotePath,
+            metadata);
     }
 
     private void OnMainKeyDown(object? sender, KeyEventArgs e)
@@ -406,7 +418,8 @@ public partial class MainWindow : Window
 
         var dialog = new DatabaseLocationDialog(
             _session.Database.Path,
-            _session.DefaultDatabasePath);
+            _session.DefaultDatabasePath,
+            _session.Database.EncryptionKey);
         var result = await dialog.ShowDialog<DatabaseLocationResult?>(this);
         if (result is null)
         {
@@ -553,7 +566,180 @@ public partial class MainWindow : Window
         }
     }
 
+    private async void OnVerifyBackupClick(object? sender, RoutedEventArgs e)
+    {
+        if (_service is null)
+        {
+            return;
+        }
+
+        var files = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+        {
+            Title = LocalizationService.T("MenuVerifyBackup"),
+            AllowMultiple = false,
+            FileTypeFilter =
+            [
+                new FilePickerFileType(LocalizationService.T("FileTypeSqliteDatabase"))
+                {
+                    Patterns = ["*.db", "*.sqlite", "*.sqlite3"],
+                },
+            ],
+        });
+        if (files.Count == 0)
+        {
+            return;
+        }
+
+        try
+        {
+            var version = Database.ValidateFile(
+                files[0].Path.LocalPath,
+                _service.Database.EncryptionKey);
+            await MessageDialog.ShowAsync(
+                this,
+                LocalizationService.T("MessageVerifyBackup"),
+                LocalizationService.T("MessageBackupValid", version),
+                false);
+        }
+        catch (DatabaseException exception)
+        {
+            AppLog.Error("Backup verification failed.", exception);
+            await MessageDialog.ShowAsync(
+                this,
+                LocalizationService.T("MessageVerifyBackup"),
+                LocalizationService.T("MessageBackupInvalid", exception.Message),
+                false);
+        }
+    }
+
+    private async void OnCheckDatabaseClick(object? sender, RoutedEventArgs e)
+    {
+        if (_service is null)
+        {
+            return;
+        }
+        try
+        {
+            var result = _service.Database.IntegrityCheck();
+            await MessageDialog.ShowAsync(
+                this,
+                LocalizationService.T("MessageDatabaseCheck"),
+                LocalizationService.T("MessageDatabaseCheckResult", result),
+                false);
+        }
+        catch (DatabaseException exception)
+        {
+            AppLog.Error("Database integrity check failed.", exception);
+            await MessageDialog.ShowAsync(
+                this,
+                LocalizationService.T("MessageDatabaseCheck"),
+                exception.Message,
+                false);
+        }
+    }
+
+    private async void OnCompactDatabaseClick(object? sender, RoutedEventArgs e)
+    {
+        if (_service is null)
+        {
+            return;
+        }
+        if (!await MessageDialog.ShowAsync(
+                this,
+                LocalizationService.T("MessageCompactDatabase"),
+                LocalizationService.T("MessageCompactDatabaseConfirm"),
+                true))
+        {
+            return;
+        }
+        try
+        {
+            _service.Database.Compact();
+            await MessageDialog.ShowAsync(
+                this,
+                LocalizationService.T("MessageCompactDatabase"),
+                LocalizationService.T("MessageCompactDatabaseDone"),
+                false);
+        }
+        catch (DatabaseException exception)
+        {
+            AppLog.Error("Database compaction failed.", exception);
+            await MessageDialog.ShowAsync(
+                this,
+                LocalizationService.T("MessageCompactDatabase"),
+                exception.Message,
+                false);
+        }
+    }
+
+    private async void OnRepairDatabaseClick(object? sender, RoutedEventArgs e)
+    {
+        if (_service is null)
+        {
+            return;
+        }
+        if (!await MessageDialog.ShowAsync(
+                this,
+                LocalizationService.T("MessageRepairDatabase"),
+                LocalizationService.T("MessageRepairDatabaseConfirm"),
+                true))
+        {
+            return;
+        }
+        try
+        {
+            var backup = _service.Database.Repair();
+            _viewModel?.Refresh();
+            await MessageDialog.ShowAsync(
+                this,
+                LocalizationService.T("MessageRepairDatabase"),
+                LocalizationService.T("MessageRepairDatabaseDone", backup),
+                false);
+        }
+        catch (DatabaseException exception)
+        {
+            AppLog.Error("Database repair failed.", exception);
+            await MessageDialog.ShowAsync(
+                this,
+                LocalizationService.T("MessageRepairDatabase"),
+                exception.Message,
+                false);
+        }
+    }
+
     private void OnRefreshClick(object? sender, RoutedEventArgs e) => _viewModel?.Refresh();
+
+    private async void OnSettingsClick(object? sender, RoutedEventArgs e)
+    {
+        if (_session is null)
+        {
+            return;
+        }
+
+        var dialog = new SettingsDialog(_session.Settings);
+        if (!await dialog.ShowDialog<bool>(this))
+        {
+            return;
+        }
+
+        try
+        {
+            _session.Settings.Save(_session.SettingsPath);
+            AppThemes.Apply(_session.Settings.Theme);
+            _session.ApplyRuntimeSettings();
+            _viewModel?.Totals.RefreshLocalization();
+            _viewModel?.Refresh();
+        }
+        catch (Exception exception)
+        {
+            AppLog.Error("Could not save settings.", exception);
+            await MessageDialog.ShowAsync(
+                this,
+                LocalizationService.T("MessageCannotSaveSettings"),
+                exception.Message,
+                false);
+        }
+    }
 
     private void OnThemeClick(object? sender, RoutedEventArgs e)
     {
@@ -573,6 +759,81 @@ public partial class MainWindow : Window
             catch (Exception exception)
             {
                 AppLog.Error("Could not save the theme setting.", exception);
+            }
+        }
+    }
+
+    private async void OnCheckUpdatesClick(object? sender, RoutedEventArgs e) =>
+        await CheckForUpdatesAsync(interactive: true);
+
+    private async Task CheckForUpdatesOnStartupAsync()
+    {
+        if (_session?.Settings.CheckForUpdates != true)
+        {
+            return;
+        }
+        if (_session.Settings.LastUpdateCheckUtc is DateTimeOffset last &&
+            last > DateTimeOffset.UtcNow.AddHours(-24))
+        {
+            return;
+        }
+        await CheckForUpdatesAsync(interactive: false);
+    }
+
+    private async Task CheckForUpdatesAsync(bool interactive)
+    {
+        try
+        {
+            using var client = HttpClientFactory.Create(
+                _session?.Settings ?? new AppSettings(),
+                TimeSpan.FromSeconds(15));
+            var update = await UpdateService.CheckAsync(client, AppInfo.Version);
+            if (_session is not null)
+            {
+                _session.Settings.LastUpdateCheckUtc = DateTimeOffset.UtcNow;
+                try
+                {
+                    _session.Settings.Save(_session.SettingsPath);
+                }
+                catch (Exception exception)
+                {
+                    AppLog.Warn("Could not save the update check timestamp.", exception);
+                }
+            }
+
+            if (update is null)
+            {
+                if (interactive)
+                {
+                    await MessageDialog.ShowAsync(
+                        this,
+                        LocalizationService.T("UpdateTitle"),
+                        LocalizationService.T("UpdateUpToDate"),
+                        false);
+                }
+                return;
+            }
+
+            var open = await MessageDialog.ShowAsync(
+                this,
+                LocalizationService.T("UpdateTitle"),
+                LocalizationService.T("UpdateAvailable", update.Tag),
+                true);
+            if (open)
+            {
+                Process.Start(new ProcessStartInfo(update.ReleaseUrl) { UseShellExecute = true });
+            }
+        }
+        catch (Exception exception)
+        {
+            AppLog.Warn("Update check failed.", exception);
+            if (interactive)
+            {
+                await MessageDialog.ShowAsync(
+                    this,
+                    LocalizationService.T("UpdateTitle"),
+                    LocalizationService.T("UpdateCheckFailed", exception.Message),
+                    false);
             }
         }
     }

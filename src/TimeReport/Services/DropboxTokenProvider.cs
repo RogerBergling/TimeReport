@@ -52,7 +52,11 @@ public sealed class DropboxTokenProvider
         string? appSecret,
         CancellationToken cancellationToken = default)
     {
-        var result = await DropboxOAuthService.AuthorizeAsync(appKey, appSecret, cancellationToken);
+        var result = await DropboxOAuthService.AuthorizeAsync(
+            appKey,
+            appSecret,
+            _httpClient,
+            cancellationToken);
         var settings = _session.Settings;
         settings.DropboxAppKey = appKey;
         settings.DropboxAppSecret = string.IsNullOrWhiteSpace(appSecret) ? null : appSecret;

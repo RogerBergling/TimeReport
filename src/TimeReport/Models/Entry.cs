@@ -10,7 +10,8 @@ public sealed record Entry(
     string? ProjectName = null,
     string? AwayReason = null,
     long? TypeId = null,
-    string? TypeName = null)
+    string? TypeName = null,
+    string? TimeZoneId = null)
 {
     public int DurationMinutes => EndMinute - StartMinute;
 }

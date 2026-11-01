@@ -21,6 +21,7 @@ New-Item -ItemType Directory -Path $stage | Out-Null
 
 Copy-Item $binary (Join-Path $stage "TimeReport.exe")
 Copy-Item (Join-Path $root "LICENSE") (Join-Path $stage "LICENSE")
+Copy-Item (Join-Path $root "TERMS.md") (Join-Path $stage "TERMS.md")
 Copy-Item (Join-Path $root "THIRD-PARTY-NOTICES.md") (Join-Path $stage "THIRD-PARTY-NOTICES.md")
 Copy-Item (Join-Path $root "README.md") (Join-Path $stage "README.md")
 

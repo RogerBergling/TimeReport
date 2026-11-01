@@ -1,4 +1,6 @@
+using System.Security.Cryptography;
 using TimeReport.Data;
+using TimeReport.Models;
 
 namespace TimeReport.Services;
 
@@ -25,6 +27,32 @@ public sealed class AppSession : IDisposable
             _instanceGuard.Dispose();
             throw;
         }
+
+        var keyGenerated = false;
+        if (string.IsNullOrWhiteSpace(Settings.DatabaseEncryptionKey))
+        {
+            Settings.DatabaseEncryptionKey = Convert.ToBase64String(
+                RandomNumberGenerator.GetBytes(32));
+            keyGenerated = true;
+        }
+        if (string.IsNullOrWhiteSpace(Settings.DropboxSyncKey))
+        {
+            Settings.DropboxSyncKey = SyncEncryptionService.GenerateKey();
+            keyGenerated = true;
+        }
+        if (keyGenerated)
+        {
+            try
+            {
+                Settings.Save(SettingsPath);
+            }
+            catch
+            {
+                _instanceGuard.Dispose();
+                throw;
+            }
+        }
+
         DefaultDatabasePath = AppPaths.DefaultDatabasePath();
 
         var initialPath = databaseOverride;
@@ -84,7 +112,7 @@ public sealed class AppSession : IDisposable
 
         if (File.Exists(fullPath))
         {
-            Database.ValidateFile(fullPath);
+            Database.ValidateFile(fullPath, Settings.DatabaseEncryptionKey);
         }
         else
         {
@@ -101,10 +129,11 @@ public sealed class AppSession : IDisposable
         previousDatabase.Close();
         try
         {
-            var newDatabase = new Database(fullPath);
+            var newDatabase = new Database(fullPath, Settings.DatabaseEncryptionKey);
             newDatabase.Open();
             Database = newDatabase;
             Service = new TimeReportService(newDatabase);
+            ApplyServiceSettings(Service);
             Settings.DatabasePath = fullPath;
             // Never let an existing Dropbox remote silently receive a different
             // local database after a switch. The user can re-enable sync explicitly.
@@ -129,15 +158,27 @@ public sealed class AppSession : IDisposable
         _instanceGuard.Dispose();
     }
 
+    public void ApplyRuntimeSettings() => ApplyServiceSettings(Service);
+
+    private void ApplyServiceSettings(TimeReportService service)
+    {
+        service.TimeZoneId = TimeZoneService.ResolveId(Settings.TimeZoneId);
+        service.OvertimePolicy = new OvertimePolicy(
+            Math.Max(0, Settings.OvertimeDailyMinutes),
+            Math.Max(0, Settings.OvertimeWeeklyMinutes));
+        service.Database.BackupRetentionCount = Math.Max(1, Settings.BackupRetentionCount);
+    }
+
     private void OpenDatabase(string path)
     {
         var directory = Path.GetDirectoryName(path)
             ?? throw new DatabaseException("The database path has no directory.");
         AppPaths.EnsureDataDir(directory);
-        var database = new Database(path);
+        var database = new Database(path, Settings.DatabaseEncryptionKey);
         database.Open();
         Database = database;
         Service = new TimeReportService(database);
+        ApplyServiceSettings(Service);
     }
 
     private static bool PathsEqual(string first, string second) =>

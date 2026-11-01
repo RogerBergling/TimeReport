@@ -33,6 +33,20 @@
       <TextBox x:Name="RemotePathTextBox" AutomationProperties.Name="{DynamicResource DropboxRemotePath}" />
       <TextBlock Text="{DynamicResource DropboxRemotePathHint}" Classes="muted" />
 
+      <CheckBox x:Name="EncryptSyncCheckBox" Content="{DynamicResource DropboxEncryptSync}" />
+      <TextBlock Text="{DynamicResource DropboxSyncPassphrase}" Classes="h3" Margin="0,4,0,0" />
+      <TextBox x:Name="SyncPassphraseTextBox" PasswordChar="*"
+               AutomationProperties.Name="{DynamicResource DropboxSyncPassphrase}" />
+      <TextBlock Text="{DynamicResource DropboxSyncPassphraseHint}" Classes="muted" TextWrapping="Wrap" />
+
+      <TextBlock Text="{DynamicResource DropboxProxy}" Classes="h3" Margin="0,8,0,0" />
+      <TextBox x:Name="ProxyTextBox" AutomationProperties.Name="{DynamicResource DropboxProxy}" />
+      <TextBlock Text="{DynamicResource DropboxProxyHint}" Classes="muted" TextWrapping="Wrap" />
+
+      <TextBlock Text="{DynamicResource DropboxCaCertificate}" Classes="h3" Margin="0,8,0,0" />
+      <TextBox x:Name="CaCertificateTextBox" AutomationProperties.Name="{DynamicResource DropboxCaCertificate}" />
+      <TextBlock Text="{DynamicResource DropboxCaCertificateHint}" Classes="muted" TextWrapping="Wrap" />
+
       <CheckBox x:Name="AutoSyncCheckBox" Content="{DynamicResource DropboxAutoSync}" />
 
       <TextBlock x:Name="StatusText" Classes="muted" TextWrapping="Wrap"

@@ -31,6 +31,7 @@ public partial class EntryDialog : Window
         EndTextBox.Text = "16:00";
         LoadEntryTypes();
         LoadProjects();
+        LoadTimeZones();
         Populate();
         _initializing = false;
         UpdateTypeUi();
@@ -61,6 +62,20 @@ public partial class EntryDialog : Window
               ?? _entryTypes.FirstOrDefault();
     }
 
+    private static TimeZoneOption? FindTimeZone(
+        IReadOnlyList<TimeZoneOption> options,
+        string? id)
+    {
+        foreach (var option in options)
+        {
+            if (string.Equals(option.Id, id, StringComparison.Ordinal))
+            {
+                return option;
+            }
+        }
+        return null;
+    }
+
     private void LoadProjects()
     {
         if (_service is null)
@@ -78,6 +93,15 @@ public partial class EntryDialog : Window
         {
             ProjectComboBox.SelectedItem = _projects[0];
         }
+    }
+
+    private void LoadTimeZones()
+    {
+        var options = TimeZoneService.GetOptions();
+        TimeZoneComboBox.ItemsSource = options;
+        var selectedId = _entry?.TimeZoneId ?? _service?.TimeZoneId;
+        TimeZoneComboBox.SelectedItem = FindTimeZone(options, selectedId)
+            ?? (options.Count > 0 ? options[0] : null);
     }
 
     private void Populate()
@@ -278,7 +302,9 @@ public partial class EntryDialog : Window
                 end,
                 projectId,
                 AwayReason: awayReason,
-                TypeId: selectedType.Id);
+                TypeId: selectedType.Id,
+                TimeZoneId: (TimeZoneComboBox.SelectedItem as TimeZoneOption)?.Id
+                            ?? _service.TimeZoneId);
             var saved = _service.SaveEntry(candidate);
             Close(saved);
         }

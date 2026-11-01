@@ -21,6 +21,10 @@ public sealed class DropboxSyncException : Exception
     public bool IsUnauthorized => StatusCode == HttpStatusCode.Unauthorized;
 
     public bool IsConflict => StatusCode == HttpStatusCode.Conflict;
+
+    public bool IsTransient =>
+        StatusCode == HttpStatusCode.TooManyRequests ||
+        (StatusCode is not null && (int)StatusCode >= 500);
 }
 
 public sealed record DropboxMetadata(

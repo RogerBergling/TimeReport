@@ -66,7 +66,7 @@ public sealed class DropboxSyncCoordinator
     }
 
     public async Task<DropboxSyncResult> SyncNowAsync(
-        Func<Task<DropboxConflictChoice>>? conflictResolver = null,
+        Func<DropboxMetadata, Task<DropboxConflictChoice>>? conflictResolver = null,
         CancellationToken cancellationToken = default)
     {
         if (!IsConfigured)
@@ -247,7 +247,7 @@ public sealed class DropboxSyncCoordinator
 
     private async Task<DropboxSyncResult> ResolveConflictAsync(
         DropboxMetadata metadata,
-        Func<Task<DropboxConflictChoice>>? conflictResolver,
+        Func<DropboxMetadata, Task<DropboxConflictChoice>>? conflictResolver,
         CancellationToken cancellationToken)
     {
         if (conflictResolver is null)
@@ -257,7 +257,7 @@ public sealed class DropboxSyncCoordinator
                 LocalizationService.T("DropboxConflict"));
         }
 
-        var choice = await conflictResolver();
+        var choice = await conflictResolver(metadata);
         return choice switch
         {
             DropboxConflictChoice.UseLocal => await UploadAsync(metadata, cancellationToken),
@@ -275,14 +275,28 @@ public sealed class DropboxSyncCoordinator
         var temporary = Path.Combine(
             _session.DataDirectory,
             $".dropbox-upload-{Guid.NewGuid():N}.db");
+        var encrypted = temporary + ".enc";
         try
         {
-            _session.Database.BackupTo(temporary);
+            _session.Database.BackupToPlaintext(temporary);
+            var uploadPath = temporary;
+            if (_session.Settings.DropboxSyncEncryptionEnabled)
+            {
+                var key = _session.Settings.DropboxSyncKey;
+                if (string.IsNullOrWhiteSpace(key))
+                {
+                    throw new DropboxSyncException(
+                        LocalizationService.T("DropboxSyncKeyMissing"));
+                }
+                SyncEncryptionService.EncryptFile(temporary, encrypted, key);
+                uploadPath = encrypted;
+            }
+
             await EnsureFolderAsync(cancellationToken);
             DropboxMetadata? uploaded;
             try
             {
-                uploaded = await UploadRemoteAsync(temporary, expectedRemote?.Rev, cancellationToken);
+                uploaded = await UploadRemoteAsync(uploadPath, expectedRemote?.Rev, cancellationToken);
             }
             catch (DropboxSyncException exception) when (exception.IsConflict)
             {
@@ -298,6 +312,7 @@ public sealed class DropboxSyncCoordinator
         finally
         {
             TryDelete(temporary);
+            TryDelete(encrypted);
         }
     }
 
@@ -308,11 +323,34 @@ public sealed class DropboxSyncCoordinator
         var temporary = Path.Combine(
             _session.DataDirectory,
             $".dropbox-download-{Guid.NewGuid():N}.db");
+        var plaintext = temporary + ".plain.db";
         try
         {
             await DownloadRemoteAsync(temporary, cancellationToken);
-            Database.ValidateFile(temporary);
-            var autoBackup = _session.Database.RestoreFrom(temporary);
+            var source = temporary;
+            if (SyncEncryptionService.IsEncryptedFile(temporary))
+            {
+                var key = _session.Settings.DropboxSyncKey;
+                if (string.IsNullOrWhiteSpace(key))
+                {
+                    throw new DropboxSyncException(
+                        LocalizationService.T("DropboxSyncKeyMissing"));
+                }
+                SyncEncryptionService.DecryptFile(temporary, plaintext, key);
+                source = plaintext;
+            }
+
+            try
+            {
+                Database.ValidateFile(source);
+            }
+            catch (RestoreException)
+            {
+                // Backward compatibility with an old remote SQLCipher database.
+                Database.ValidateFile(source, _session.Database.EncryptionKey);
+            }
+
+            var autoBackup = _session.Database.RestoreFrom(source);
             SetLastSync(metadata.ServerModified);
             return new DropboxSyncResult(
                 DropboxSyncStatus.Downloaded,
@@ -322,40 +360,76 @@ public sealed class DropboxSyncCoordinator
         finally
         {
             TryDelete(temporary);
+            TryDelete(plaintext);
         }
     }
 
     private Task<DropboxMetadata?> GetMetadataAsync(CancellationToken cancellationToken) =>
-        WithTokenAsync(
-            token => _dropbox.GetMetadataAsync(token, RemotePath, cancellationToken),
+        WithRetryAsync(
+            () => WithTokenAsync(
+                token => _dropbox.GetMetadataAsync(token, RemotePath, cancellationToken),
+                cancellationToken),
             cancellationToken);
 
-    private Task EnsureFolderAsync(CancellationToken cancellationToken) =>
-        WithTokenAsync(
-            token => _dropbox.EnsureFolderAsync(token, GetRemoteFolder(), cancellationToken),
+    private Task<bool> EnsureFolderAsync(CancellationToken cancellationToken) =>
+        WithRetryAsync(
+            async () =>
+            {
+                await WithTokenAsync(
+                    token => _dropbox.EnsureFolderAsync(token, GetRemoteFolder(), cancellationToken),
+                    cancellationToken);
+                return true;
+            },
             cancellationToken);
 
     private Task<DropboxMetadata?> UploadRemoteAsync(
         string localPath,
         string? expectedRev,
         CancellationToken cancellationToken) =>
-        WithTokenAsync(
-            token => _dropbox.UploadAsync(
-                token,
-                RemotePath,
-                localPath,
-                expectedRev,
+        WithRetryAsync(
+            () => WithTokenAsync(
+                token => _dropbox.UploadAsync(
+                    token,
+                    RemotePath,
+                    localPath,
+                    expectedRev,
+                    cancellationToken),
                 cancellationToken),
             cancellationToken);
 
-    private Task DownloadRemoteAsync(string destinationPath, CancellationToken cancellationToken) =>
-        WithTokenAsync(
-            token => _dropbox.DownloadAsync(
-                token,
-                RemotePath,
-                destinationPath,
-                cancellationToken),
+    private Task<bool> DownloadRemoteAsync(string destinationPath, CancellationToken cancellationToken) =>
+        WithRetryAsync(
+            async () =>
+            {
+                await WithTokenAsync(
+                    token => _dropbox.DownloadAsync(
+                        token,
+                        RemotePath,
+                        destinationPath,
+                        cancellationToken),
+                    cancellationToken);
+                return true;
+            },
             cancellationToken);
+
+    private static async Task<T> WithRetryAsync<T>(
+        Func<Task<T>> action,
+        CancellationToken cancellationToken)
+    {
+        for (var attempt = 0; ; attempt++)
+        {
+            try
+            {
+                return await action();
+            }
+            catch (DropboxSyncException exception) when (exception.IsTransient && attempt < 2)
+            {
+                await Task.Delay(
+                    TimeSpan.FromSeconds(Math.Pow(2, attempt)),
+                    cancellationToken);
+            }
+        }
+    }
 
     private async Task<T> WithTokenAsync<T>(
         Func<string, Task<T>> action,

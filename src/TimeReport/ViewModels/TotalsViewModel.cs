@@ -9,13 +9,14 @@ namespace TimeReport.ViewModels;
 public sealed class TotalsViewModel : ViewModelBase
 {
     private readonly TimeReportService _service;
-    private DateOnly _anchor = DateOnly.FromDateTime(DateTime.Today);
+    private DateOnly _anchor = TimeZoneService.Today(TimeZoneInfo.Local.Id);
     private string _periodCode = "Week";
     private bool _canNavigate = true;
 
     public TotalsViewModel(TimeReportService service)
     {
         _service = service;
+        _anchor = service.Today;
         PreviousCommand = new RelayCommand(() => Move(-1));
         NextCommand = new RelayCommand(() => Move(1));
         CurrentCommand = new RelayCommand(Current);
@@ -52,6 +53,8 @@ public sealed class TotalsViewModel : ViewModelBase
 
     public string XPauseText { get; private set; } = "0:00";
 
+    public string OvertimeText { get; private set; } = "0:00";
+
     public string DaysWorkedText { get; private set; } = "0";
 
     public string DaysAwayText { get; private set; } = "0";
@@ -84,7 +87,7 @@ public sealed class TotalsViewModel : ViewModelBase
 
     public void Refresh()
     {
-        var today = DateOnly.FromDateTime(DateTime.Today);
+        var today = _service.Today;
         var rows = new List<TotalsRowViewModel>();
         var totals = new Totals();
 
@@ -169,6 +172,7 @@ public sealed class TotalsViewModel : ViewModelBase
         LunchText = TimeUtil.FormatDuration(totals.LunchMinutes);
         AwayText = TimeUtil.FormatDuration(totals.AwayMinutes);
         XPauseText = TimeUtil.FormatDuration(totals.XPauseMinutes);
+        OvertimeText = TimeUtil.FormatDuration(totals.OvertimeMinutes);
         DaysWorkedText = totals.DaysWorked.ToString();
         DaysAwayText = totals.DaysAway.ToString();
 
@@ -190,6 +194,7 @@ public sealed class TotalsViewModel : ViewModelBase
         OnPropertyChanged(nameof(LunchText));
         OnPropertyChanged(nameof(AwayText));
         OnPropertyChanged(nameof(XPauseText));
+        OnPropertyChanged(nameof(OvertimeText));
         OnPropertyChanged(nameof(DaysWorkedText));
         OnPropertyChanged(nameof(DaysAwayText));
         OnPropertyChanged(nameof(CanNavigate));
@@ -235,7 +240,7 @@ public sealed class TotalsViewModel : ViewModelBase
 
     private void Current()
     {
-        _anchor = DateOnly.FromDateTime(DateTime.Today);
+        _anchor = _service.Today;
         Refresh();
     }
 }
@@ -254,6 +259,7 @@ public sealed class TotalsRowViewModel
         LunchText = TimeUtil.FormatDuration(totals.LunchMinutes);
         AwayText = TimeUtil.FormatDuration(totals.AwayMinutes);
         XPauseText = TimeUtil.FormatDuration(totals.XPauseMinutes);
+        OvertimeText = TimeUtil.FormatDuration(totals.OvertimeMinutes);
         DaysWorkedText = totals.DaysWorked.ToString();
         DaysAwayText = totals.DaysAway.ToString();
     }
@@ -267,6 +273,8 @@ public sealed class TotalsRowViewModel
     public string AwayText { get; }
 
     public string XPauseText { get; }
+
+    public string OvertimeText { get; }
 
     public string DaysWorkedText { get; }
 

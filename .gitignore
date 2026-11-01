@@ -47,3 +47,19 @@ id_ed25519
 .idea/
 .DS_Store
 Thumbs.db
+
+# git-create: secret and safety patterns
+id_rsa
+*.p12
+*.pfx
+node_modules/
+*.jks
+id_dsa
+id_ecdsa
+*.kdbx
+.netrc
+.npmrc
+.pypirc
+credentials.json
+terraform.tfstate
+terraform.tfstate.*

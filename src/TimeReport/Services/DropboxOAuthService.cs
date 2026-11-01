@@ -18,11 +18,12 @@ public static class DropboxOAuthService
 {
     public const string RedirectUri = "http://127.0.0.1:53682/dropbox-callback";
     private const int CallbackPort = 53682;
-    private static readonly HttpClient HttpClient = new() { Timeout = TimeSpan.FromSeconds(60) };
+    private static readonly HttpClient SharedHttpClient = new() { Timeout = TimeSpan.FromSeconds(60) };
 
     public static async Task<DropboxTokenResult> AuthorizeAsync(
         string appKey,
         string? appSecret,
+        HttpClient? httpClient = null,
         CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(appKey))
@@ -73,7 +74,7 @@ public static class DropboxOAuthService
                 throw new DropboxSyncException("Dropbox did not return an authorization code.");
             }
 
-            return await ExchangeCodeAsync(appKey, appSecret, code, verifier, cancellationToken);
+            return await ExchangeCodeAsync(appKey, appSecret, code, verifier, httpClient ?? SharedHttpClient, cancellationToken);
         }
         finally
         {
@@ -96,6 +97,7 @@ public static class DropboxOAuthService
         string? appSecret,
         string code,
         string verifier,
+        HttpClient httpClient,
         CancellationToken cancellationToken)
     {
         var fields = new Dictionary<string, string>
@@ -112,7 +114,7 @@ public static class DropboxOAuthService
         }
 
         using var content = new FormUrlEncodedContent(fields);
-        using var response = await HttpClient.PostAsync(
+        using var response = await httpClient.PostAsync(
             "https://api.dropboxapi.com/oauth2/token",
             content,
             cancellationToken);

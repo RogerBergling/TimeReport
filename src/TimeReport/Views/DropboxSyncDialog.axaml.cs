@@ -32,6 +32,9 @@ public partial class DropboxSyncDialog : Window
             ? DefaultRemotePath
             : session.Settings.DropboxRemotePath;
         AutoSyncCheckBox.IsChecked = session.Settings.DropboxAutoSync;
+        EncryptSyncCheckBox.IsChecked = session.Settings.DropboxSyncEncryptionEnabled;
+        ProxyTextBox.Text = session.Settings.DropboxProxyUrl ?? string.Empty;
+        CaCertificateTextBox.Text = session.Settings.DropboxCaCertificatePath ?? string.Empty;
         if (tokenProvider.IsConnected)
         {
             StatusText.Text = LocalizationService.T("DropboxConnected");
@@ -149,10 +152,34 @@ public partial class DropboxSyncDialog : Window
             settings.DropboxLastSyncUtc = null;
         }
 
+        var passphrase = SyncPassphraseTextBox.Text?.Trim();
+        if (!string.IsNullOrWhiteSpace(passphrase))
+        {
+            settings.DropboxSyncKey = SyncEncryptionService.DeriveKey(passphrase);
+            settings.DropboxLastSyncUtc = null;
+        }
+        else if (string.IsNullOrWhiteSpace(settings.DropboxSyncKey))
+        {
+            settings.DropboxSyncKey = SyncEncryptionService.GenerateKey();
+        }
+
+        var encryptionEnabled = EncryptSyncCheckBox.IsChecked == true;
+        if (settings.DropboxSyncEncryptionEnabled != encryptionEnabled)
+        {
+            settings.DropboxLastSyncUtc = null;
+        }
+
         settings.DropboxAppKey = string.IsNullOrWhiteSpace(appKey) ? null : appKey;
         settings.DropboxAppSecret = string.IsNullOrWhiteSpace(appSecret) ? null : appSecret;
         settings.DropboxRemotePath = remotePath;
         settings.DropboxAutoSync = AutoSyncCheckBox.IsChecked == true;
+        settings.DropboxSyncEncryptionEnabled = encryptionEnabled;
+        settings.DropboxProxyUrl = string.IsNullOrWhiteSpace(ProxyTextBox.Text)
+            ? null
+            : ProxyTextBox.Text.Trim();
+        settings.DropboxCaCertificatePath = string.IsNullOrWhiteSpace(CaCertificateTextBox.Text)
+            ? null
+            : CaCertificateTextBox.Text.Trim();
         settings.Save(_session.SettingsPath);
         Close(true);
     }

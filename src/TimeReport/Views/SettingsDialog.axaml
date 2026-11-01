@@ -1,0 +1,62 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="TimeReport.Views.SettingsDialog"
+        x:CompileBindings="False"
+        Title="{DynamicResource SettingsTitle}"
+        Width="620"
+        SizeToContent="Height"
+        CanResize="True"
+        WindowStartupLocation="CenterOwner"
+        ShowInTaskbar="False">
+  <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+    <Border Padding="20">
+      <StackPanel Spacing="10">
+        <TextBlock Text="{DynamicResource SettingsTitle}" Classes="h2" />
+
+        <TextBlock Text="{DynamicResource SettingsTimeZone}" Classes="h3" Margin="0,8,0,0" />
+        <ComboBox x:Name="TimeZoneComboBox" Width="480" HorizontalAlignment="Left"
+                  AutomationProperties.Name="{DynamicResource SettingsTimeZone}" />
+
+        <TextBlock Text="{DynamicResource SettingsTheme}" Classes="h3" Margin="0,8,0,0" />
+        <ComboBox x:Name="ThemeComboBox" Width="240" HorizontalAlignment="Left"
+                  AutomationProperties.Name="{DynamicResource SettingsTheme}" />
+
+        <TextBlock Text="{DynamicResource SettingsOvertime}" Classes="h3" Margin="0,12,0,0" />
+        <Grid ColumnDefinitions="Auto,80,Auto,Auto,80,*" RowDefinitions="Auto,Auto">
+          <TextBlock Grid.Row="0" Grid.Column="0" Text="{DynamicResource SettingsOvertimeDaily}"
+                     VerticalAlignment="Center" Margin="0,0,10,0" />
+          <TextBox Grid.Row="0" Grid.Column="1" x:Name="DailyOvertimeTextBox" Width="80"
+                   AutomationProperties.Name="{DynamicResource SettingsOvertimeDaily}" />
+          <TextBlock Grid.Row="0" Grid.Column="2" Text="{DynamicResource SettingsHoursUnit}"
+                     VerticalAlignment="Center" Margin="8,0,18,0" />
+          <TextBlock Grid.Row="0" Grid.Column="3" Text="{DynamicResource SettingsOvertimeWeekly}"
+                     VerticalAlignment="Center" Margin="0,0,10,0" />
+          <TextBox Grid.Row="0" Grid.Column="4" x:Name="WeeklyOvertimeTextBox" Width="80"
+                   HorizontalAlignment="Left" AutomationProperties.Name="{DynamicResource SettingsOvertimeWeekly}" />
+        </Grid>
+        <TextBlock Text="{DynamicResource SettingsOvertimeHint}" Classes="muted" TextWrapping="Wrap" />
+
+        <TextBlock Text="{DynamicResource SettingsBackup}" Classes="h3" Margin="0,12,0,0" />
+        <Grid ColumnDefinitions="Auto,90,*">
+          <TextBlock Grid.Column="0" Text="{DynamicResource SettingsBackupRetention}"
+                     VerticalAlignment="Center" Margin="0,0,10,0" />
+          <TextBox Grid.Column="1" x:Name="BackupRetentionTextBox" Width="80"
+                   AutomationProperties.Name="{DynamicResource SettingsBackupRetention}" />
+        </Grid>
+        <TextBlock Text="{DynamicResource SettingsBackupRetentionHint}" Classes="muted" TextWrapping="Wrap" />
+
+        <TextBlock Text="{DynamicResource SettingsUpdates}" Classes="h3" Margin="0,12,0,0" />
+        <CheckBox x:Name="CheckForUpdatesCheckBox" Content="{DynamicResource SettingsCheckForUpdates}" />
+
+        <TextBlock x:Name="ValidationText" Foreground="{DynamicResource DangerBrush}"
+                   TextWrapping="Wrap" Margin="0,8,0,0"
+                   AutomationProperties.LiveSetting="Assertive" />
+
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8" Margin="0,16,0,0">
+          <Button Content="{DynamicResource ButtonCancel}" Click="OnCancelClick" IsCancel="True" />
+          <Button Content="{DynamicResource ButtonSave}" Classes="accent" Click="OnSaveClick" IsDefault="True" />
+        </StackPanel>
+      </StackPanel>
+    </Border>
+  </ScrollViewer>
+</Window>

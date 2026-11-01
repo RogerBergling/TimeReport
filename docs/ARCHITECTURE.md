@@ -43,12 +43,18 @@ overlap is rolled back.
 
 ### Persistence
 
-`Database` owns the SQLite connection and schema migrations. Schema version 1 stores
-the original entries; version 2 adds managed entry types and backfills existing rows.
-Backups use SQLite's online backup API, are validated, and are written to a temporary
-file before an atomic replace. Restore validates the source, creates a raw safety
-copy of the current database, replaces the live file and reopens it. Path checks
-resolve symlinks and reject the live database and its sidecars.
+`Database` owns the SQLCipher connection and schema migrations. Schema version 1 stores
+the original entries; version 2 adds managed entry types; version 3 adds per-entry
+time zones and performance indexes. The live database and automatic backups are
+encrypted at rest. The key is protected by the same token-protection layer as Dropbox
+secrets. Existing plaintext databases are exported into an encrypted file with a
+pre-encryption backup.
+
+Backups use SQLCipher's `sqlcipher_export`, are validated, and are written to a
+temporary file before an atomic replace. Restore accepts plaintext or encrypted
+sources and re-encrypts the result into the live database. Path checks resolve symlinks
+and hard links and reject the live database and its sidecars. Automatic backups are
+pruned to the configured retention count.
 
 ### Excel export
 
@@ -60,9 +66,12 @@ Summary, Daily, Projects and Types sheets all deduct overlapping lunch.
 
 `DropboxSyncCoordinator` compares local modification time and remote metadata against
 the last successful sync. Uploads are revision-checked (`update` with a rev) and a
-409 is surfaced as a conflict rather than overwriting another device. Downloads are
-validated and restored through the same safe restore path. Auto-sync is disabled when
-the database location changes.
+409 is surfaced as a conflict rather than overwriting another device. Uploads are
+created from a plaintext snapshot and encrypted with a portable sync key using
+chunked AES-GCM; downloads are decrypted into a temporary plaintext database and then
+re-encrypted into the local SQLCipher database. The client supports proxy and custom
+CA settings, retries transient 429/5xx responses, and shows a conflict dialog with
+local/remote timestamps. Auto-sync is disabled when the database location changes.
 
 ### Diagnostics and security
 
@@ -75,10 +84,25 @@ is kept in an owner-only file and is additionally DPAPI-protected on Windows. A
 `SingleInstanceGuard` holds an exclusive lock in the settings folder so two instances
 cannot edit the same database.
 
+### Time zones, overtime and settings
+
+Entries store an optional IANA/Windows-compatible time-zone identifier. `TimeZoneService`
+resolves IDs across platforms, and the selected time zone controls "today" and new
+entry defaults. `TimeReportService` applies configurable daily/weekly overtime
+thresholds to totals. `SettingsDialog` configures time zone, theme, overtime, backup
+retention and update checking.
+
 ### UI themes
 
 `AppStyles.axaml` provides Light, Dark and a custom HighContrast theme variant.
-`AppThemes` applies the saved theme, and the theme can be changed from **Data → Theme**.
+`AppThemes` applies the saved theme, and the theme can be changed from **Data → Theme**
+or Settings.
+
+### Updates and maintenance
+
+`UpdateService` checks the latest GitHub release and opens the release page when a
+newer version is available. Database maintenance supports integrity checks, compaction
+and repair with a pre-repair backup.
 
 ## Tests
 

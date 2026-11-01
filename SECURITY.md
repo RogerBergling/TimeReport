@@ -20,9 +20,14 @@ time for a fix before publishing details.
 
 ## Data and network model
 
-- The SQLite database is local and unencrypted. Protect the data folder and backups.
-- Optional Dropbox sync uploads an unencrypted database copy to the configured
-  Dropbox account. No other network access is performed.
+- The SQLite database is encrypted at rest with SQLCipher. The database key and
+  Dropbox tokens are stored in the owner-only settings key file; keep that file with
+  the database when moving or backing it up. If the key is lost, encrypted data cannot
+  be recovered.
+- Optional Dropbox sync uploads a client-side AES-GCM encrypted database snapshot to
+  the configured Dropbox account by default. If sync encryption is disabled, it sends
+  a plaintext snapshot. Update checks contact the GitHub releases API. No other network
+  access is performed.
 - Dropbox tokens are encrypted with AES-GCM before they are written to the settings
   file. The encryption key is stored in a separate owner-only file. On Windows the key
   is additionally protected with the current user's DPAPI key. On Linux the key file is

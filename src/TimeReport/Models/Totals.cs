@@ -6,7 +6,8 @@ public sealed record Totals(
     int AwayMinutes = 0,
     int XPauseMinutes = 0,
     int DaysWorked = 0,
-    int DaysAway = 0)
+    int DaysAway = 0,
+    int OvertimeMinutes = 0)
 {
     public static Totals operator +(Totals left, Totals right) => new(
         left.WorkedMinutes + right.WorkedMinutes,
@@ -14,5 +15,6 @@ public sealed record Totals(
         left.AwayMinutes + right.AwayMinutes,
         left.XPauseMinutes + right.XPauseMinutes,
         left.DaysWorked + right.DaysWorked,
-        left.DaysAway + right.DaysAway);
+        left.DaysAway + right.DaysAway,
+        left.OvertimeMinutes + right.OvertimeMinutes);
 }

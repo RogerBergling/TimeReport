@@ -25,16 +25,23 @@ not require Python or a separate .NET installation.
     end of the workday.
   - It does not reduce worked hours.
 - Daily totals, weekly totals, monthly totals, yearly totals and an all-time total.
-- Backup and restore from the GUI, with automatic safety backups.
-- Optional Dropbox sync with encrypted OAuth refresh tokens, revision-checked uploads
+- Backup and restore from the GUI, with automatic safety backups, retention and
+  backup verification.
+- SQLCipher encryption at rest, with encrypted backups and automatic migration of
+  existing plaintext databases.
+- Optional Dropbox sync with encrypted OAuth refresh tokens, client-side AES-GCM
+  encryption of uploaded databases, revision-checked uploads, proxy/custom-CA support
   and conflict detection.
+- Configurable time zones, per-entry time zones and time-zone-aware "today" handling.
+- Configurable daily and weekly overtime thresholds, shown in totals and Excel.
+- In-client update checking against GitHub releases.
 - Export any date range to an Excel `.xlsx` workbook with summary, entries, daily/monthly totals, projects and types.
 - Switch the interface and calendar between English and Swedish.
 - 24-hour clock and ISO dates (`YYYY-MM-DD`).
 - Keyboard-friendly operation with shortcuts and default/cancel dialog buttons.
 - Inline validation, undo for the last deleted entry and a single-instance guard.
 - Light, dark, high-contrast and system theme variants under **Data → Theme**.
-- No account or telemetry. Optional Dropbox sync is the only network feature.
+- No account or telemetry. Optional Dropbox sync and update checks are the only network features.
 
 ## Prebuilt executables
 
@@ -76,9 +83,15 @@ upgrading the executable does not remove your data.
 Existing TimeReport databases are migrated automatically, including databases created
 by the earlier Python version. A pre-migration backup is created first.
 
+The database is encrypted at rest with SQLCipher. The encryption key is stored in a
+separate owner-only settings key file; on Windows that key is additionally protected
+with the current user's DPAPI key. Back up the database and `settings.json.key`
+together. If the key is lost, the encrypted database cannot be recovered.
+
 The app also writes a rotating log file, `timereport.log`, in the same data folder.
-Backups made automatically before a restore or schema migration are placed in the
-`backups/` subfolder.
+Backups made automatically before a restore, migration, encryption or repair are
+placed in the `backups/` subfolder. The newest `BackupRetentionCount` automatic
+backups are kept.
 
 ### Changing the database location
 
@@ -124,8 +137,13 @@ Use **File → Restore database…** to replace the current database. Restore:
 4. Replaces the database atomically.
 5. Refuses databases from a newer, unsupported schema version.
 
-Backup files are normal SQLite databases and can be moved between Linux and Windows.
-They contain personal time data, so store them securely.
+Backups are SQLCipher-encrypted databases when encryption is enabled. Restoring them
+requires the matching database encryption key, so keep the database and
+`settings.json.key` together. They contain personal time data, so store them securely.
+
+Use **File → Verify backup…** to validate a backup, and **File → Check database
+integrity…**, **Compact database…** or **Repair database…** for maintenance. Repair
+creates a pre-repair backup first.
 
 ## Optional Dropbox sync
 
@@ -144,8 +162,12 @@ To configure it:
    `http://127.0.0.1:53682/dropbox-callback`
 4. In TimeReport, open **File → Dropbox sync…**, enter the app key and optional app
    secret, then click **Connect to Dropbox** and authorize in the browser.
-5. Keep or change the remote path (default `/TimeReport/timereport.db`), enable
-   **Sync automatically after changes**, and use **Sync now** for the first sync.
+5. Keep or change the remote path (default `/TimeReport/timereport.db`), optionally
+   enter a **Sync encryption passphrase**, enable **Sync automatically after changes**,
+   and use **Sync now** for the first sync. Use the same passphrase on every device
+   that shares the Dropbox file.
+6. If your network requires it, configure an HTTPS proxy and a custom CA certificate
+   in the same dialog.
 
 The app uses Dropbox OAuth with a long-lived refresh token, so it can keep syncing
 without asking you to paste a new short-lived access token every few hours. Tokens are
@@ -153,7 +175,9 @@ encrypted with AES-GCM before they are written to the settings file. The encrypt
 is stored in a separate owner-only file; on Windows that key is additionally protected
 with the current user's DPAPI key. The settings file and key are still sensitive, so
 protect the account and the data folder. If you back up the settings file, keep
-`settings.json.key` with it; without the key the stored tokens cannot be decrypted.
+`settings.json.key` with it; without the key the stored tokens and database key cannot
+be decrypted. Dropbox uploads are encrypted with AES-GCM before they leave the machine by default; the encryption checkbox can be disabled if your policy requires otherwise.
+Conflicts show local and remote modification times and let you keep either side.
 Dropbox sync is optional and the app works fully offline.
 
 ## Building from source
@@ -213,11 +237,11 @@ Windows, builds both executables, and uploads them as build artifacts.
 After publishing, create distributable archives with:
 
 ```bash
-./scripts/package-linux.sh 2.5.0
+./scripts/package-linux.sh 2.6.0
 ```
 
 ```powershell
-./scripts/package-windows.ps1 2.5.0
+./scripts/package-windows.ps1 2.6.0
 ```
 
 The Linux script creates a `.tar.gz` and, when `dpkg-deb` is available, a `.deb`
@@ -257,6 +281,35 @@ scripts/                    Linux/Windows packaging scripts
 tests/TimeReport.Tests/     xUnit tests for time, database, validation, totals,
                             backup, Dropbox sync, token protection and Excel export
 ```
+
+## Settings
+
+Use **Data → Settings…** to configure:
+
+- time zone and theme;
+- daily and weekly overtime thresholds;
+- automatic backup retention;
+- whether to check for updates on startup.
+
+The same dialog is available without editing `settings.json` by hand.
+
+## Time zones and overtime
+
+The selected time zone controls "today", new-entry defaults and the default date
+ranges. Each entry stores the time zone that was selected when it was created, so
+historical entries remain meaningful when you travel or change the application time
+zone.
+
+Overtime is calculated from worked time after lunch deductions. Set a daily threshold,
+a weekly threshold, or both. Weekly overtime is added only above the daily overtime
+already counted, so the two thresholds do not double-count the same hours.
+
+## Updates
+
+Use **Help → Check for updates…** to query the latest GitHub release. Startup checking
+can be disabled in Settings, and update checks respect the configured proxy and custom
+CA certificate. The app opens the release page; it does not silently replace the
+executable.
 
 ## Excel export
 
@@ -322,7 +375,9 @@ A pre-restore backup is created automatically before a restore.
 
 ## License
 
-TimeReport is released under the [MIT License](LICENSE).
+TimeReport is released under the [MIT License](LICENSE). It is free to use, modify
+and distribute. The software is provided “as is”, without warranty; use it at your
+own risk. See [TERMS.md](TERMS.md) for the disclaimer and responsibilities.
 
 ## Contributing and security
 
@@ -334,4 +389,4 @@ architecture overview.
 
 ## Version
 
-`2.5.0`
+`2.6.0`

@@ -9,7 +9,10 @@ binaries and source packages.
 | [Avalonia](https://github.com/AvaloniaUI/Avalonia) and Avalonia.Desktop, Avalonia.Themes.Fluent | MIT |
 | [Inter font](https://github.com/rsms/inter) (via Avalonia.Fonts.Inter) | SIL Open Font License 1.1 |
 | [CommunityToolkit.Mvvm](https://github.com/CommunityToolkit/dotnet) | MIT |
-| [Microsoft.Data.Sqlite](https://github.com/dotnet/efcore) | MIT |
+| [Microsoft.Data.Sqlite.Core](https://github.com/dotnet/efcore) | MIT |
+| [SQLCipher](https://www.zetetic.net/sqlcipher/) | BSD-style |
+| [SQLitePCLRaw](https://github.com/ericsink/SQLitePCL.raw) | Apache-2.0 |
+| [System.Security.Cryptography.ProtectedData](https://github.com/dotnet/runtime) | MIT |
 | [SQLite](https://www.sqlite.org/) | Public domain |
 | [SkiaSharp](https://github.com/mono/SkiaSharp) | MIT |
 | [HarfBuzzSharp](https://github.com/mono/SkiaSharp) | MIT |

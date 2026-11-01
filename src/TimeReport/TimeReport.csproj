@@ -8,9 +8,9 @@
     <AnalysisLevel>latest-recommended</AnalysisLevel>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationIcon>Assets/timereport.ico</ApplicationIcon>
-    <Version>2.5.0</Version>
-    <AssemblyVersion>2.5.0.0</AssemblyVersion>
-    <FileVersion>2.5.0.0</FileVersion>
+    <Version>2.6.0</Version>
+    <AssemblyVersion>2.6.0.0</AssemblyVersion>
+    <FileVersion>2.6.0.0</FileVersion>
     <Authors>Roger Bergling</Authors>
     <Company>Roger Bergling</Company>
     <Description>Local-first desktop time reporting for Linux and Windows.</Description>
@@ -35,6 +35,8 @@
     <PackageReference Include="Avalonia.Themes.Fluent" />
     <PackageReference Include="Avalonia.Fonts.Inter" />
     <PackageReference Include="CommunityToolkit.Mvvm" />
-    <PackageReference Include="Microsoft.Data.Sqlite" />
+    <PackageReference Include="Microsoft.Data.Sqlite.Core" />
+    <PackageReference Include="SQLitePCLRaw.bundle_e_sqlcipher" />
+    <PackageReference Include="System.Security.Cryptography.ProtectedData" />
   </ItemGroup>
 </Project>

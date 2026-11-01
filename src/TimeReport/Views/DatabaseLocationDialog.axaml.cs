@@ -11,6 +11,7 @@ public partial class DatabaseLocationDialog : Window
 {
     private readonly string _currentPath;
     private readonly string _defaultPath;
+    private readonly string? _encryptionKey;
 
     public DatabaseLocationDialog()
     {
@@ -20,10 +21,14 @@ public partial class DatabaseLocationDialog : Window
         KeyDown += OnKeyDown;
     }
 
-    public DatabaseLocationDialog(string currentPath, string defaultPath) : this()
+    public DatabaseLocationDialog(
+        string currentPath,
+        string defaultPath,
+        string? encryptionKey) : this()
     {
         _currentPath = currentPath;
         _defaultPath = defaultPath;
+        _encryptionKey = encryptionKey;
         CurrentPathText.Text = currentPath;
         PathTextBox.Text = currentPath;
         UpdateStatus();
@@ -91,7 +96,7 @@ public partial class DatabaseLocationDialog : Window
         {
             try
             {
-                Database.ValidateFile(path);
+                Database.ValidateFile(path, _encryptionKey);
                 StatusText.Text = LocalizationService.T("StatusExistingDatabase");
                 SaveButton.IsEnabled = true;
             }
@@ -132,7 +137,7 @@ public partial class DatabaseLocationDialog : Window
         {
             try
             {
-                Database.ValidateFile(path);
+                Database.ValidateFile(path, _encryptionKey);
             }
             catch (DatabaseException exception)
             {

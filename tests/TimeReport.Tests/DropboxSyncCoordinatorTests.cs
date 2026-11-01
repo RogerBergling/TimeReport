@@ -55,11 +55,10 @@ public sealed class DropboxSyncCoordinatorTests
     {
         using var source = new SessionContext();
         source.Session.Service.CreateProject("Remote");
-        var snapshot = Path.Combine(source.Directory, "snapshot.db");
-        source.Session.Database.BackupTo(snapshot);
-        var remoteBytes = await File.ReadAllBytesAsync(snapshot);
+        var remoteBytes = await CreateRemoteSnapshotAsync(source);
 
         using var target = new SessionContext();
+        target.Session.Settings.DropboxSyncKey = source.Session.Settings.DropboxSyncKey;
         Configure(target.Session, lastSync: null);
         var dropbox = new FakeDropboxSyncService
         {
@@ -81,11 +80,10 @@ public sealed class DropboxSyncCoordinatorTests
     {
         using var source = new SessionContext();
         source.Session.Service.CreateProject("Remote");
-        var snapshot = Path.Combine(source.Directory, "snapshot.db");
-        source.Session.Database.BackupTo(snapshot);
-        var remoteBytes = await File.ReadAllBytesAsync(snapshot);
+        var remoteBytes = await CreateRemoteSnapshotAsync(source);
 
         using var target = new SessionContext();
+        target.Session.Settings.DropboxSyncKey = source.Session.Settings.DropboxSyncKey;
         Configure(target.Session, lastSync: DateTimeOffset.UtcNow);
         var dropbox = new FakeDropboxSyncService
         {
@@ -151,7 +149,7 @@ public sealed class DropboxSyncCoordinatorTests
         var coordinator = new DropboxSyncCoordinator(context.Session, dropbox);
 
         var result = await coordinator.SyncNowAsync(
-            () => Task.FromResult(DropboxConflictChoice.UseLocal));
+            _ => Task.FromResult(DropboxConflictChoice.UseLocal));
 
         Assert.Equal(DropboxSyncStatus.Uploaded, result.Status);
         Assert.Equal(1, dropbox.UploadCount);
@@ -174,6 +172,18 @@ public sealed class DropboxSyncCoordinatorTests
         Assert.Equal(DropboxSyncStatus.UpToDate, result.Status);
         Assert.Equal(0, dropbox.UploadCount);
         Assert.Equal(0, dropbox.DownloadCount);
+    }
+
+    private static async Task<byte[]> CreateRemoteSnapshotAsync(SessionContext source)
+    {
+        var plain = Path.Combine(source.Directory, "snapshot.db");
+        var encrypted = plain + ".enc";
+        source.Session.Database.BackupToPlaintext(plain);
+        SyncEncryptionService.EncryptFile(
+            plain,
+            encrypted,
+            source.Session.Settings.DropboxSyncKey!);
+        return await File.ReadAllBytesAsync(encrypted);
     }
 
     private static void Configure(AppSession session, DateTimeOffset? lastSync)

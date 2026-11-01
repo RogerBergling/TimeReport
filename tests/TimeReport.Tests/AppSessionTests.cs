@@ -242,6 +242,13 @@ public sealed class AppSessionTests
                 DatabasePath = Path.Combine(root, "custom.db"),
                 Language = "sv",
                 Theme = "dark",
+                TimeZoneId = "UTC",
+                OvertimeDailyMinutes = 480,
+                OvertimeWeeklyMinutes = 2400,
+                BackupRetentionCount = 30,
+                CheckForUpdates = false,
+                DropboxProxyUrl = "http://proxy.example:8080",
+                DropboxCaCertificatePath = "/tmp/ca.pem",
                 DropboxAppKey = "app-key",
                 DropboxAppSecret = "app-secret",
                 DropboxRefreshToken = "refresh-token",
@@ -257,6 +264,13 @@ public sealed class AppSessionTests
             Assert.Equal(settings.DatabasePath, loaded.DatabasePath);
             Assert.Equal(settings.Language, loaded.Language);
             Assert.Equal(settings.Theme, loaded.Theme);
+            Assert.Equal(settings.TimeZoneId, loaded.TimeZoneId);
+            Assert.Equal(settings.OvertimeDailyMinutes, loaded.OvertimeDailyMinutes);
+            Assert.Equal(settings.OvertimeWeeklyMinutes, loaded.OvertimeWeeklyMinutes);
+            Assert.Equal(settings.BackupRetentionCount, loaded.BackupRetentionCount);
+            Assert.Equal(settings.CheckForUpdates, loaded.CheckForUpdates);
+            Assert.Equal(settings.DropboxProxyUrl, loaded.DropboxProxyUrl);
+            Assert.Equal(settings.DropboxCaCertificatePath, loaded.DropboxCaCertificatePath);
             Assert.Equal(settings.DropboxAppKey, loaded.DropboxAppKey);
             Assert.Equal(settings.DropboxAppSecret, loaded.DropboxAppSecret);
             Assert.Equal(settings.DropboxRefreshToken, loaded.DropboxRefreshToken);

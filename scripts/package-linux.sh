@@ -19,6 +19,7 @@ install -m 0755 "$binary" "$stage/bin/TimeReport"
 install -m 0644 "$root/packaging/linux/timereport.desktop" "$stage/share/applications/timereport.desktop"
 install -m 0644 "$root/src/TimeReport/Assets/timereport.png" "$stage/share/icons/hicolor/256x256/apps/timereport.png"
 install -m 0644 "$root/LICENSE" "$stage/LICENSE"
+install -m 0644 "$root/TERMS.md" "$stage/TERMS.md"
 install -m 0644 "$root/THIRD-PARTY-NOTICES.md" "$stage/THIRD-PARTY-NOTICES.md"
 install -m 0644 "$root/README.md" "$stage/README.md"
 
@@ -34,6 +35,7 @@ if command -v dpkg-deb >/dev/null 2>&1; then
   install -m 0644 "$root/packaging/linux/timereport.desktop" "$debroot/usr/share/applications/timereport.desktop"
   install -m 0644 "$root/src/TimeReport/Assets/timereport.png" "$debroot/usr/share/icons/hicolor/256x256/apps/timereport.png"
   install -m 0644 "$root/LICENSE" "$debroot/usr/share/doc/timereport/copyright"
+  install -m 0644 "$root/TERMS.md" "$debroot/usr/share/doc/timereport/TERMS.md"
   install -m 0644 "$root/THIRD-PARTY-NOTICES.md" "$debroot/usr/share/doc/timereport/THIRD-PARTY-NOTICES.md"
   cat > "$debroot/DEBIAN/control" <<EOF
 Package: timereport
