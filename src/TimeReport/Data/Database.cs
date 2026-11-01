@@ -432,6 +432,7 @@ public sealed class Database : IDisposable
 
         try
         {
+            var plaintext = IsPlaintextDatabase(fullPath);
             using var connection = new SqliteConnection(
                 new SqliteConnectionStringBuilder
                 {
@@ -440,12 +441,12 @@ public sealed class Database : IDisposable
                     Pooling = false,
                 }.ToString());
             connection.Open();
-            if (string.IsNullOrWhiteSpace(encryptionKey) && !IsPlaintextDatabase(fullPath))
+            if (string.IsNullOrWhiteSpace(encryptionKey) && !plaintext)
             {
                 throw new RestoreException(
                     "The selected database is encrypted. The database encryption key is required.");
             }
-            if (!string.IsNullOrWhiteSpace(encryptionKey) && !IsPlaintextDatabase(fullPath))
+            if (!string.IsNullOrWhiteSpace(encryptionKey) && !plaintext)
             {
                 ApplyKey(connection, encryptionKey);
             }
@@ -524,6 +525,7 @@ public sealed class Database : IDisposable
         }
 
         ValidateFile(fullSource, EncryptionKey);
+        var sourceIsPlaintext = IsPlaintextDatabase(fullSource);
         var directory = System.IO.Path.GetDirectoryName(Path)
             ?? throw new RestoreException("The database path has no directory.");
         Services.AppPaths.EnsureDataDir(directory);
@@ -542,7 +544,7 @@ public sealed class Database : IDisposable
                        }.ToString()))
             {
                 sourceConnection.Open();
-                if (!string.IsNullOrWhiteSpace(EncryptionKey) && !IsPlaintextDatabase(fullSource))
+                if (!string.IsNullOrWhiteSpace(EncryptionKey) && !sourceIsPlaintext)
                 {
                     ApplyKey(sourceConnection, EncryptionKey);
                 }
