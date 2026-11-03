@@ -26,7 +26,8 @@ public static class SyncEncryptionService
         }
         using var stream = File.OpenRead(path);
         Span<byte> header = stackalloc byte[8];
-        return stream.Read(header) == header.Length &&
+        var read = stream.ReadAtLeast(header, header.Length, throwOnEndOfStream: false);
+        return read == header.Length &&
                (header.SequenceEqual(MagicV1) || header.SequenceEqual(MagicV2));
     }
 
