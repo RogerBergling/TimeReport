@@ -4,6 +4,72 @@ A local-first desktop time report for Linux and Windows, written in C#/.NET 10 w
 Avalonia. The published executables are self-contained single-file binaries: they do
 not require Python or a separate .NET installation.
 
+> **Just want to use it?** Download one executable and run it. No installer, account,
+> or .NET installation is required. [Jump to the quick start](#the-easy-way-to-get-up-and-running)
+
+## The easy way to get up and running
+
+### 1. Download the app
+
+Open the [latest release](https://github.com/RogerBergling/TimeReport/releases/latest)
+and download the file for your system:
+
+| System | File |
+|---|---|
+| Linux | `TimeReport-linux-x86_64` |
+| Windows | `TimeReport-windows-x86_64.exe` |
+
+The same binaries are also in the repository's [`release/`](release/) folder. You can
+verify a download with `SHA256SUMS.txt` from the release page.
+
+### 2. Start it
+
+**Linux**
+
+```bash
+chmod +x TimeReport-linux-x86_64
+./TimeReport-linux-x86_64
+```
+
+On a minimal Linux installation, install the X11/fontconfig libraries listed in
+[`release/README.md`](release/README.md).
+
+**Windows**
+
+Double-click `TimeReport-windows-x86_64.exe`. The executable is unsigned, so Windows
+SmartScreen may show a warning on first launch.
+
+### 3. Add your first entry
+
+1. Click **Projects** and add a project.
+2. Click **+ Add entry** or press `Ctrl+N`.
+3. Choose the date, type, project, start and end times, then click **Save**.
+4. Open the **Totals** tab to see daily, weekly, monthly, yearly and all-time totals.
+
+### 4. Keep your data safe
+
+Your data is stored in an encrypted local database. Back up the database and the
+`settings.json.key` file together. Without the key, the encrypted database cannot be
+recovered.
+
+| System | Default database |
+|---|---|
+| Linux | `~/.local/share/timereport/timereport.db` |
+| Windows | `%LOCALAPPDATA%\TimeReport\timereport.db` |
+
+Use **File → Backup database…** for backups. Do not share the database or the key file.
+
+### 5. Optional next steps
+
+- [Export to Excel](#excel-export) — **File → Export to Excel (.xlsx)…**
+- [Dropbox sync](#optional-dropbox-sync) — **File → Dropbox sync…**
+- [Settings](#settings) — **Data → Settings…**
+- [Check for updates](#updates) — **Help → Check for updates…**
+- [Build from source](#building-from-source) — for developers
+
+The rest of this README is the full reference for data, backups, Dropbox, building,
+packaging and operations.
+
 ## Screenshots
 
 ![TimeReport main window](docs/screenshots/main-window.png)
@@ -53,16 +119,6 @@ not require Python or a separate .NET installation.
 - Light, dark, high-contrast and system theme variants under **Data → Theme**.
 - Main window shows the application version, build number and a live date/time clock in the selected time zone.
 - No account or telemetry. Optional Dropbox sync and update checks are the only network features.
-
-## Prebuilt executables
-
-Ready-to-run self-contained binaries are included in [`release/`](release/):
-
-- Linux: `release/TimeReport-linux-x86_64`
-- Windows: `release/TimeReport-windows-x86_64.exe`
-- Checksums: `release/SHA256SUMS.txt`
-
-They are also attached to the [latest release](https://github.com/RogerBergling/TimeReport/releases/latest).
 
 ## Keyboard shortcuts
 
@@ -384,7 +440,7 @@ A pre-restore backup is created automatically before a restore.
 - X-Pause is not deducted from worked time; it is displayed separately.
 - A work entry must end on the same date. Cross-midnight shifts are not supported in
   version 2.
-- The database is single-user and unencrypted. It is intended for local use.
+- The database is single-user and encrypted at rest. It is intended for local use.
 - Dates are ISO dates and times use the 24-hour clock.
 
 ## License
