@@ -84,6 +84,80 @@ public sealed class AppPathsTests
     }
 
     [Fact]
+    public void EnsureDirectoryDoesNotHardenAnExistingDirectory()
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        var directory = Path.Combine(
+            Path.GetTempPath(),
+            "timereport-tests",
+            Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(directory);
+        try
+        {
+            File.SetUnixFileMode(
+                directory,
+                UnixFileMode.UserRead |
+                UnixFileMode.UserWrite |
+                UnixFileMode.UserExecute |
+                UnixFileMode.GroupRead |
+                UnixFileMode.GroupExecute |
+                UnixFileMode.OtherRead |
+                UnixFileMode.OtherExecute);
+
+            AppPaths.EnsureDirectory(directory);
+
+            Assert.Equal(
+                UnixFileMode.UserRead |
+                UnixFileMode.UserWrite |
+                UnixFileMode.UserExecute |
+                UnixFileMode.GroupRead |
+                UnixFileMode.GroupExecute |
+                UnixFileMode.OtherRead |
+                UnixFileMode.OtherExecute,
+                File.GetUnixFileMode(directory));
+        }
+        finally
+        {
+            Directory.Delete(directory, true);
+        }
+    }
+
+    [Fact]
+    public void CleanupTemporaryFilesRemovesOnlyTimeReportSnapshots()
+    {
+        var directory = Path.Combine(
+            Path.GetTempPath(),
+            "timereport-tests",
+            Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(directory);
+        try
+        {
+            var tempDir = AppPaths.TempDir(directory);
+            Directory.CreateDirectory(tempDir);
+            var staleRoot = Path.Combine(directory, ".dropbox-upload-stale.db");
+            var staleTemp = Path.Combine(tempDir, ".dropbox-download-stale.db.plain.db");
+            var unrelated = Path.Combine(directory, "notes.txt");
+            File.WriteAllText(staleRoot, "stale");
+            File.WriteAllText(staleTemp, "stale");
+            File.WriteAllText(unrelated, "keep");
+
+            AppPaths.CleanupTemporaryFiles(directory);
+
+            Assert.False(File.Exists(staleRoot));
+            Assert.False(File.Exists(staleTemp));
+            Assert.True(File.Exists(unrelated));
+        }
+        finally
+        {
+            Directory.Delete(directory, true);
+        }
+    }
+
+    [Fact]
     public void DefaultDirectoryUsesPlatformName()
     {
         var previous = Environment.GetEnvironmentVariable("TIMEREPORT_DATA_DIR");

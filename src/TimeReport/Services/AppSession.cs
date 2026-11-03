@@ -28,37 +28,14 @@ public sealed class AppSession : IDisposable
             throw;
         }
 
-        var keyGenerated = false;
-        if (string.IsNullOrWhiteSpace(Settings.DatabaseEncryptionKey))
-        {
-            Settings.DatabaseEncryptionKey = Convert.ToBase64String(
-                RandomNumberGenerator.GetBytes(32));
-            keyGenerated = true;
-        }
-        if (string.IsNullOrWhiteSpace(Settings.DropboxSyncKey))
-        {
-            Settings.DropboxSyncKey = SyncEncryptionService.GenerateKey();
-            keyGenerated = true;
-        }
-        if (keyGenerated)
-        {
-            try
-            {
-                Settings.Save(SettingsPath);
-            }
-            catch
-            {
-                _instanceGuard.Dispose();
-                throw;
-            }
-        }
-
         DefaultDatabasePath = AppPaths.DefaultDatabasePath();
 
         var initialPath = databaseOverride;
+        var hardenDatabaseDirectory = false;
         if (string.IsNullOrWhiteSpace(initialPath) && !string.IsNullOrWhiteSpace(dataDirOverride))
         {
             initialPath = AppPaths.DatabasePath(AppPaths.ResolveDataDir(dataDirOverride));
+            hardenDatabaseDirectory = true;
         }
         if (string.IsNullOrWhiteSpace(initialPath))
         {
@@ -71,11 +48,50 @@ public sealed class AppSession : IDisposable
         if (string.IsNullOrWhiteSpace(initialPath))
         {
             initialPath = DefaultDatabasePath;
+            hardenDatabaseDirectory = true;
         }
 
         try
         {
-            OpenDatabase(Path.GetFullPath(AppPaths.ExpandHome(initialPath)));
+            var fullInitialPath = Path.GetFullPath(AppPaths.ExpandHome(initialPath));
+            if (!hardenDatabaseDirectory &&
+                string.IsNullOrWhiteSpace(databaseOverride) &&
+                string.IsNullOrWhiteSpace(dataDirOverride) &&
+                PathsEqual(
+                    Path.GetDirectoryName(fullInitialPath) ?? string.Empty,
+                    AppPaths.ResolveDataDir()))
+            {
+                hardenDatabaseDirectory = true;
+            }
+
+            var keyGenerated = false;
+            if (string.IsNullOrWhiteSpace(Settings.DatabaseEncryptionKey))
+            {
+                if (File.Exists(fullInitialPath) &&
+                    new FileInfo(fullInitialPath).Length > 0 &&
+                    !Database.IsPlaintextFile(fullInitialPath))
+                {
+                    throw new SettingsException(
+                        "The database is encrypted, but settings.json does not contain its " +
+                        "database encryption key. Restore settings.json and settings.json.key " +
+                        "from backup before starting TimeReport.");
+                }
+
+                Settings.DatabaseEncryptionKey = Convert.ToBase64String(
+                    RandomNumberGenerator.GetBytes(32));
+                keyGenerated = true;
+            }
+            if (string.IsNullOrWhiteSpace(Settings.DropboxSyncKey))
+            {
+                Settings.DropboxSyncKey = SyncEncryptionService.GenerateKey();
+                keyGenerated = true;
+            }
+            if (keyGenerated)
+            {
+                Settings.Save(SettingsPath);
+            }
+
+            OpenDatabase(fullInitialPath, hardenDatabaseDirectory);
         }
         catch
         {
@@ -169,11 +185,20 @@ public sealed class AppSession : IDisposable
         service.Database.BackupRetentionCount = Math.Max(1, Settings.BackupRetentionCount);
     }
 
-    private void OpenDatabase(string path)
+    private void OpenDatabase(string path, bool hardenDirectory)
     {
         var directory = Path.GetDirectoryName(path)
             ?? throw new DatabaseException("The database path has no directory.");
-        AppPaths.EnsureDataDir(directory);
+        if (hardenDirectory)
+        {
+            AppPaths.EnsureDataDir(directory);
+        }
+        else
+        {
+            AppPaths.EnsureDirectory(directory);
+        }
+        AppPaths.CleanupTemporaryFiles(directory);
+
         var database = new Database(path, Settings.DatabaseEncryptionKey);
         database.Open();
         Database = database;

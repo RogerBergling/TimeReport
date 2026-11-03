@@ -29,8 +29,9 @@ The encrypted database is stored outside this folder:
 - Linux: `~/.local/share/timereport/timereport.db`
 - Windows: `%LOCALAPPDATA%\TimeReport\timereport.db`
 
-Keep `settings.json.key` with the database; it contains the protected database and
-sync keys. Without it, encrypted data cannot be recovered.
+Keep `settings.json` and `settings.json.key` with the database. `settings.json`
+contains the encrypted database and sync keys; `settings.json.key` unlocks them.
+Without both files, encrypted data cannot be recovered.
 
 Use **File → Database location…** to choose where the database file is stored.
 
@@ -43,6 +44,8 @@ need a Dropbox app key and the redirect URI `http://127.0.0.1:53682/dropbox-call
 registered in the Dropbox App Console.
 
 Use **File → Backup database…** and **File → Restore database…** inside the app.
+Automatic pre-encryption, pre-migration, pre-restore and pre-repair backups are
+encrypted with the database key.
 
 Linux `.tar.gz`/`.deb` and Windows `.zip` packages can be produced with the scripts
 in `scripts/`; see `packaging/README.md` in the repository.

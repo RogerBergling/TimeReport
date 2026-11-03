@@ -1,3 +1,4 @@
+using System.Security.Cryptography;
 using System.Text.Json;
 using TimeReport.Services;
 
@@ -63,6 +64,63 @@ public sealed class TokenProtectionTests
         var stored = File.ReadAllText(settingsPath);
         Assert.DoesNotContain("legacy-secret", stored);
         Assert.Contains("enc:v1:", stored);
+    }
+
+    [Fact]
+    public void UnprotectWithoutKeyFileThrows()
+    {
+        using var directory = new TempDirectory();
+        var settingsPath = Path.Combine(directory.Path, "settings.json");
+        TokenProtection.Initialize(settingsPath);
+        var protectedValue = TokenProtection.Protect("secret");
+        File.Delete(settingsPath + ".key");
+
+        // Clear the process-wide key cache so this behaves like a fresh start.
+        TokenProtection.Initialize(Path.Combine(directory.Path, "other.json"));
+
+        Assert.Throws<CryptographicException>(() => TokenProtection.Unprotect(protectedValue));
+    }
+
+    [Fact]
+    public void CorruptSettingsAreRejectedWithoutOverwritingTheFile()
+    {
+        using var directory = new TempDirectory();
+        var settingsPath = Path.Combine(directory.Path, "settings.json");
+        const string corrupt = "{ not valid json";
+        File.WriteAllText(settingsPath, corrupt);
+
+        Assert.Throws<SettingsException>(() => AppSettings.Load(settingsPath));
+        Assert.Equal(corrupt, File.ReadAllText(settingsPath));
+    }
+
+    [Fact]
+    public void MissingKeyFileIsRejectedInsteadOfCreatingANewKey()
+    {
+        using var directory = new TempDirectory();
+        var settingsPath = Path.Combine(directory.Path, "settings.json");
+        var settings = new AppSettings
+        {
+            DatabaseEncryptionKey = Convert.ToBase64String(
+                RandomNumberGenerator.GetBytes(32)),
+        };
+        settings.Save(settingsPath);
+        File.Delete(settingsPath + ".key");
+
+        // Clear the process-wide key cache so this behaves like a fresh start.
+        TokenProtection.Initialize(Path.Combine(directory.Path, "other.json"));
+
+        Assert.Throws<SettingsException>(() => AppSettings.Load(settingsPath));
+        Assert.False(File.Exists(settingsPath + ".key"));
+    }
+
+    [Fact]
+    public void MissingSettingsFileWithExistingKeyFileIsRejected()
+    {
+        using var directory = new TempDirectory();
+        var settingsPath = Path.Combine(directory.Path, "settings.json");
+        File.WriteAllText(settingsPath + ".key", "orphan");
+
+        Assert.Throws<SettingsException>(() => AppSettings.Load(settingsPath));
     }
 
     [Fact]

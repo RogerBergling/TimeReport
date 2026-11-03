@@ -145,6 +145,46 @@ public sealed class BackupRestoreTests
     }
 
     [Fact]
+    public void BackupWithUnexpectedTriggerIsRejected()
+    {
+        using var context = new TestContext();
+        var project = context.Service.CreateProject("Acme");
+        context.Service.SaveEntry(TestData.Entry(
+            TestData.Monday, EntryKind.Work, "08:00", "16:00", project.Id));
+        var backup = context.Database.BackupTo(Path.Combine(context.Directory, "backup.db"));
+
+        using (var connection = new SqliteConnection($"Data Source={backup};Pooling=False"))
+        {
+            connection.Open();
+            using var command = connection.CreateCommand();
+            command.CommandText =
+                "CREATE TRIGGER unexpected_trigger AFTER INSERT ON projects BEGIN SELECT 1; END;";
+            command.ExecuteNonQuery();
+        }
+
+        var exception = Assert.Throws<RestoreException>(() => Database.ValidateFile(backup));
+        Assert.Contains("unexpected trigger", exception.Message);
+    }
+
+    [Fact]
+    public void BackupWithUnexpectedViewIsRejected()
+    {
+        using var context = new TestContext();
+        var backup = context.Database.BackupTo(Path.Combine(context.Directory, "backup.db"));
+
+        using (var connection = new SqliteConnection($"Data Source={backup};Pooling=False"))
+        {
+            connection.Open();
+            using var command = connection.CreateCommand();
+            command.CommandText = "CREATE VIEW unexpected_view AS SELECT 1;";
+            command.ExecuteNonQuery();
+        }
+
+        var exception = Assert.Throws<RestoreException>(() => Database.ValidateFile(backup));
+        Assert.Contains("unexpected view", exception.Message);
+    }
+
+    [Fact]
     public void RestoreFromVersionOneBackupMigratesData()
     {
         using var context = new TestContext();

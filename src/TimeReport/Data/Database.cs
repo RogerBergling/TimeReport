@@ -168,7 +168,7 @@ public sealed class Database : IDisposable
 
         var directory = System.IO.Path.GetDirectoryName(Path)
             ?? throw new DatabaseException("The database path has no directory.");
-        Services.AppPaths.EnsureDataDir(directory);
+        Services.AppPaths.EnsureDirectory(directory);
 
         if (EncryptionKey is not null && IsPlaintextDatabase(Path))
         {
@@ -199,6 +199,7 @@ public sealed class Database : IDisposable
         try
         {
             ApplyKey(connection, EncryptionKey);
+            Execute("PRAGMA trusted_schema = OFF");
             Execute("PRAGMA foreign_keys = ON");
             Execute("PRAGMA busy_timeout = 5000");
             Execute("PRAGMA synchronous = NORMAL");
@@ -219,6 +220,8 @@ public sealed class Database : IDisposable
 
         Services.AppPaths.SecureFile(Path);
     }
+
+    public static bool IsPlaintextFile(string path) => IsPlaintextDatabase(path);
 
     private static bool IsPlaintextDatabase(string path)
     {
@@ -300,10 +303,11 @@ public sealed class Database : IDisposable
                        }.ToString()))
             {
                 source.Open();
-                ExportDatabase(source, backup, null);
+                ExportDatabase(source, backup, encryptionKey);
                 ExportDatabase(source, temporary, encryptionKey);
             }
 
+            ValidateFile(backup, encryptionKey);
             ValidateFile(temporary, encryptionKey);
             File.Move(temporary, path, true);
             foreach (var suffix in new[] { "-wal", "-shm", "-journal" })
@@ -450,6 +454,7 @@ public sealed class Database : IDisposable
             {
                 ApplyKey(connection, encryptionKey);
             }
+            Scalar(connection, "PRAGMA trusted_schema = OFF", null);
 
             var integrity = Scalar(connection, "PRAGMA integrity_check", null) as string;
             if (integrity != "ok")
@@ -491,6 +496,7 @@ public sealed class Database : IDisposable
             {
                 ValidateTables(connection, tables, RequiredTablesV3);
             }
+            ValidateSchemaObjects(connection, version);
             ValidateData(connection, version);
 
             using (var command = connection.CreateCommand())
@@ -528,7 +534,7 @@ public sealed class Database : IDisposable
         var sourceIsPlaintext = IsPlaintextDatabase(fullSource);
         var directory = System.IO.Path.GetDirectoryName(Path)
             ?? throw new RestoreException("The database path has no directory.");
-        Services.AppPaths.EnsureDataDir(directory);
+        Services.AppPaths.EnsureDirectory(directory);
         var temporary = System.IO.Path.Combine(
             directory,
             $".timereport-restore-{Guid.NewGuid():N}.db");
@@ -548,6 +554,7 @@ public sealed class Database : IDisposable
                 {
                     ApplyKey(sourceConnection, EncryptionKey);
                 }
+                Scalar(sourceConnection, "PRAGMA trusted_schema = OFF", null);
                 ExportDatabase(sourceConnection, temporary, EncryptionKey);
             }
 
@@ -628,6 +635,7 @@ public sealed class Database : IDisposable
 
         if (version > 0)
         {
+            ValidateSchemaObjects(Connection, version);
             var directory = System.IO.Path.GetDirectoryName(Path)!;
             // Keep a raw copy even when the old database has data problems.
             BackupToCore(
@@ -673,6 +681,7 @@ public sealed class Database : IDisposable
         var tables = GetTables(Connection);
         try
         {
+            ValidateSchemaObjects(Connection, SchemaVersionNumber);
             ValidateTables(Connection, tables, RequiredTablesV1);
             if (SchemaVersionNumber >= 2)
             {
@@ -805,6 +814,37 @@ public sealed class Database : IDisposable
         command.CommandText = sql;
         command.Transaction = transaction;
         return command.ExecuteScalar();
+    }
+
+    private static void ValidateSchemaObjects(SqliteConnection connection, int version)
+    {
+        var allowedTables = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "projects",
+            "entries",
+        };
+        if (version >= 2)
+        {
+            allowedTables.Add("entry_types");
+        }
+
+        using var command = connection.CreateCommand();
+        command.CommandText = "SELECT type, name FROM sqlite_master WHERE type IN ('table', 'view', 'trigger')";
+        using var reader = command.ExecuteReader();
+        while (reader.Read())
+        {
+            var type = reader.GetString(0);
+            var name = reader.GetString(1);
+            if (string.Equals(type, "table", StringComparison.OrdinalIgnoreCase) &&
+                (allowedTables.Contains(name) ||
+                 name.StartsWith("sqlite_", StringComparison.OrdinalIgnoreCase)))
+            {
+                continue;
+            }
+
+            throw new RestoreException(
+                $"The selected database contains an unexpected {type}: {name}.");
+        }
     }
 
     private static void ValidateTables(

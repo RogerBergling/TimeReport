@@ -38,7 +38,7 @@ public sealed class ExcelExportService
 
         var sheets = new List<XlsxSheet>
         {
-            BuildSummarySheet(start, end, entries, totals, projects.Count, types.Count, _service.Database.Path, _service.TimeZoneId),
+            BuildSummarySheet(start, end, entries, totals, projects.Count, types.Count, _service.TimeZoneId),
             BuildEntriesSheet(entries, _service.TimeZoneId),
             BuildDailySheet(dailyTotals),
             BuildMonthlySheet(monthlyTotals),
@@ -64,7 +64,6 @@ public sealed class ExcelExportService
         Totals totals,
         int projectCount,
         int typeCount,
-        string databasePath,
         string timeZoneId)
     {
         var rows = new List<IReadOnlyList<XlsxCell>>
@@ -83,7 +82,6 @@ public sealed class ExcelExportService
             new[] { Text(LocalizationService.T("LabelDaysWorked")), Number(totals.DaysWorked) },
             new[] { Text(LocalizationService.T("LabelDaysAway")), Number(totals.DaysAway) },
             Array.Empty<XlsxCell>(),
-            new[] { Text(LocalizationService.T("ExportDatabase")), Text(databasePath) },
             new[] { Text(LocalizationService.T("ExportProjects")), Number(projectCount) },
             new[] { Text(LocalizationService.T("ExportTypes")), Number(typeCount) },
             new[] { Text(LocalizationService.T("ExportTimeZone")), Text(timeZoneId) },

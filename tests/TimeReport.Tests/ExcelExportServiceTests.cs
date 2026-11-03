@@ -49,6 +49,9 @@ public sealed class ExcelExportServiceTests
             ["Summary", "Entries", "Daily totals", "Monthly totals", "Projects", "Types"],
             sheetNames);
 
+        var summarySheet = LoadXml(archive, "xl/worksheets/sheet1.xml");
+        Assert.DoesNotContain(context.Database.Path, AllText(summarySheet));
+
         var entriesSheet = LoadXml(archive, "xl/worksheets/sheet2.xml");
         Assert.Equal(6, RowCount(entriesSheet)); // header + 5 entries
         Assert.Contains("Acme", AllText(entriesSheet));

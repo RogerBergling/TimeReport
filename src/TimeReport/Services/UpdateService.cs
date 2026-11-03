@@ -13,6 +13,24 @@ public static class UpdateService
 {
     private const string LatestReleaseUrl =
         "https://api.github.com/repos/RogerBergling/TimeReport/releases/latest";
+    private const string ReleasePagePrefix =
+        "/RogerBergling/TimeReport/releases/";
+
+    public static bool IsTrustedReleaseUrl(string? value)
+    {
+        if (!Uri.TryCreate(value, UriKind.Absolute, out var uri))
+        {
+            return false;
+        }
+
+        return uri.Scheme == Uri.UriSchemeHttps &&
+               string.Equals(uri.Host, "github.com", StringComparison.OrdinalIgnoreCase) &&
+               uri.IsDefaultPort &&
+               string.IsNullOrEmpty(uri.UserInfo) &&
+               string.IsNullOrEmpty(uri.Query) &&
+               string.IsNullOrEmpty(uri.Fragment) &&
+               uri.AbsolutePath.StartsWith(ReleasePagePrefix, StringComparison.Ordinal);
+    }
 
     public static async Task<UpdateInfo?> CheckAsync(
         HttpClient httpClient,
@@ -35,6 +53,11 @@ public static class UpdateService
         var root = document.RootElement;
         var tag = root.GetProperty("tag_name").GetString() ?? string.Empty;
         var releaseUrl = root.GetProperty("html_url").GetString() ?? string.Empty;
+        if (!IsTrustedReleaseUrl(releaseUrl))
+        {
+            throw new UpdateException("The update service returned an untrusted release URL.");
+        }
+        releaseUrl = new Uri(releaseUrl).AbsoluteUri;
         var notes = root.TryGetProperty("body", out var body) ? body.GetString() : null;
         var versionText = tag.TrimStart('v', 'V');
         if (!Version.TryParse(versionText, out var version))

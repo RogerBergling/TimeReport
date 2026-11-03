@@ -74,9 +74,14 @@ public sealed class EncryptedDatabaseTests
         }
 
         Assert.False(IsPlaintext(path));
-        Assert.NotEmpty(Directory.EnumerateFiles(
+        var backupPath = Assert.Single(Directory.EnumerateFiles(
             Path.Combine(directory.Path, "backups"),
             "pre-encryption-*.db"));
+        Assert.False(IsPlaintext(backupPath));
+        Assert.Equal(Database.SchemaVersion, Database.ValidateFile(backupPath, key));
+        using var backup = new Database(backupPath, key);
+        backup.Open();
+        Assert.Equal(["Legacy"], new TimeReportService(backup).ListProjects().Select(project => project.Name));
     }
 
     [Fact]

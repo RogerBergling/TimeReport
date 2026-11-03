@@ -41,7 +41,7 @@ public static class TokenProtection
             return plaintext;
         }
 
-        var key = GetKey();
+        var key = GetKey(createIfMissing: true);
         var nonce = RandomNumberGenerator.GetBytes(NonceSize);
         var plain = Encoding.UTF8.GetBytes(plaintext);
         var cipher = new byte[plain.Length];
@@ -77,20 +77,21 @@ public static class TokenProtection
             var tag = payload.AsSpan(NonceSize, TagSize);
             var cipher = payload.AsSpan(NonceSize + TagSize);
             var plain = new byte[cipher.Length];
-            using (var aes = new AesGcm(GetKey(), TagSize))
+            using (var aes = new AesGcm(GetKey(createIfMissing: false), TagSize))
             {
                 aes.Decrypt(nonce, cipher, tag, plain);
             }
             return Encoding.UTF8.GetString(plain);
         }
-        catch (Exception exception)
+        catch (Exception exception) when (exception is not CryptographicException)
         {
-            AppLog.Warn("Could not decrypt a stored Dropbox token.", exception);
-            return null;
+            throw new CryptographicException(
+                "The protected settings value could not be decrypted.",
+                exception);
         }
     }
 
-    private static byte[] GetKey()
+    private static byte[] GetKey(bool createIfMissing)
     {
         lock (Sync)
         {
@@ -133,6 +134,12 @@ public static class TokenProtection
             }
             else
             {
+                if (!createIfMissing)
+                {
+                    throw new CryptographicException(
+                        "The settings key file is missing. Restore settings.json.key from backup.");
+                }
+
                 var key = RandomNumberGenerator.GetBytes(KeySize);
                 var stored = OperatingSystem.IsWindows() ? DpapiProtect(key) : key;
                 File.WriteAllBytes(_keyPath, stored);

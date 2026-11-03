@@ -831,6 +831,7 @@ public partial class MainWindow : Window
         {
             using var client = HttpClientFactory.Create(
                 _session?.Settings ?? new AppSettings(),
+                HttpClientPurpose.Update,
                 TimeSpan.FromSeconds(15));
             var update = await UpdateService.CheckAsync(client, AppInfo.Version);
             if (_session is not null)
@@ -866,6 +867,12 @@ public partial class MainWindow : Window
                 true);
             if (open)
             {
+                if (!UpdateService.IsTrustedReleaseUrl(update.ReleaseUrl))
+                {
+                    AppLog.Warn("Refused to open an untrusted update release URL.");
+                    return;
+                }
+
                 Process.Start(new ProcessStartInfo(update.ReleaseUrl) { UseShellExecute = true });
             }
         }

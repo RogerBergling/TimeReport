@@ -272,8 +272,10 @@ public sealed class DropboxSyncCoordinator
         DropboxMetadata? expectedRemote,
         CancellationToken cancellationToken)
     {
+        var tempDirectory = AppPaths.TempDir(_session.DataDirectory);
+        AppPaths.EnsureDataDir(tempDirectory);
         var temporary = Path.Combine(
-            _session.DataDirectory,
+            tempDirectory,
             $".dropbox-upload-{Guid.NewGuid():N}.db");
         var encrypted = temporary + ".enc";
         try
@@ -320,8 +322,10 @@ public sealed class DropboxSyncCoordinator
         DropboxMetadata metadata,
         CancellationToken cancellationToken)
     {
+        var tempDirectory = AppPaths.TempDir(_session.DataDirectory);
+        AppPaths.EnsureDataDir(tempDirectory);
         var temporary = Path.Combine(
-            _session.DataDirectory,
+            tempDirectory,
             $".dropbox-download-{Guid.NewGuid():N}.db");
         var plaintext = temporary + ".plain.db";
         try

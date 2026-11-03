@@ -119,7 +119,6 @@ public static class LocalizationService
             ["ExportPeriod"] = "Period",
             ["ExportDays"] = "Days",
             ["ExportEntries"] = "Entries",
-            ["ExportDatabase"] = "Database",
             ["ExportProjects"] = "Projects",
             ["ExportTypes"] = "Types",
             ["ExportDate"] = "Date",
@@ -334,6 +333,10 @@ public static class LocalizationService
             ["DropboxRemotePath"] = "Remote path",
             ["DropboxRemotePathHint"] = "Example: /TimeReport/timereport.db",
             ["DropboxEncryptSync"] = "Encrypt the database before uploading",
+            ["DropboxDisableEncryptionTitle"] = "Disable sync encryption?",
+            ["DropboxDisableEncryptionMessage"] =
+                "This will upload a plaintext copy of your database to Dropbox. " +
+                "Anyone with access to that Dropbox file can read your time data. Continue?",
             ["DropboxProxy"] = "HTTPS proxy",
             ["DropboxProxyHint"] = "Optional, for example http://proxy.example:8080",
             ["DropboxCaCertificate"] = "Custom CA certificate",
@@ -515,7 +518,6 @@ public static class LocalizationService
             ["ExportPeriod"] = "Period",
             ["ExportDays"] = "Dagar",
             ["ExportEntries"] = "Poster",
-            ["ExportDatabase"] = "Databas",
             ["ExportProjects"] = "Projekt",
             ["ExportTypes"] = "Typer",
             ["ExportDate"] = "Datum",
@@ -730,6 +732,10 @@ public static class LocalizationService
             ["DropboxRemotePath"] = "Fjärrsökväg",
             ["DropboxRemotePathHint"] = "Exempel: /TimeReport/timereport.db",
             ["DropboxEncryptSync"] = "Kryptera databasen före uppladdning",
+            ["DropboxDisableEncryptionTitle"] = "Inaktivera synkroniseringskryptering?",
+            ["DropboxDisableEncryptionMessage"] =
+                "Detta laddar upp en okrypterad kopia av databasen till Dropbox. " +
+                "Alla som har åtkomst till filen kan läsa din tidsdata. Fortsätt?",
             ["DropboxProxy"] = "HTTPS-proxy",
             ["DropboxProxyHint"] = "Valfri, till exempel http://proxy.example:8080",
             ["DropboxCaCertificate"] = "Anpassat CA-certifikat",

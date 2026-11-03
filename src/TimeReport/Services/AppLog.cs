@@ -21,7 +21,7 @@ public static class AppLog
         {
             try
             {
-                AppPaths.EnsureDataDir(dataDir);
+                AppPaths.EnsureDirectory(dataDir);
                 _path = AppPaths.LogPath(dataDir);
                 _maxBytes = maxBytes <= 0 ? DefaultMaxBytes : maxBytes;
                 RotateIfNeeded();

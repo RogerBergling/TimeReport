@@ -48,16 +48,18 @@ SmartScreen may show a warning on first launch.
 
 ### 4. Keep your data safe
 
-Your data is stored in an encrypted local database. Back up the database and the
-`settings.json.key` file together. Without the key, the encrypted database cannot be
-recovered.
+Your data is stored in an encrypted local database. The database key is encrypted
+inside `settings.json`, and `settings.json.key` protects that file. Back up the
+database, `settings.json`, and `settings.json.key` together. Without both settings
+files, the encrypted database cannot be recovered.
 
 | System | Default database |
 |---|---|
 | Linux | `~/.local/share/timereport/timereport.db` |
 | Windows | `%LOCALAPPDATA%\TimeReport\timereport.db` |
 
-Use **File → Backup database…** for backups. Do not share the database or the key file.
+Use **File → Backup database…** for backups. Do not share the database or the
+settings files.
 
 ### 5. Optional next steps
 
@@ -150,15 +152,18 @@ upgrading the executable does not remove your data.
 Existing TimeReport databases are migrated automatically, including databases created
 by the earlier Python version. A pre-migration backup is created first.
 
-The database is encrypted at rest with SQLCipher. The encryption key is stored in a
-separate owner-only settings key file; on Windows that key is additionally protected
-with the current user's DPAPI key. Back up the database and `settings.json.key`
-together. If the key is lost, the encrypted database cannot be recovered.
+The database is encrypted at rest with SQLCipher. The database key is encrypted in
+`settings.json`; `settings.json.key` contains the key that protects it. On Windows
+that key file is additionally protected with the current user's DPAPI key. Back up
+the database, `settings.json`, and `settings.json.key` together. If either settings
+file is lost, the encrypted database cannot be recovered.
 
 The app also writes a rotating log file, `timereport.log`, in the same data folder.
 Backups made automatically before a restore, migration, encryption or repair are
-placed in the `backups/` subfolder. The newest `BackupRetentionCount` automatic
-backups are kept.
+placed in the `backups/` subfolder. Pre-encryption backups are encrypted with the same
+database key. The newest `BackupRetentionCount` automatic backups are kept. Stale
+plaintext sync snapshots are kept only in a private temp folder and are cleaned up on
+startup.
 
 ### Changing the database location
 
@@ -169,6 +174,8 @@ choice is saved in a small settings file:
 |---|---|
 | Linux | `$XDG_CONFIG_HOME/TimeReport/settings.json`, normally `~/.config/TimeReport/settings.json` |
 | Windows | `%APPDATA%\TimeReport\settings.json` |
+
+`settings.json.key` is stored in the same folder.
 
 If the selected file already exists, TimeReport validates and opens it. If it does not
 exist, TimeReport can copy the current database to the new location before switching;
@@ -205,8 +212,9 @@ Use **File → Restore database…** to replace the current database. Restore:
 5. Refuses databases from a newer, unsupported schema version.
 
 Backups are SQLCipher-encrypted databases when encryption is enabled. Restoring them
-requires the matching database encryption key, so keep the database and
-`settings.json.key` together. They contain personal time data, so store them securely.
+requires the matching database encryption key, so keep the database, `settings.json`,
+and `settings.json.key` together. They contain personal time data, so store them
+securely.
 
 Use **File → Verify backup…** to validate a backup, and **File → Check database
 integrity…**, **Compact database…** or **Repair database…** for maintenance. Repair
@@ -243,7 +251,9 @@ is stored in a separate owner-only file; on Windows that key is additionally pro
 with the current user's DPAPI key. The settings file and key are still sensitive, so
 protect the account and the data folder. If you back up the settings file, keep
 `settings.json.key` with it; without the key the stored tokens and database key cannot
-be decrypted. Dropbox uploads are encrypted with AES-GCM before they leave the machine by default; the encryption checkbox can be disabled if your policy requires otherwise.
+be decrypted. Dropbox uploads are encrypted with AES-GCM before they leave the machine
+by default. Disabling encryption requires confirmation and uploads a plaintext
+database copy; only do this when your policy requires it.
 Conflicts show local and remote modification times and let you keep either side.
 Dropbox sync is optional and the app works fully offline.
 
@@ -377,9 +387,10 @@ already counted, so the two thresholds do not double-count the same hours.
 ## Updates
 
 Use **Help → Check for updates…** to query the latest GitHub release. Startup checking
-can be disabled in Settings, and update checks respect the configured proxy and custom
-CA certificate. The app opens the release page; it does not silently replace the
-executable.
+can be disabled in Settings. Update checks use the configured proxy and the system
+certificate trust store; the Dropbox custom CA setting applies only to Dropbox
+connections. The app opens a validated HTTPS GitHub release page; it does not silently
+replace the executable.
 
 ## Excel export
 
@@ -389,7 +400,7 @@ this/last year, or all time. A custom range can span any number of months.
 
 The workbook contains:
 
-- **Summary** — period, generated time, totals and database path.
+- **Summary** — period, generated time and totals.
 - **Entries** — every entry with date, weekday, type, category, project, away reason,
   start, end and duration.
 - **Daily totals** — worked, lunch, away and X-Pause for every day in the range.
@@ -430,6 +441,10 @@ Start TimeReport against a known-good backup or an empty database with
 `--database /path/to/file.db`, then use **Restore database…** to recover the data.
 A pre-restore backup is created automatically before a restore.
 
+If `settings.json` or `settings.json.key` is missing or corrupt, TimeReport refuses to
+start instead of generating replacement keys. Restore both settings files from backup
+before trying again.
+
 ## Rules and assumptions
 
 - Week starts Monday and includes Saturday/Sunday.
@@ -440,7 +455,9 @@ A pre-restore backup is created automatically before a restore.
 - X-Pause is not deducted from worked time; it is displayed separately.
 - A work entry must end on the same date. Cross-midnight shifts are not supported in
   version 2.
-- The database is single-user and encrypted at rest. It is intended for local use.
+- The live database and automatic backups are encrypted at rest. Plaintext sync
+  snapshots exist only transiently in a private temp folder and are cleaned up on
+  startup. The app is intended for local, single-user use.
 - Dates are ISO dates and times use the 24-hour clock.
 
 ## License

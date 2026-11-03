@@ -148,15 +148,7 @@ public sealed class SingleInstanceGuard : IDisposable
         }
         stream.Dispose();
         ReleasePath(_path);
-        try
-        {
-            File.Delete(_path);
-        }
-        catch (IOException)
-        {
-        }
-        catch (UnauthorizedAccessException)
-        {
-        }
+        // Keep the lock file. Deleting it after unlocking creates a race where a
+        // second instance can acquire the old file while a third creates a new one.
     }
 }

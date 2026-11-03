@@ -5,6 +5,27 @@ All notable changes to TimeReport are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and the project uses [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Security
+
+- Encrypt pre-encryption migration backups with the database key.
+- Fail closed when settings cannot be read or decrypted instead of generating
+  replacement keys and overwriting recovery data.
+- Do not change permissions on arbitrary existing database directories.
+- Validate update release URLs and only open HTTPS GitHub release pages.
+- Clean up stale plaintext sync snapshots on startup.
+- Keep the single-instance lock file to avoid a re-acquisition race.
+- Require confirmation before disabling Dropbox sync encryption.
+- Remove the local database path from Excel exports.
+- Apply the Dropbox custom CA only to Dropbox connections; update checks use the
+  system certificate trust store.
+- Version the Dropbox sync container with authenticated chunk ordering and a final
+  marker while retaining read support for version 1 files.
+- Reject unexpected views and triggers in restored databases and disable trusted
+  schema during validation.
+- Disable persisted checkout credentials in CI.
+
 ## [2.6.1] - 2026-11-01
 
 ### Added

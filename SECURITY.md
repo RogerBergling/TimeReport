@@ -21,13 +21,18 @@ time for a fix before publishing details.
 ## Data and network model
 
 - The SQLite database is encrypted at rest with SQLCipher. The database key and
-  Dropbox tokens are stored in the owner-only settings key file; keep that file with
-  the database when moving or backing it up. If the key is lost, encrypted data cannot
-  be recovered.
+  Dropbox tokens are encrypted inside `settings.json`; `settings.json.key` contains
+  the key that protects them. Keep the database, `settings.json` and
+  `settings.json.key` together when moving or backing up data. If either settings
+  file is lost, encrypted data cannot be recovered. TimeReport fails closed rather
+  than generating replacement keys when settings cannot be read or decrypted.
 - Optional Dropbox sync uploads a client-side AES-GCM encrypted database snapshot to
-  the configured Dropbox account by default. If sync encryption is disabled, it sends
-  a plaintext snapshot. Update checks contact the GitHub releases API. No other network
-  access is performed.
+  the configured Dropbox account by default. If sync encryption is disabled after an
+  explicit confirmation, it sends a plaintext snapshot. Plaintext sync snapshots are
+  kept only in a private temporary folder and are cleaned up on startup. Update checks
+  contact the GitHub releases API and use the system certificate trust store; the
+  Dropbox custom CA setting is not applied to update checks. No other network access
+  is performed.
 - Dropbox tokens are encrypted with AES-GCM before they are written to the settings
   file. The encryption key is stored in a separate owner-only file. On Windows the key
   is additionally protected with the current user's DPAPI key. On Linux the key file is

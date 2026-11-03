@@ -35,6 +35,8 @@ public static class AppPaths
 
     public static string BackupsDir(string dataDir) => Path.Combine(dataDir, "backups");
 
+    public static string TempDir(string dataDir) => Path.Combine(dataDir, "temp");
+
     public static string LogPath(string dataDir) => Path.Combine(dataDir, "timereport.log");
 
     public static string ConfigDir()
@@ -60,6 +62,10 @@ public static class AppPaths
 
     public static string SettingsPath() => Path.Combine(ConfigDir(), "settings.json");
 
+    /// <summary>
+    /// Creates an application-owned directory and keeps it private to the current user.
+    /// Do not use this for arbitrary user-selected database parents.
+    /// </summary>
     public static void EnsureDataDir(string dataDir)
     {
         if (OperatingSystem.IsWindows())
@@ -76,6 +82,82 @@ public static class AppPaths
             File.SetUnixFileMode(
                 dataDir,
                 UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+        }
+        catch (IOException)
+        {
+        }
+        catch (UnauthorizedAccessException)
+        {
+        }
+    }
+
+    /// <summary>
+    /// Creates a directory without changing permissions on an existing directory.
+    /// Used for user-selected database parents and export locations.
+    /// </summary>
+    public static void EnsureDirectory(string directory) =>
+        Directory.CreateDirectory(directory);
+
+    /// <summary>
+    /// Best-effort cleanup of stale plaintext snapshots left by an interrupted sync
+    /// or export. Only TimeReport-specific temporary names are removed.
+    /// </summary>
+    public static void CleanupTemporaryFiles(string dataDir)
+    {
+        if (string.IsNullOrWhiteSpace(dataDir))
+        {
+            return;
+        }
+
+        DeleteMatching(dataDir, ".dropbox-upload-*.db");
+        DeleteMatching(dataDir, ".dropbox-download-*.db");
+        DeleteMatching(dataDir, ".dropbox-download-*.db.plain.db");
+        DeleteMatching(dataDir, ".timereport-plain-*.db");
+        DeleteMatching(dataDir, ".timereport-export-*.xlsx");
+
+        var tempDir = TempDir(dataDir);
+        if (!Directory.Exists(tempDir))
+        {
+            return;
+        }
+
+        try
+        {
+            foreach (var file in Directory.EnumerateFiles(tempDir))
+            {
+                TryDelete(file);
+            }
+        }
+        catch (IOException)
+        {
+        }
+        catch (UnauthorizedAccessException)
+        {
+        }
+    }
+
+    private static void DeleteMatching(string directory, string pattern)
+    {
+        try
+        {
+            foreach (var file in Directory.EnumerateFiles(directory, pattern))
+            {
+                TryDelete(file);
+            }
+        }
+        catch (IOException)
+        {
+        }
+        catch (UnauthorizedAccessException)
+        {
+        }
+    }
+
+    private static void TryDelete(string path)
+    {
+        try
+        {
+            File.Delete(path);
         }
         catch (IOException)
         {

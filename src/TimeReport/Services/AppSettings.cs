@@ -1,6 +1,18 @@
+using System.Security.Cryptography;
 using System.Text.Json;
 
 namespace TimeReport.Services;
+
+public sealed class SettingsException : Exception
+{
+    public SettingsException(string message) : base(message)
+    {
+    }
+
+    public SettingsException(string message, Exception inner) : base(message, inner)
+    {
+    }
+}
 
 public sealed class AppSettings
 {
@@ -55,42 +67,89 @@ public sealed class AppSettings
 
     public static AppSettings Load(string path)
     {
-        try
+        if (!File.Exists(path))
         {
-            if (!File.Exists(path))
+            if (File.Exists(path + ".key"))
             {
-                return new AppSettings();
+                throw new SettingsException(
+                    "settings.json is missing but settings.json.key still exists. " +
+                    "Restore settings.json from backup before starting TimeReport.");
             }
-
-            TokenProtection.Initialize(path);
-            var settings = JsonSerializer.Deserialize<AppSettings>(File.ReadAllText(path), JsonOptions)
-                ?? new AppSettings();
-            var migrated = false;
-            settings.DatabaseEncryptionKey = LoadSecret(settings.DatabaseEncryptionKey, ref migrated);
-            settings.DropboxSyncKey = LoadSecret(settings.DropboxSyncKey, ref migrated);
-            settings.DropboxAppSecret = LoadSecret(settings.DropboxAppSecret, ref migrated);
-            settings.DropboxRefreshToken = LoadSecret(settings.DropboxRefreshToken, ref migrated);
-            settings.DropboxAccessToken = LoadSecret(settings.DropboxAccessToken, ref migrated);
-            if (migrated)
-            {
-                try
-                {
-                    settings.Save(path);
-                }
-                catch (Exception exception)
-                {
-                    AppLog.Warn("Could not re-encrypt the settings file.", exception);
-                }
-            }
-            return settings;
-        }
-        catch (Exception)
-        {
             return new AppSettings();
         }
+
+        TokenProtection.Initialize(path);
+        string json;
+        try
+        {
+            json = File.ReadAllText(path);
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            throw new SettingsException(
+                $"Could not read the settings file '{path}'. Restore it from backup before starting TimeReport.",
+                exception);
+        }
+
+        AppSettings settings;
+        try
+        {
+            settings = JsonSerializer.Deserialize<AppSettings>(json, JsonOptions)
+                ?? throw new SettingsException(
+                    $"The settings file '{path}' is empty or invalid. Restore it from backup.");
+        }
+        catch (JsonException exception)
+        {
+            throw new SettingsException(
+                $"The settings file '{path}' is not valid JSON. Restore it from backup.",
+                exception);
+        }
+
+        var migrated = false;
+        settings.DatabaseEncryptionKey = LoadSecret(
+            settings.DatabaseEncryptionKey,
+            "database encryption key",
+            required: true,
+            ref migrated);
+        settings.DropboxSyncKey = LoadSecret(
+            settings.DropboxSyncKey,
+            "Dropbox sync key",
+            required: true,
+            ref migrated);
+        settings.DropboxAppSecret = LoadSecret(
+            settings.DropboxAppSecret,
+            "Dropbox app secret",
+            required: false,
+            ref migrated);
+        settings.DropboxRefreshToken = LoadSecret(
+            settings.DropboxRefreshToken,
+            "Dropbox refresh token",
+            required: false,
+            ref migrated);
+        settings.DropboxAccessToken = LoadSecret(
+            settings.DropboxAccessToken,
+            "Dropbox access token",
+            required: false,
+            ref migrated);
+        if (migrated)
+        {
+            try
+            {
+                settings.Save(path);
+            }
+            catch (Exception exception)
+            {
+                AppLog.Warn("Could not re-encrypt the settings file.", exception);
+            }
+        }
+        return settings;
     }
 
-    private static string? LoadSecret(string? value, ref bool migrated)
+    private static string? LoadSecret(
+        string? value,
+        string name,
+        bool required,
+        ref bool migrated)
     {
         if (string.IsNullOrEmpty(value))
         {
@@ -99,8 +158,25 @@ public sealed class AppSettings
         if (!TokenProtection.IsProtected(value))
         {
             migrated = true;
+            return value;
         }
-        return TokenProtection.Unprotect(value);
+
+        try
+        {
+            return TokenProtection.Unprotect(value);
+        }
+        catch (CryptographicException exception)
+        {
+            if (required)
+            {
+                throw new SettingsException(
+                    $"Could not decrypt the {name}. Restore settings.json and settings.json.key from backup.",
+                    exception);
+            }
+
+            AppLog.Warn($"Could not decrypt the {name}.", exception);
+            return null;
+        }
     }
 
     public void Save(string path)

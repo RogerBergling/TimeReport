@@ -119,7 +119,7 @@ public partial class DropboxSyncDialog : Window
         }
     }
 
-    private void OnSaveClick(object? sender, RoutedEventArgs e)
+    private async void OnSaveClick(object? sender, RoutedEventArgs e)
     {
         if (_session is null)
         {
@@ -133,6 +133,21 @@ public partial class DropboxSyncDialog : Window
         {
             StatusText.Text = LocalizationService.T("DropboxPathInvalid");
             return;
+        }
+
+        var encryptionEnabled = EncryptSyncCheckBox.IsChecked == true;
+        if (!encryptionEnabled && _session.Settings.DropboxSyncEncryptionEnabled)
+        {
+            var confirmed = await MessageDialog.ShowAsync(
+                this,
+                LocalizationService.T("DropboxDisableEncryptionTitle"),
+                LocalizationService.T("DropboxDisableEncryptionMessage"),
+                true);
+            if (!confirmed)
+            {
+                EncryptSyncCheckBox.IsChecked = true;
+                return;
+            }
         }
 
         var settings = _session.Settings;
@@ -163,7 +178,6 @@ public partial class DropboxSyncDialog : Window
             settings.DropboxSyncKey = SyncEncryptionService.GenerateKey();
         }
 
-        var encryptionEnabled = EncryptSyncCheckBox.IsChecked == true;
         if (settings.DropboxSyncEncryptionEnabled != encryptionEnabled)
         {
             settings.DropboxLastSyncUtc = null;

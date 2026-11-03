@@ -1,3 +1,4 @@
+using System.Security.Cryptography;
 using TimeReport.Data;
 using TimeReport.Models;
 using TimeReport.Services;
@@ -203,6 +204,34 @@ public sealed class AppSessionTests
             Assert.False(saved.DropboxAutoSync);
             Assert.Null(saved.DropboxLastSyncUtc);
             Assert.Equal("token", saved.DropboxAccessToken);
+        }
+        finally
+        {
+            Directory.Delete(root, true);
+        }
+    }
+
+    [Fact]
+    public void EncryptedDatabaseWithoutSettingsKeyIsRejected()
+    {
+        var root = NewTempDirectory();
+        try
+        {
+            var databasePath = Path.Combine(root, "encrypted.db");
+            var settingsPath = Path.Combine(root, "settings.json");
+            var key = Convert.ToBase64String(RandomNumberGenerator.GetBytes(32));
+            using (var database = new Database(databasePath, key))
+            {
+                database.Open();
+            }
+
+            new AppSettings { DatabasePath = databasePath }.Save(settingsPath);
+
+            Assert.Throws<SettingsException>(() =>
+                new AppSession(
+                    databaseOverride: databasePath,
+                    settingsPath: settingsPath));
+            Assert.Null(AppSettings.Load(settingsPath).DatabaseEncryptionKey);
         }
         finally
         {
