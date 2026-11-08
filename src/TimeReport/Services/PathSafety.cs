@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using System.Runtime.InteropServices;
 using Microsoft.Win32.SafeHandles;
 
@@ -101,32 +100,53 @@ public static class PathSafety
         return false;
     }
 
-    private static string? LinuxFileId(string path)
+    public static bool IsRegularFile(string path)
     {
         try
         {
-            var startInfo = new ProcessStartInfo("stat")
+            if (OperatingSystem.IsLinux() && TryStatx(path, out var information))
             {
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                UseShellExecute = false,
-                CreateNoWindow = true,
-            };
-            startInfo.ArgumentList.Add("-Lc");
-            startInfo.ArgumentList.Add("%d:%i");
-            startInfo.ArgumentList.Add(path);
-            using var process = Process.Start(startInfo);
-            if (process is null)
-            {
-                return null;
+                return (information.Mode & 0xF000) == 0x8000;
             }
-            var output = process.StandardOutput.ReadToEnd().Trim();
-            process.WaitForExit(2000);
-            return process.ExitCode == 0 && output.Length > 0 ? output : null;
+
+            var attributes = File.GetAttributes(path);
+            return (attributes & FileAttributes.Directory) == 0 &&
+                   (attributes & FileAttributes.Device) == 0;
         }
-        catch (Exception)
+        catch (IOException)
+        {
+            return false;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return false;
+        }
+    }
+
+    private static string? LinuxFileId(string path)
+    {
+        if (!TryStatx(path, out var information))
         {
             return null;
+        }
+
+        return $"{information.DevMajor}:{information.DevMinor}:{information.Inode}";
+    }
+
+    private static bool TryStatx(string path, out StatxBuffer information)
+    {
+        try
+        {
+            // AT_FDCWD, follow symlinks, request basic stats (type, inode, device).
+            return Statx(-100, path, 0, 0x07ff, out information) == 0;
+        }
+        catch (Exception exception) when (
+            exception is DllNotFoundException or
+            EntryPointNotFoundException or
+            PlatformNotSupportedException)
+        {
+            information = default;
+            return false;
         }
     }
 
@@ -146,6 +166,71 @@ public static class PathSafety
         }
         return $"{information.VolumeSerialNumber}:{information.FileIndexHigh}:{information.FileIndexLow}";
     }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct StatxTimestamp
+    {
+        public long Seconds;
+        public uint Nanoseconds;
+        public int Reserved;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct StatxSpare
+    {
+        public ulong A;
+        public ulong B;
+        public ulong C;
+        public ulong D;
+        public ulong E;
+        public ulong F;
+        public ulong G;
+        public ulong H;
+        public ulong I;
+    }
+
+    // Linux struct statx. The spare fields keep the native buffer at 256 bytes.
+    [StructLayout(LayoutKind.Sequential)]
+    private struct StatxBuffer
+    {
+        public uint Mask;
+        public uint BlockSize;
+        public ulong Attributes;
+        public uint LinkCount;
+        public uint Uid;
+        public uint Gid;
+        public ushort Mode;
+        public ushort Spare0;
+        public ulong Inode;
+        public ulong Size;
+        public ulong Blocks;
+        public ulong AttributesMask;
+        public StatxTimestamp AccessTime;
+        public StatxTimestamp BirthTime;
+        public StatxTimestamp ChangeTime;
+        public StatxTimestamp ModifyTime;
+        public uint RdevMajor;
+        public uint RdevMinor;
+        public uint DevMajor;
+        public uint DevMinor;
+        public ulong MountId;
+        public uint DirectIoMemoryAlign;
+        public uint DirectIoOffsetAlign;
+        public ulong Subvolume;
+        public uint AtomicWriteUnitMin;
+        public uint AtomicWriteUnitMax;
+        public uint AtomicWriteSegmentsMax;
+        public uint DirectIoReadOffsetAlign;
+        public StatxSpare Spare3;
+    }
+
+    [DllImport("libc", SetLastError = true, EntryPoint = "statx")]
+    private static extern int Statx(
+        int directoryFileDescriptor,
+        string path,
+        int flags,
+        uint mask,
+        out StatxBuffer buffer);
 
     [StructLayout(LayoutKind.Sequential)]
     private struct FileTime

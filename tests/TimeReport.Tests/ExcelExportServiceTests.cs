@@ -159,6 +159,52 @@ public sealed class ExcelExportServiceTests
     }
 
     [Fact]
+    public async Task ExportFileIsOwnerOnlyOnUnix()
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        using var context = new TestContext();
+        var exporter = new ExcelExportService(context.Service);
+        var path = Path.Combine(context.Directory, "private.xlsx");
+
+        await exporter.ExportAsync(TestData.Monday, TestData.Monday, path);
+
+        Assert.Equal(
+            UnixFileMode.UserRead | UnixFileMode.UserWrite,
+            File.GetUnixFileMode(path));
+        Assert.Empty(Directory.EnumerateFiles(context.Directory, ".timereport-export-*.xlsx"));
+    }
+
+    [Fact]
+    public async Task ExportReplacesExistingFileWithOwnerOnlyPermissions()
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        using var context = new TestContext();
+        var exporter = new ExcelExportService(context.Service);
+        var path = Path.Combine(context.Directory, "replace.xlsx");
+        File.WriteAllText(path, "old");
+        File.SetUnixFileMode(
+            path,
+            UnixFileMode.UserRead |
+            UnixFileMode.UserWrite |
+            UnixFileMode.GroupRead |
+            UnixFileMode.OtherRead);
+
+        await exporter.ExportAsync(TestData.Monday, TestData.Monday, path);
+
+        Assert.Equal(
+            UnixFileMode.UserRead | UnixFileMode.UserWrite,
+            File.GetUnixFileMode(path));
+    }
+
+    [Fact]
     public async Task InvalidRangeIsRejected()
     {
         using var context = new TestContext();

@@ -112,6 +112,20 @@ public static class TokenProtection
 
             if (File.Exists(_keyPath))
             {
+                try
+                {
+                    FileSafety.EnsureRegularFile(
+                        _keyPath,
+                        FileSafety.MaxKeyFileBytes,
+                        "settings key file");
+                }
+                catch (IOException exception)
+                {
+                    throw new CryptographicException(
+                        "The settings key file is not a valid regular file.",
+                        exception);
+                }
+
                 var stored = File.ReadAllBytes(_keyPath);
                 if (OperatingSystem.IsWindows())
                 {
@@ -123,8 +137,7 @@ public static class TokenProtection
                     {
                         // Migrate the legacy unprotected key file written by 2.5.x.
                         _key = stored;
-                        File.WriteAllBytes(_keyPath, DpapiProtect(stored));
-                        AppPaths.SecureFile(_keyPath);
+                        AppPaths.WriteAllBytesPrivate(_keyPath, DpapiProtect(stored));
                     }
                 }
                 else
@@ -142,8 +155,7 @@ public static class TokenProtection
 
                 var key = RandomNumberGenerator.GetBytes(KeySize);
                 var stored = OperatingSystem.IsWindows() ? DpapiProtect(key) : key;
-                File.WriteAllBytes(_keyPath, stored);
-                AppPaths.SecureFile(_keyPath);
+                AppPaths.WriteAllBytesPrivate(_keyPath, stored);
                 _key = key;
             }
 

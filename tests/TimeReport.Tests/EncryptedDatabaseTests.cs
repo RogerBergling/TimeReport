@@ -108,6 +108,31 @@ public sealed class EncryptedDatabaseTests
     }
 
     [Fact]
+    public void CorruptedEncryptedBackupIsRejected()
+    {
+        using var directory = new TempDirectory();
+        var path = Path.Combine(directory.Path, "live.db");
+        var backupPath = Path.Combine(directory.Path, "backup.db");
+        var key = NewKey();
+
+        using (var database = new Database(path, key))
+        {
+            database.Open();
+            var service = new TimeReportService(database);
+            var project = service.CreateProject("Acme");
+            service.SaveEntry(TestData.Entry(
+                TestData.Monday, EntryKind.Work, "08:00", "16:00", project.Id));
+            database.BackupTo(backupPath);
+        }
+
+        var bytes = File.ReadAllBytes(backupPath);
+        bytes[bytes.Length / 2] ^= 0xFF;
+        File.WriteAllBytes(backupPath, bytes);
+
+        Assert.Throws<RestoreException>(() => Database.ValidateFile(backupPath, key));
+    }
+
+    [Fact]
     public void EncryptedDatabaseCanCreatePlaintextSyncSnapshot()
     {
         using var directory = new TempDirectory();

@@ -175,8 +175,33 @@ public sealed class DropboxSyncService : IDropboxSyncService
             throw new DropboxSyncException(ExtractError(body), response.StatusCode);
         }
 
-        await using var stream = File.Create(destinationPath);
-        await response.Content.CopyToAsync(stream, cancellationToken);
+        if (response.Content.Headers.ContentLength is long length &&
+            length > FileSafety.MaxDatabaseBytes)
+        {
+            throw new DropboxSyncException(
+                "The Dropbox database file is larger than the supported maximum size.");
+        }
+
+        await using var stream = AppPaths.CreatePrivateFileStream(
+            destinationPath,
+            FileMode.Create,
+            FileAccess.Write,
+            FileShare.None);
+        await using var source = await response.Content.ReadAsStreamAsync(cancellationToken);
+        var buffer = new byte[81920];
+        long total = 0;
+        int read;
+        while ((read = await source.ReadAsync(buffer, cancellationToken)) > 0)
+        {
+            total += read;
+            if (total > FileSafety.MaxDatabaseBytes)
+            {
+                throw new DropboxSyncException(
+                    "The Dropbox database file is larger than the supported maximum size.");
+            }
+            await stream.WriteAsync(buffer.AsMemory(0, read), cancellationToken);
+        }
+
         await stream.FlushAsync(cancellationToken);
         AppPaths.SecureFile(destinationPath);
     }

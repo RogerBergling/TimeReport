@@ -55,18 +55,22 @@ closed when the settings file or key file is missing or cannot be decrypted; it 
 generates replacement keys silently.
 
 Backups use SQLCipher's `sqlcipher_export`, are validated, and are written to a
-temporary file before an atomic replace. Restore accepts plaintext or encrypted
-sources and re-encrypts the result into the live database. Restore validation runs
+private temporary file before an atomic replace. Restore accepts plaintext or
+encrypted sources and re-encrypts the result into the live database. The selected
+source is validated read-only with both SQLite and SQLCipher integrity checks, then
+staged to a private copy so the original is never written. Restore validation runs
 with `trusted_schema = OFF` and rejects unexpected tables, views and triggers. Path
 checks resolve symlinks and hard links and reject the live database and its sidecars.
 Automatic backups are pruned to the configured retention count. Plaintext sync
-snapshots are kept in a private temporary folder and cleaned up on startup.
+snapshots are kept in an owner-only temporary folder and cleaned up on startup only
+from app-owned directories.
 
 ### Excel export
 
 `ExcelExportService` reads a date range and builds six sheets. `XlsxWriter` is a
-dependency-free ZIP/XML writer for the modern `.xlsx` format. Work hours in the
-Summary, Daily, Projects and Types sheets all deduct overlapping lunch.
+dependency-free ZIP/XML writer for the modern `.xlsx` format. It writes an owner-only
+temporary file and atomically renames it into place. Work hours in the Summary, Daily,
+Projects and Types sheets all deduct overlapping lunch.
 
 ### Dropbox sync
 
@@ -74,11 +78,16 @@ Summary, Daily, Projects and Types sheets all deduct overlapping lunch.
 the last successful sync. Uploads are revision-checked (`update` with a rev) and a
 409 is surfaced as a conflict rather than overwriting another device. Uploads are
 created from a plaintext snapshot and encrypted with a portable sync key using a
-versioned chunked AES-GCM container. Version 2 authenticates a per-file identifier,
-chunk index, chunk length and final marker; version 1 files remain readable. Downloads
-are decrypted into a private temporary directory and then re-encrypted into the local
-SQLCipher database. The client supports proxy and custom CA settings, retries
-transient 429/5xx responses, and shows a conflict dialog with local/remote timestamps.
+versioned chunked AES-GCM container. Version 3 derives a per-file key from the sync
+passphrase with PBKDF2-SHA256 and a random salt stored in the container. Version 2
+authenticates a per-file identifier, chunk index, chunk length and final marker;
+version 1 and 2 files remain readable. A plaintext remote copy is rejected while sync
+encryption is enabled. Downloads are decrypted into a private temporary directory and
+then re-encrypted into the local SQLCipher database. The OAuth loopback listener
+validates the callback path, state and request size, and ignores stray connections.
+The client supports proxy and custom CA settings (without embedded proxy credentials),
+retries transient 429/5xx responses, and shows a conflict dialog with local/remote
+timestamps.
 The custom CA is applied only to Dropbox connections; update checks use the system
 trust store. Auto-sync is disabled when the database location changes.
 

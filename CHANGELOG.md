@@ -24,6 +24,17 @@ and the project uses [Semantic Versioning](https://semver.org/).
   marker while retaining read support for version 1 files.
 - Reject unexpected views and triggers in restored databases and disable trusted
   schema during validation.
+- Reject plaintext Dropbox downloads while sync encryption is enabled.
+- Add a version 3 sync container with a random per-file salt and PBKDF2-SHA256, plus
+  a minimum sync passphrase policy.
+- Create log, export, settings and sync temporary files with owner-only permissions,
+  and restrict temporary cleanup/hardening to app-owned directories.
+- Redact proxy URL credentials from logs and reject credential-bearing proxy URLs.
+- Validate the OAuth callback path, state and request size, and keep listening after
+  unrelated or malicious loopback requests.
+- Recognize symlink and hard-link aliases of the live database, use `statx` for Linux
+  file identity, enforce serverAuth EKU for custom CAs, run SQLCipher
+  `cipher_integrity_check`, and open restore sources read-only.
 - Disable persisted checkout credentials in CI.
 
 ## [2.6.1] - 2026-11-01

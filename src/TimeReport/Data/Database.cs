@@ -225,7 +225,7 @@ public sealed class Database : IDisposable
 
     private static bool IsPlaintextDatabase(string path)
     {
-        if (!File.Exists(path))
+        if (!Services.PathSafety.IsRegularFile(path))
         {
             return false;
         }
@@ -280,6 +280,24 @@ public sealed class Database : IDisposable
         }
     }
 
+    private static void StageSourceDatabase(string sourcePath, string destinationPath)
+    {
+        // The original restore source is only ever opened read-only. Working on a
+        // private copy lets SQLCipher's ATTACH/export path run without touching it.
+        using var source = File.OpenRead(sourcePath);
+        using var destination = CreatePrivateEmptyFile(destinationPath);
+        source.CopyTo(destination);
+        destination.Flush();
+        Services.AppPaths.SecureFile(destinationPath);
+    }
+
+    private static FileStream CreatePrivateEmptyFile(string path) =>
+        Services.AppPaths.CreatePrivateFileStream(
+            path,
+            FileMode.Create,
+            FileAccess.ReadWrite,
+            FileShare.None);
+
     private void EncryptExistingDatabase(string path, string encryptionKey)
     {
         var directory = System.IO.Path.GetDirectoryName(path)
@@ -294,6 +312,12 @@ public sealed class Database : IDisposable
 
         try
         {
+            using (CreatePrivateEmptyFile(backup))
+            {
+            }
+            using (CreatePrivateEmptyFile(temporary))
+            {
+            }
             using (var source = new SqliteConnection(
                        new SqliteConnectionStringBuilder
                        {
@@ -370,6 +394,9 @@ public sealed class Database : IDisposable
 
         try
         {
+            using (CreatePrivateEmptyFile(temporary))
+            {
+            }
             ExportDatabase(Connection, temporary, null);
             ValidateFile(temporary);
             File.Move(temporary, fullDestination, true);
@@ -405,6 +432,9 @@ public sealed class Database : IDisposable
 
         try
         {
+            using (CreatePrivateEmptyFile(temporary))
+            {
+            }
             ExportDatabase(Connection, temporary, EncryptionKey);
 
             if (validate)
@@ -432,6 +462,17 @@ public sealed class Database : IDisposable
         if (!File.Exists(fullPath))
         {
             throw new RestoreException("The selected file does not exist.");
+        }
+        try
+        {
+            Services.FileSafety.EnsureRegularFile(
+                fullPath,
+                Services.FileSafety.MaxDatabaseBytes,
+                "selected database");
+        }
+        catch (IOException exception)
+        {
+            throw new RestoreException(exception.Message, exception);
         }
 
         try
@@ -461,6 +502,21 @@ public sealed class Database : IDisposable
             {
                 throw new RestoreException(
                     $"The selected database failed its integrity check: {integrity ?? "unknown error"}");
+            }
+
+            if (!plaintext && !string.IsNullOrWhiteSpace(encryptionKey))
+            {
+                // SQLCipher authenticates every page separately. The regular
+                // integrity check alone does not detect all damaged HMACs.
+                var cipherIntegrity = Convert.ToString(
+                    Scalar(connection, "PRAGMA cipher_integrity_check", null),
+                    System.Globalization.CultureInfo.InvariantCulture);
+                if (!string.IsNullOrWhiteSpace(cipherIntegrity) &&
+                    !string.Equals(cipherIntegrity, "ok", StringComparison.OrdinalIgnoreCase))
+                {
+                    throw new RestoreException(
+                        $"The selected database failed its cipher integrity check: {cipherIntegrity}");
+                }
             }
 
             var tables = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -524,6 +580,17 @@ public sealed class Database : IDisposable
         {
             throw new RestoreException("The selected file does not exist.");
         }
+        try
+        {
+            Services.FileSafety.EnsureRegularFile(
+                fullSource,
+                Services.FileSafety.MaxDatabaseBytes,
+                "selected database");
+        }
+        catch (IOException exception)
+        {
+            throw new RestoreException(exception.Message, exception);
+        }
         if (Services.PathSafety.IsDatabaseFile(fullSource, Path) ||
             Services.PathSafety.AreSameFile(fullSource, Path))
         {
@@ -538,13 +605,15 @@ public sealed class Database : IDisposable
         var temporary = System.IO.Path.Combine(
             directory,
             $".timereport-restore-{Guid.NewGuid():N}.db");
+        var stagedSource = temporary + ".source.db";
 
         try
         {
+            StageSourceDatabase(fullSource, stagedSource);
             using (var sourceConnection = new SqliteConnection(
                        new SqliteConnectionStringBuilder
                        {
-                           DataSource = fullSource,
+                           DataSource = stagedSource,
                            Mode = SqliteOpenMode.ReadWriteCreate,
                            Pooling = false,
                        }.ToString()))
@@ -555,8 +624,12 @@ public sealed class Database : IDisposable
                     ApplyKey(sourceConnection, EncryptionKey);
                 }
                 Scalar(sourceConnection, "PRAGMA trusted_schema = OFF", null);
+                using (CreatePrivateEmptyFile(temporary))
+                {
+                }
                 ExportDatabase(sourceConnection, temporary, EncryptionKey);
             }
+            TryDelete(stagedSource);
 
             using (var temporaryDatabase = new Database(temporary, EncryptionKey))
             {
@@ -609,6 +682,7 @@ public sealed class Database : IDisposable
         catch (Exception exception)
         {
             TryDelete(temporary);
+            TryDelete(stagedSource);
             if (exception is DatabaseException)
             {
                 throw;

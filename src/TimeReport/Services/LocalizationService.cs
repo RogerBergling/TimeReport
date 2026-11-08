@@ -344,7 +344,8 @@ public static class LocalizationService
             ["DropboxSyncPassphrase"] = "Sync encryption passphrase",
             ["DropboxSyncPassphraseHint"] =
                 "Use the same passphrase on every device that shares this Dropbox file. " +
-                "Leave it blank to keep the current key.",
+                "Re-enter an existing passphrase once to upgrade to the salted version 3 " +
+                "container. Leave it blank to keep the current key.",
             ["DropboxAutoSync"] = "Sync automatically after changes",
             ["DropboxInstructions"] =
                 "Create a Dropbox app with files.content.read, files.content.write and files.metadata.read. " +
@@ -356,6 +357,21 @@ public static class LocalizationService
             ["DropboxConnected"] = "Connected to Dropbox.",
             ["DropboxTokenRequired"] = "Enter a Dropbox access token.",
             ["DropboxSyncKeyMissing"] = "Set a sync encryption passphrase in Dropbox settings first.",
+            ["DropboxSyncPassphraseMissing"] =
+                "The Dropbox file was encrypted with a sync passphrase. Enter the same " +
+                "passphrase in Dropbox settings before downloading it.",
+            ["DropboxPlaintextRejected"] =
+                "The Dropbox file is not encrypted, but sync encryption is enabled. " +
+                "Downloading plaintext is blocked. Disable sync encryption explicitly " +
+                "in Dropbox settings only if you intend to use a legacy plaintext file.",
+            ["DropboxPassphraseTooWeak"] =
+                "Use a stronger sync passphrase: at least 12 characters and more variety. " +
+                "A longer multi-word passphrase is recommended.",
+            ["DropboxProxyInvalid"] =
+                "Enter a valid absolute HTTP or HTTPS proxy URL, or leave the field blank.",
+            ["DropboxProxyCredentials"] =
+                "Do not put usernames or passwords in the proxy URL. Use a proxy that " +
+                "authenticates the device another way, or leave the field blank.",
             ["DropboxSaved"] = "Dropbox settings saved.",
             ["DropboxStatusOff"] = "Dropbox: off",
             ["DropboxStatusReady"] = "Dropbox: ready",
@@ -743,7 +759,8 @@ public static class LocalizationService
             ["DropboxSyncPassphrase"] = "Lösenfras för synkroniseringskryptering",
             ["DropboxSyncPassphraseHint"] =
                 "Använd samma lösenfras på alla enheter som delar den här Dropbox-filen. " +
-                "Lämna fältet tomt för att behålla nuvarande nyckel.",
+                "Ange en befintlig lösenfras igen för att uppgradera till den saltade " +
+                "version 3-behållaren. Lämna fältet tomt för att behålla nuvarande nyckel.",
             ["DropboxAutoSync"] = "Synka automatiskt efter ändringar",
             ["DropboxInstructions"] =
                 "Skapa en Dropbox-app med files.content.read, files.content.write och files.metadata.read. " +
@@ -755,6 +772,21 @@ public static class LocalizationService
             ["DropboxConnected"] = "Ansluten till Dropbox.",
             ["DropboxTokenRequired"] = "Ange en Dropbox-åtkomsttoken.",
             ["DropboxSyncKeyMissing"] = "Ange en lösenfras för synkroniseringskryptering i Dropbox-inställningarna först.",
+            ["DropboxSyncPassphraseMissing"] =
+                "Dropbox-filen krypterades med en lösenfras. Ange samma lösenfras i " +
+                "Dropbox-inställningarna innan du hämtar den.",
+            ["DropboxPlaintextRejected"] =
+                "Dropbox-filen är inte krypterad, men krypterad synkronisering är aktiverad. " +
+                "Hämtning av klartext blockeras. Stäng av krypteringen uttryckligen i " +
+                "Dropbox-inställningarna endast om du avser att använda en äldre klartextfil.",
+            ["DropboxPassphraseTooWeak"] =
+                "Använd en starkare lösenfras: minst 12 tecken och mer variation. " +
+                "En längre lösenfras med flera ord rekommenderas.",
+            ["DropboxProxyInvalid"] =
+                "Ange en giltig absolut HTTP- eller HTTPS-proxyadress, eller lämna fältet tomt.",
+            ["DropboxProxyCredentials"] =
+                "Lägg inte användarnamn eller lösenord i proxyadressen. Använd en proxy " +
+                "som autentiserar enheten på annat sätt, eller lämna fältet tomt.",
             ["DropboxSaved"] = "Dropbox-inställningarna sparades.",
             ["DropboxStatusOff"] = "Dropbox: av",
             ["DropboxStatusReady"] = "Dropbox: klar",

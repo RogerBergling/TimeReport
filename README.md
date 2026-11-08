@@ -159,11 +159,14 @@ the database, `settings.json`, and `settings.json.key` together. If either setti
 file is lost, the encrypted database cannot be recovered.
 
 The app also writes a rotating log file, `timereport.log`, in the same data folder.
-Backups made automatically before a restore, migration, encryption or repair are
-placed in the `backups/` subfolder. Pre-encryption backups are encrypted with the same
-database key. The newest `BackupRetentionCount` automatic backups are kept. Stale
-plaintext sync snapshots are kept only in a private temp folder and are cleaned up on
-startup.
+Logs, settings, sync snapshots and temporary files are owner-only on Unix. Backups
+made automatically before a restore, migration, encryption or repair are placed in
+the `backups/` subfolder. Pre-encryption backups are encrypted with the same database
+key. The newest `BackupRetentionCount` automatic backups are kept. Stale plaintext
+sync snapshots are kept only in a private temp folder and are cleaned up on startup.
+Cleanup and directory hardening apply only to the default application data folder or
+a folder explicitly marked as app-owned, never to an arbitrary `--database` parent or
+an existing unmarked `--data-dir`.
 
 ### Changing the database location
 
@@ -180,7 +183,8 @@ choice is saved in a small settings file:
 If the selected file already exists, TimeReport validates and opens it. If it does not
 exist, TimeReport can copy the current database to the new location before switching;
 otherwise it creates a new empty database there. The old database file is left
-untouched, so it remains available as a manual backup.
+untouched, so it remains available as a manual backup. Symlink and hard-link aliases of
+the live database are recognized as the current database instead of being reopened.
 
 You can also override the location for testing or portable use:
 
@@ -205,11 +209,13 @@ Use **File → Backup database…** to write a consistent SQLite backup to any l
 
 Use **File → Restore database…** to replace the current database. Restore:
 
-1. Validates the selected file with SQLite's integrity check.
-2. Checks that it has the expected TimeReport schema.
-3. Creates an automatic backup of the current database in `backups/`.
-4. Replaces the database atomically.
-5. Refuses databases from a newer, unsupported schema version.
+1. Checks that the selected file is a regular file of a reasonable size.
+2. Validates it read-only with SQLite's integrity check and, for encrypted databases,
+   SQLCipher's `cipher_integrity_check`.
+3. Checks that it has the expected TimeReport schema.
+4. Creates an automatic backup of the current database in `backups/`.
+5. Replaces the database atomically.
+6. Refuses databases from a newer, unsupported schema version.
 
 Backups are SQLCipher-encrypted databases when encryption is enabled. Restoring them
 requires the matching database encryption key, so keep the database, `settings.json`,
@@ -240,9 +246,12 @@ To configure it:
 5. Keep or change the remote path (default `/TimeReport/timereport.db`), optionally
    enter a **Sync encryption passphrase**, enable **Sync automatically after changes**,
    and use **Sync now** for the first sync. Use the same passphrase on every device
-   that shares the Dropbox file.
+   that shares the Dropbox file. Passphrases must be at least 12 characters with
+   reasonable variety; a longer multi-word passphrase is recommended. Re-enter an
+   existing passphrase once after upgrading so new uploads use the salted version 3
+   container instead of the legacy fixed-salt key.
 6. If your network requires it, configure an HTTPS proxy and a custom CA certificate
-   in the same dialog.
+   in the same dialog. Proxy URLs must not contain user names or passwords.
 
 The app uses Dropbox OAuth with a long-lived refresh token, so it can keep syncing
 without asking you to paste a new short-lived access token every few hours. Tokens are
@@ -250,10 +259,13 @@ encrypted with AES-GCM before they are written to the settings file. The encrypt
 is stored in a separate owner-only file; on Windows that key is additionally protected
 with the current user's DPAPI key. The settings file and key are still sensitive, so
 protect the account and the data folder. If you back up the settings file, keep
-`settings.json.key` with it; without the key the stored tokens and database key cannot
-be decrypted. Dropbox uploads are encrypted with AES-GCM before they leave the machine
-by default. Disabling encryption requires confirmation and uploads a plaintext
-database copy; only do this when your policy requires it.
+`settings.json.key` with it; without the key the stored tokens, sync passphrase and
+database key cannot be decrypted. Dropbox uploads are encrypted with AES-GCM before
+they leave the machine by default. New passphrase containers use PBKDF2-SHA256 with a
+random salt stored per file; older version 1 and 2 containers stay readable for
+migration. When sync encryption is enabled, a plaintext Dropbox file is rejected
+instead of being imported. Disabling encryption requires confirmation and uploads a
+plaintext database copy; only do this when your policy requires it.
 Conflicts show local and remote modification times and let you keep either side.
 Dropbox sync is optional and the app works fully offline.
 
@@ -412,7 +424,10 @@ Work hours in the Summary, Daily, Projects and Types sheets deduct overlapping
 lunch, so the sheets reconcile with each other.
 
 The export uses the modern Excel `.xlsx` format, which Excel, LibreOffice and other
-spreadsheet applications can open.
+spreadsheet applications can open. The workbook is written to a temporary file with
+owner-only permissions on Unix and then atomically renamed into place, so the final
+file is not briefly world-readable. Stale export temporaries are cleaned up on startup
+only from app-owned directories.
 
 ## Entry types
 
@@ -456,8 +471,9 @@ before trying again.
 - A work entry must end on the same date. Cross-midnight shifts are not supported in
   version 2.
 - The live database and automatic backups are encrypted at rest. Plaintext sync
-  snapshots exist only transiently in a private temp folder and are cleaned up on
-  startup. The app is intended for local, single-user use.
+  snapshots exist only transiently in an owner-only temp folder and are cleaned up on
+  startup. A plaintext Dropbox copy is never imported while sync encryption is enabled.
+  The app is intended for local, single-user use.
 - Dates are ISO dates and times use the 24-hour clock.
 
 ## License

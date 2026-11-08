@@ -31,6 +31,7 @@ public sealed class TokenProtectionTests
             DropboxAppSecret = "app-secret",
             DropboxRefreshToken = "refresh-token",
             DropboxAccessToken = "access-token",
+            DropboxSyncPassphrase = "sync-passphrase",
         };
 
         settings.Save(settingsPath);
@@ -39,6 +40,7 @@ public sealed class TokenProtectionTests
         Assert.DoesNotContain("app-secret", json);
         Assert.DoesNotContain("refresh-token", json);
         Assert.DoesNotContain("access-token", json);
+        Assert.DoesNotContain("sync-passphrase", json);
         Assert.Contains("enc:v1:", json);
         Assert.True(File.Exists(settingsPath + ".key"));
     }

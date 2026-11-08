@@ -195,10 +195,7 @@ public partial class DatabaseLocationDialog : Window
     }
 
     private static bool PathsEqual(string first, string second) =>
-        string.Equals(
-            Path.GetFullPath(first),
-            Path.GetFullPath(second),
-            OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal);
+        PathSafety.AreSameFile(first, second);
 }
 
 public sealed record DatabaseLocationResult(string DatabasePath, bool CopyCurrentData);

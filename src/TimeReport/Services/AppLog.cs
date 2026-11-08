@@ -24,6 +24,7 @@ public static class AppLog
                 AppPaths.EnsureDirectory(dataDir);
                 _path = AppPaths.LogPath(dataDir);
                 _maxBytes = maxBytes <= 0 ? DefaultMaxBytes : maxBytes;
+                AppPaths.EnsurePrivateFile(_path);
                 RotateIfNeeded();
             }
             catch (Exception)
@@ -61,7 +62,13 @@ public static class AppLog
                 {
                     line += Environment.NewLine + exception;
                 }
-                File.AppendAllText(_path, line + Environment.NewLine);
+                using (var stream = AppPaths.OpenPrivateAppendStream(_path))
+                using (var writer = new StreamWriter(
+                           stream,
+                           new System.Text.UTF8Encoding(false)))
+                {
+                    writer.Write(line + Environment.NewLine);
+                }
                 AppPaths.SecureFile(_path);
             }
             catch (Exception)

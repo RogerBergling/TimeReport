@@ -17,7 +17,10 @@ public sealed record DropboxTokenResult(
 public static class DropboxOAuthService
 {
     public const string RedirectUri = "http://127.0.0.1:53682/dropbox-callback";
+    public const string CallbackPath = "/dropbox-callback";
     private const int CallbackPort = 53682;
+    private const int MaxRequestBytes = 16 * 1024;
+    private static readonly TimeSpan CallbackRequestTimeout = TimeSpan.FromSeconds(15);
     private static readonly HttpClient SharedHttpClient = new() { Timeout = TimeSpan.FromSeconds(60) };
 
     public static async Task<DropboxTokenResult> AuthorizeAsync(
@@ -54,8 +57,16 @@ public static class DropboxOAuthService
             OpenBrowser(authorizeUrl);
             using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             timeout.CancelAfter(TimeSpan.FromMinutes(5));
-            using var client = await listener.AcceptTcpClientAsync(timeout.Token);
-            var query = await ReadCallbackAsync(client, timeout.Token);
+            Dictionary<string, string> query;
+            try
+            {
+                query = await WaitForCallbackAsync(listener, state, timeout.Token);
+            }
+            catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+            {
+                throw new DropboxSyncException(
+                    "Timed out waiting for Dropbox authorization.");
+            }
 
             if (query.TryGetValue("error", out var error))
             {
@@ -63,11 +74,6 @@ public static class DropboxOAuthService
                     query.TryGetValue("error_description", out var description)
                         ? description
                         : error);
-            }
-            if (!query.TryGetValue("state", out var returnedState) ||
-                !string.Equals(returnedState, state, StringComparison.Ordinal))
-            {
-                throw new DropboxSyncException("Dropbox returned an invalid OAuth state.");
             }
             if (!query.TryGetValue("code", out var code) || string.IsNullOrWhiteSpace(code))
             {
@@ -79,6 +85,85 @@ public static class DropboxOAuthService
         finally
         {
             listener.Stop();
+        }
+    }
+
+    /// <summary>
+    /// Accepts loopback connections until a valid GET /dropbox-callback request
+    /// with the expected state arrives. Requests for other paths, malformed
+    /// requests and mismatched states are answered and ignored so a stray browser
+    /// request cannot terminate the authorization flow.
+    /// </summary>
+    internal static async Task<Dictionary<string, string>> WaitForCallbackAsync(
+        TcpListener listener,
+        string expectedState,
+        CancellationToken cancellationToken)
+    {
+        while (true)
+        {
+            using var client = await listener.AcceptTcpClientAsync(cancellationToken);
+            try
+            {
+                var stream = client.GetStream();
+                using var requestTimeout =
+                    CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+                requestTimeout.CancelAfter(CallbackRequestTimeout);
+                var request = await ReadRequestAsync(stream, requestTimeout.Token);
+                if (request is null)
+                {
+                    await TryWriteResponseAsync(
+                        stream,
+                        "400 Bad Request",
+                        "The callback request was invalid.",
+                        cancellationToken);
+                    continue;
+                }
+
+                var (method, target) = request.Value;
+                if (!string.Equals(method, "GET", StringComparison.Ordinal) ||
+                    !TryGetCallbackQuery(target, out var query))
+                {
+                    await TryWriteResponseAsync(
+                        stream,
+                        "404 Not Found",
+                        "This is not the Dropbox callback endpoint.",
+                        cancellationToken);
+                    continue;
+                }
+
+                if (!query.TryGetValue("state", out var returnedState) ||
+                    !FixedTimeEquals(returnedState, expectedState))
+                {
+                    await TryWriteResponseAsync(
+                        stream,
+                        "400 Bad Request",
+                        "The OAuth state did not match. Return to TimeReport and try again.",
+                        cancellationToken);
+                    continue;
+                }
+
+                await TryWriteResponseAsync(
+                    stream,
+                    "200 OK",
+                    "Dropbox authorization complete. You can close this window.",
+                    cancellationToken);
+                return query;
+            }
+            catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+            {
+                // Ignore slow or speculative connections and keep waiting.
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+            catch (IOException)
+            {
+                // The browser may open speculative connections or disconnect early.
+            }
+            catch (SocketException)
+            {
+            }
         }
     }
 
@@ -148,43 +233,108 @@ public static class DropboxOAuthService
         return new DropboxTokenResult(accessToken, refreshToken, expiresIn, scope, accountId);
     }
 
-    private static async Task<Dictionary<string, string>> ReadCallbackAsync(
-        TcpClient client,
+    private static async Task<(string Method, string Target)?> ReadRequestAsync(
+        Stream stream,
         CancellationToken cancellationToken)
     {
-        using var stream = client.GetStream();
-        using var reader = new StreamReader(
-            stream,
-            Encoding.ASCII,
-            detectEncodingFromByteOrderMarks: false,
-            bufferSize: 1024,
-            leaveOpen: true);
-        var requestLine = await reader.ReadLineAsync(cancellationToken) ?? string.Empty;
-        string? headerLine;
-        do
+        var buffer = new byte[MaxRequestBytes];
+        var count = 0;
+        var headerEnd = -1;
+        while (count < buffer.Length)
         {
-            headerLine = await reader.ReadLineAsync(cancellationToken);
-        } while (!string.IsNullOrEmpty(headerLine));
+            var read = await stream.ReadAsync(buffer.AsMemory(count), cancellationToken);
+            if (read == 0)
+            {
+                break;
+            }
+            count += read;
+            headerEnd = FindHeaderEnd(buffer.AsSpan(0, count));
+            if (headerEnd >= 0)
+            {
+                break;
+            }
+        }
 
-        var parts = requestLine.Split(' ');
-        var target = parts.Length > 1 ? parts[1] : "/";
-        var uri = new Uri("http://127.0.0.1" + target);
-        var query = ParseQuery(uri.Query);
+        if (count == 0 || headerEnd < 0)
+        {
+            return null;
+        }
 
-        const string html =
-            "<!doctype html><html><head><title>TimeReport</title></head>" +
-            "<body style=\"font-family:sans-serif;padding:2rem\">" +
-            "<h2>TimeReport</h2><p>Dropbox authorization complete. You can close this window.</p>" +
-            "</body></html>";
-        var body = Encoding.UTF8.GetBytes(html);
-        var header = Encoding.ASCII.GetBytes(
-            "HTTP/1.1 200 OK\r\n" +
-            "Content-Type: text/html; charset=utf-8\r\n" +
-            $"Content-Length: {body.Length}\r\n" +
-            "Connection: close\r\n\r\n");
-        await stream.WriteAsync(header, cancellationToken);
-        await stream.WriteAsync(body, cancellationToken);
-        return query;
+        var text = Encoding.ASCII.GetString(buffer, 0, headerEnd);
+        var lineEnd = text.IndexOf("\r\n", StringComparison.Ordinal);
+        var requestLine = lineEnd >= 0 ? text[..lineEnd] : text;
+        var parts = requestLine.Split(' ', 3, StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length < 2)
+        {
+            return null;
+        }
+        return (parts[0], parts[1]);
+    }
+
+    private static int FindHeaderEnd(ReadOnlySpan<byte> buffer)
+    {
+        for (var index = 0; index <= buffer.Length - 4; index++)
+        {
+            if (buffer[index] == '\r' &&
+                buffer[index + 1] == '\n' &&
+                buffer[index + 2] == '\r' &&
+                buffer[index + 3] == '\n')
+            {
+                return index;
+            }
+        }
+        return -1;
+    }
+
+    private static bool TryGetCallbackQuery(
+        string target,
+        out Dictionary<string, string> query)
+    {
+        query = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        if (!target.StartsWith('/') ||
+            !Uri.TryCreate("http://127.0.0.1" + target, UriKind.Absolute, out var uri) ||
+            !string.Equals(uri.AbsolutePath, CallbackPath, StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        query = ParseQuery(uri.Query);
+        return true;
+    }
+
+    private static bool FixedTimeEquals(string first, string second)
+    {
+        var firstHash = SHA256.HashData(Encoding.UTF8.GetBytes(first));
+        var secondHash = SHA256.HashData(Encoding.UTF8.GetBytes(second));
+        return CryptographicOperations.FixedTimeEquals(firstHash, secondHash);
+    }
+
+    private static async Task TryWriteResponseAsync(
+        NetworkStream stream,
+        string status,
+        string message,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var html =
+                "<!doctype html><html><head><title>TimeReport</title></head>" +
+                "<body style=\"font-family:sans-serif;padding:2rem\">" +
+                $"<h2>TimeReport</h2><p>{WebUtility.HtmlEncode(message)}</p>" +
+                "</body></html>";
+            var body = Encoding.UTF8.GetBytes(html);
+            var header = Encoding.ASCII.GetBytes(
+                $"HTTP/1.1 {status}\r\n" +
+                "Content-Type: text/html; charset=utf-8\r\n" +
+                $"Content-Length: {body.Length}\r\n" +
+                "Connection: close\r\n\r\n");
+            await stream.WriteAsync(header, cancellationToken);
+            await stream.WriteAsync(body, cancellationToken);
+            await stream.FlushAsync(cancellationToken);
+        }
+        catch (IOException)
+        {
+        }
     }
 
     private static Dictionary<string, string> ParseQuery(string queryString)

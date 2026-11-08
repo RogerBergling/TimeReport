@@ -124,9 +124,46 @@ public sealed class DropboxSyncServiceTests
             await service.DownloadAsync("token", "/TimeReport/timereport.db", destination);
 
             Assert.Equal(bytes, await File.ReadAllBytesAsync(destination));
+            if (!OperatingSystem.IsWindows())
+            {
+                Assert.Equal(
+                    UnixFileMode.UserRead | UnixFileMode.UserWrite,
+                    File.GetUnixFileMode(destination));
+            }
             var request = Assert.Single(handler.Requests);
             Assert.Equal("https://content.dropboxapi.com/2/files/download", request.Uri);
             Assert.Contains("/TimeReport/timereport.db", request.Headers["Dropbox-API-Arg"]);
+        }
+        finally
+        {
+            Directory.Delete(directory, true);
+        }
+    }
+
+    [Fact]
+    public async Task DownloadRejectsDeclaredOversizedContent()
+    {
+        var directory = NewTempDirectory();
+        try
+        {
+            var destination = Path.Combine(directory, "downloaded.db");
+            var handler = new FakeHttpMessageHandler();
+            handler.Responses.Enqueue(_ =>
+            {
+                var response = new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new ByteArrayContent([]),
+                };
+                response.Content.Headers.ContentLength = FileSafety.MaxDatabaseBytes + 1;
+                return response;
+            });
+            using var client = new HttpClient(handler);
+            var service = new DropboxSyncService(client);
+
+            var exception = await Assert.ThrowsAsync<DropboxSyncException>(() =>
+                service.DownloadAsync("token", "/TimeReport/timereport.db", destination));
+            Assert.Contains("maximum size", exception.Message, StringComparison.OrdinalIgnoreCase);
+            Assert.False(File.Exists(destination));
         }
         finally
         {

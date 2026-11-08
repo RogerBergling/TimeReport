@@ -55,6 +55,12 @@ public sealed class AppSettings
 
     public string? DropboxSyncKey { get; set; }
 
+    /// <summary>
+    /// Protected copy of the passphrase used to derive version 3 sync container
+    /// keys. Legacy derived keys remain in <see cref="DropboxSyncKey"/>.
+    /// </summary>
+    public string? DropboxSyncPassphrase { get; set; }
+
     public bool DropboxSyncEncryptionEnabled { get; set; } = true;
 
     public string? DropboxProxyUrl { get; set; }
@@ -82,12 +88,14 @@ public sealed class AppSettings
         string json;
         try
         {
+            FileSafety.EnsureRegularFile(path, FileSafety.MaxSettingsBytes, "settings file");
             json = File.ReadAllText(path);
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
         {
             throw new SettingsException(
-                $"Could not read the settings file '{path}'. Restore it from backup before starting TimeReport.",
+                $"Could not read the settings file '{path}': {exception.Message}. " +
+                "Restore it from backup before starting TimeReport.",
                 exception);
         }
 
@@ -115,6 +123,11 @@ public sealed class AppSettings
             settings.DropboxSyncKey,
             "Dropbox sync key",
             required: true,
+            ref migrated);
+        settings.DropboxSyncPassphrase = LoadSecret(
+            settings.DropboxSyncPassphrase,
+            "Dropbox sync passphrase",
+            required: false,
             ref migrated);
         settings.DropboxAppSecret = LoadSecret(
             settings.DropboxAppSecret,
@@ -191,6 +204,7 @@ public sealed class AppSettings
         var stored = (AppSettings)MemberwiseClone();
         stored.DatabaseEncryptionKey = TokenProtection.Protect(DatabaseEncryptionKey);
         stored.DropboxSyncKey = TokenProtection.Protect(DropboxSyncKey);
+        stored.DropboxSyncPassphrase = TokenProtection.Protect(DropboxSyncPassphrase);
         stored.DropboxAppSecret = TokenProtection.Protect(DropboxAppSecret);
         stored.DropboxRefreshToken = TokenProtection.Protect(DropboxRefreshToken);
         stored.DropboxAccessToken = TokenProtection.Protect(DropboxAccessToken);
@@ -198,7 +212,7 @@ public sealed class AppSettings
         var temporary = path + $".{Guid.NewGuid():N}.tmp";
         try
         {
-            using (var stream = new FileStream(
+            using (var stream = AppPaths.CreatePrivateFileStream(
                        temporary,
                        FileMode.CreateNew,
                        FileAccess.Write,

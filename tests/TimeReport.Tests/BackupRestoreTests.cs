@@ -97,6 +97,23 @@ public sealed class BackupRestoreTests
     }
 
     [Fact]
+    public void NonRegularBackupFileIsRejected()
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        using var context = new TestContext();
+        var link = Path.Combine(context.Directory, "device.db");
+        File.CreateSymbolicLink(link, "/dev/null");
+
+        var exception = Assert.Throws<RestoreException>(() =>
+            Database.ValidateFile(link));
+        Assert.Contains("regular file", exception.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public void RestoreFromLiveDatabaseIsRejected()
     {
         using var context = new TestContext();

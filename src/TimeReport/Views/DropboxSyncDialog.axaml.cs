@@ -150,6 +150,26 @@ public partial class DropboxSyncDialog : Window
             }
         }
 
+        var proxyUrl = string.IsNullOrWhiteSpace(ProxyTextBox.Text)
+            ? null
+            : ProxyTextBox.Text.Trim();
+        if (!HttpClientFactory.TryValidateProxyUrl(proxyUrl, out var proxyContainsCredentials))
+        {
+            StatusText.Text = LocalizationService.T(
+                proxyContainsCredentials
+                    ? "DropboxProxyCredentials"
+                    : "DropboxProxyInvalid");
+            return;
+        }
+
+        var passphrase = SyncPassphraseTextBox.Text?.Trim();
+        if (!string.IsNullOrWhiteSpace(passphrase) &&
+            !SyncEncryptionService.IsPassphraseAcceptable(passphrase))
+        {
+            StatusText.Text = LocalizationService.T("DropboxPassphraseTooWeak");
+            return;
+        }
+
         var settings = _session.Settings;
         var credentialsChanged =
             !string.Equals(settings.DropboxAppKey, appKey, StringComparison.Ordinal) ||
@@ -167,9 +187,9 @@ public partial class DropboxSyncDialog : Window
             settings.DropboxLastSyncUtc = null;
         }
 
-        var passphrase = SyncPassphraseTextBox.Text?.Trim();
         if (!string.IsNullOrWhiteSpace(passphrase))
         {
+            settings.DropboxSyncPassphrase = passphrase;
             settings.DropboxSyncKey = SyncEncryptionService.DeriveKey(passphrase);
             settings.DropboxLastSyncUtc = null;
         }
@@ -188,9 +208,7 @@ public partial class DropboxSyncDialog : Window
         settings.DropboxRemotePath = remotePath;
         settings.DropboxAutoSync = AutoSyncCheckBox.IsChecked == true;
         settings.DropboxSyncEncryptionEnabled = encryptionEnabled;
-        settings.DropboxProxyUrl = string.IsNullOrWhiteSpace(ProxyTextBox.Text)
-            ? null
-            : ProxyTextBox.Text.Trim();
+        settings.DropboxProxyUrl = proxyUrl;
         settings.DropboxCaCertificatePath = string.IsNullOrWhiteSpace(CaCertificateTextBox.Text)
             ? null
             : CaCertificateTextBox.Text.Trim();

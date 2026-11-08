@@ -1,5 +1,6 @@
 using System.Buffers.Binary;
 using System.Security.Cryptography;
+using System.Text;
 using TimeReport.Services;
 
 namespace TimeReport.Tests;
@@ -130,6 +131,110 @@ public sealed class SyncEncryptionTests
         Assert.NotEqual(
             SyncEncryptionService.DeriveKey("correct horse battery staple"),
             SyncEncryptionService.DeriveKey("different passphrase"));
+    }
+
+    [Fact]
+    public void LegacyDerivedKeyKeepsOriginalIterationCount()
+    {
+        var expected = Convert.ToBase64String(
+            Rfc2898DeriveBytes.Pbkdf2(
+                "correct horse battery staple",
+                Encoding.UTF8.GetBytes("TimeReport sync encryption v1"),
+                200_000,
+                HashAlgorithmName.SHA256,
+                32));
+
+        Assert.Equal(expected, SyncEncryptionService.DeriveKey("correct horse battery staple"));
+    }
+
+    [Fact]
+    public void VersionThreeUsesRandomSaltAndPassphrase()
+    {
+        using var directory = new TempDirectory();
+        var source = Path.Combine(directory.Path, "source.db");
+        var first = Path.Combine(directory.Path, "first.enc");
+        var second = Path.Combine(directory.Path, "second.enc");
+        var decrypted = Path.Combine(directory.Path, "decrypted.db");
+        var data = new byte[1024 * 1024 + 33];
+        RandomNumberGenerator.Fill(data);
+        File.WriteAllBytes(source, data);
+        const string passphrase = "correct horse battery staple";
+
+        SyncEncryptionService.EncryptFileWithPassphrase(source, first, passphrase);
+        SyncEncryptionService.EncryptFileWithPassphrase(source, second, passphrase);
+
+        var firstBytes = File.ReadAllBytes(first);
+        var secondBytes = File.ReadAllBytes(second);
+        Assert.Equal("TRSYNC3\0"u8.ToArray(), firstBytes[..8]);
+        Assert.Equal(SyncContainerVersion.Version3, SyncEncryptionService.GetContainerVersion(first));
+        Assert.NotEqual(
+            firstBytes.AsSpan(8, 16).ToArray(),
+            secondBytes.AsSpan(8, 16).ToArray());
+
+        SyncEncryptionService.DecryptFileWithPassphrase(first, decrypted, passphrase);
+        Assert.Equal(data, File.ReadAllBytes(decrypted));
+    }
+
+    [Fact]
+    public void VersionThreeRejectsWrongPassphrase()
+    {
+        using var directory = new TempDirectory();
+        var source = Path.Combine(directory.Path, "source.db");
+        var encrypted = Path.Combine(directory.Path, "source.enc");
+        var decrypted = Path.Combine(directory.Path, "decrypted.db");
+        File.WriteAllText(source, "secret");
+        SyncEncryptionService.EncryptFileWithPassphrase(
+            source,
+            encrypted,
+            "correct horse battery staple");
+
+        Assert.ThrowsAny<CryptographicException>(() =>
+            SyncEncryptionService.DecryptFileWithPassphrase(
+                encrypted,
+                decrypted,
+                "wrong passphrase that is long enough"));
+    }
+
+    [Fact]
+    public void LegacyDecryptRejectsVersionThreeWithClearMessage()
+    {
+        using var directory = new TempDirectory();
+        var source = Path.Combine(directory.Path, "source.db");
+        var encrypted = Path.Combine(directory.Path, "source.enc");
+        var decrypted = Path.Combine(directory.Path, "decrypted.db");
+        File.WriteAllText(source, "secret");
+        SyncEncryptionService.EncryptFileWithPassphrase(
+            source,
+            encrypted,
+            "correct horse battery staple");
+
+        var exception = Assert.ThrowsAny<CryptographicException>(() =>
+            SyncEncryptionService.DecryptFile(
+                encrypted,
+                decrypted,
+                SyncEncryptionService.GenerateKey()));
+        Assert.Contains("passphrase", exception.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Theory]
+    [InlineData("short", false)]
+    [InlineData("aaaaaaaaaaaa", false)]
+    [InlineData("123456789012", false)]
+    [InlineData("abcdefghijkl", false)]
+    [InlineData("correct horse battery staple", true)]
+    [InlineData("Longer-Passphrase-9", true)]
+    public void PassphrasePolicyRequiresLengthAndVariety(string passphrase, bool expected)
+    {
+        Assert.Equal(expected, SyncEncryptionService.IsPassphraseAcceptable(passphrase));
+        if (expected)
+        {
+            SyncEncryptionService.ValidatePassphrase(passphrase);
+        }
+        else
+        {
+            Assert.Throws<ArgumentException>(() =>
+                SyncEncryptionService.ValidatePassphrase(passphrase));
+        }
     }
 
     private static void EncryptVersionOne(string sourcePath, string destinationPath, string key)

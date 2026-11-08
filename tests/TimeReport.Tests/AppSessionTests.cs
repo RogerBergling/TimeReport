@@ -182,6 +182,38 @@ public sealed class AppSessionTests
     }
 
     [Fact]
+    public void SwitchDatabaseTreatsSymlinkAliasAsLiveDatabase()
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        var root = NewTempDirectory();
+        try
+        {
+            var originalPath = Path.Combine(root, "original.db");
+            var aliasPath = Path.Combine(root, "alias.db");
+            var settingsPath = Path.Combine(root, "settings.json");
+            using var session = new AppSession(
+                databaseOverride: originalPath,
+                settingsPath: settingsPath);
+            session.Service.CreateProject("Original");
+            File.CreateSymbolicLink(aliasPath, originalPath);
+
+            var service = session.SwitchDatabase(aliasPath, copyCurrentData: false);
+
+            Assert.Same(session.Service, service);
+            Assert.Equal(Path.GetFullPath(originalPath), session.Database.Path);
+            Assert.Equal(["Original"], service.ListProjects().Select(item => item.Name));
+        }
+        finally
+        {
+            Directory.Delete(root, true);
+        }
+    }
+
+    [Fact]
     public void SwitchingDatabaseDisablesDropboxAutoSync()
     {
         var root = NewTempDirectory();
@@ -260,6 +292,24 @@ public sealed class AppSessionTests
     }
 
     [Fact]
+    public void OversizedSettingsFileIsRejected()
+    {
+        var root = NewTempDirectory();
+        try
+        {
+            var path = Path.Combine(root, "settings.json");
+            File.WriteAllBytes(path, new byte[FileSafety.MaxSettingsBytes + 1]);
+
+            var exception = Assert.Throws<SettingsException>(() => AppSettings.Load(path));
+            Assert.Contains("too large", exception.Message, StringComparison.OrdinalIgnoreCase);
+        }
+        finally
+        {
+            Directory.Delete(root, true);
+        }
+    }
+
+    [Fact]
     public void SettingsRoundTrip()
     {
         var root = NewTempDirectory();
@@ -284,6 +334,7 @@ public sealed class AppSessionTests
                 DropboxAccessToken = "token",
                 DropboxAccessTokenExpiresUtc = new DateTimeOffset(2026, 10, 29, 13, 0, 0, TimeSpan.Zero),
                 DropboxRemotePath = "/TimeReport/timereport.db",
+                DropboxSyncPassphrase = "correct horse battery staple",
                 DropboxAutoSync = true,
                 DropboxLastSyncUtc = new DateTimeOffset(2026, 10, 29, 12, 0, 0, TimeSpan.Zero),
             };
@@ -306,6 +357,7 @@ public sealed class AppSessionTests
             Assert.Equal(settings.DropboxAccessToken, loaded.DropboxAccessToken);
             Assert.Equal(settings.DropboxAccessTokenExpiresUtc, loaded.DropboxAccessTokenExpiresUtc);
             Assert.Equal(settings.DropboxRemotePath, loaded.DropboxRemotePath);
+            Assert.Equal(settings.DropboxSyncPassphrase, loaded.DropboxSyncPassphrase);
             Assert.Equal(settings.DropboxAutoSync, loaded.DropboxAutoSync);
             Assert.Equal(settings.DropboxLastSyncUtc, loaded.DropboxLastSyncUtc);
         }

@@ -284,13 +284,24 @@ public sealed class DropboxSyncCoordinator
             var uploadPath = temporary;
             if (_session.Settings.DropboxSyncEncryptionEnabled)
             {
-                var key = _session.Settings.DropboxSyncKey;
-                if (string.IsNullOrWhiteSpace(key))
+                var passphrase = _session.Settings.DropboxSyncPassphrase;
+                if (!string.IsNullOrWhiteSpace(passphrase))
                 {
-                    throw new DropboxSyncException(
-                        LocalizationService.T("DropboxSyncKeyMissing"));
+                    SyncEncryptionService.EncryptFileWithPassphrase(
+                        temporary,
+                        encrypted,
+                        passphrase);
                 }
-                SyncEncryptionService.EncryptFile(temporary, encrypted, key);
+                else
+                {
+                    var key = _session.Settings.DropboxSyncKey;
+                    if (string.IsNullOrWhiteSpace(key))
+                    {
+                        throw new DropboxSyncException(
+                            LocalizationService.T("DropboxSyncKeyMissing"));
+                    }
+                    SyncEncryptionService.EncryptFile(temporary, encrypted, key);
+                }
                 uploadPath = encrypted;
             }
 
@@ -332,7 +343,22 @@ public sealed class DropboxSyncCoordinator
         {
             await DownloadRemoteAsync(temporary, cancellationToken);
             var source = temporary;
-            if (SyncEncryptionService.IsEncryptedFile(temporary))
+            var containerVersion = SyncEncryptionService.GetContainerVersion(temporary);
+            if (containerVersion == SyncContainerVersion.Version3)
+            {
+                var passphrase = _session.Settings.DropboxSyncPassphrase;
+                if (string.IsNullOrWhiteSpace(passphrase))
+                {
+                    throw new DropboxSyncException(
+                        LocalizationService.T("DropboxSyncPassphraseMissing"));
+                }
+                SyncEncryptionService.DecryptFileWithPassphrase(
+                    temporary,
+                    plaintext,
+                    passphrase);
+                source = plaintext;
+            }
+            else if (containerVersion is SyncContainerVersion.Version1 or SyncContainerVersion.Version2)
             {
                 var key = _session.Settings.DropboxSyncKey;
                 if (string.IsNullOrWhiteSpace(key))
@@ -342,6 +368,13 @@ public sealed class DropboxSyncCoordinator
                 }
                 SyncEncryptionService.DecryptFile(temporary, plaintext, key);
                 source = plaintext;
+            }
+            else if (_session.Settings.DropboxSyncEncryptionEnabled)
+            {
+                // Never silently accept a plaintext remote copy while the user has
+                // explicitly enabled sync encryption.
+                throw new DropboxSyncException(
+                    LocalizationService.T("DropboxPlaintextRejected"));
             }
 
             try

@@ -33,6 +33,23 @@ public sealed class DropboxSyncCoordinatorTests
     }
 
     [Fact]
+    public async Task UploadWithPassphraseUsesVersionThreeContainer()
+    {
+        using var context = new SessionContext();
+        context.Session.Service.CreateProject("Local");
+        context.Session.Settings.DropboxSyncPassphrase = "correct horse battery staple";
+        Configure(context.Session, lastSync: null);
+        var dropbox = new FakeDropboxSyncService { RemoteMetadata = null };
+        var coordinator = new DropboxSyncCoordinator(context.Session, dropbox);
+
+        var result = await coordinator.AutoSyncAfterChangeAsync();
+
+        Assert.Equal(DropboxSyncStatus.Uploaded, result.Status);
+        Assert.NotNull(dropbox.RemoteContent);
+        Assert.Equal("TRSYNC3\0"u8.ToArray(), dropbox.RemoteContent[..8]);
+    }
+
+    [Fact]
     public async Task AutoSyncRefusesToOverwriteRemoteChanges()
     {
         using var context = new SessionContext();
@@ -73,6 +90,123 @@ public sealed class DropboxSyncCoordinatorTests
         Assert.Equal(["Remote"], target.Session.Service.ListProjects().Select(project => project.Name));
         Assert.NotNull(target.Session.Settings.DropboxLastSyncUtc);
         Assert.NotNull(result.AutoBackupPath);
+    }
+
+    [Fact]
+    public async Task EncryptionEnabledRejectsPlaintextRemoteDownload()
+    {
+        using var source = new SessionContext();
+        source.Session.Service.CreateProject("Remote");
+        var plainPath = Path.Combine(source.Directory, "plain.db");
+        source.Session.Database.BackupToPlaintext(plainPath);
+
+        using var target = new SessionContext();
+        target.Session.Settings.DropboxSyncEncryptionEnabled = true;
+        Configure(target.Session, lastSync: null);
+        var dropbox = new FakeDropboxSyncService
+        {
+            RemoteMetadata = new DropboxMetadata(DateTimeOffset.UtcNow, "remote", null),
+            RemoteContent = await File.ReadAllBytesAsync(plainPath),
+        };
+        var coordinator = new DropboxSyncCoordinator(target.Session, dropbox);
+
+        var result = await coordinator.SyncNowAsync();
+
+        Assert.Equal(DropboxSyncStatus.Error, result.Status);
+        Assert.Contains(
+            LocalizationService.T("DropboxPlaintextRejected"),
+            result.Message,
+            StringComparison.Ordinal);
+        Assert.Empty(target.Session.Service.ListProjects());
+        Assert.Equal(1, dropbox.DownloadCount);
+    }
+
+    [Fact]
+    public async Task EncryptionDisabledAcceptsPlaintextRemoteDownload()
+    {
+        using var source = new SessionContext();
+        source.Session.Service.CreateProject("Remote");
+        var plainPath = Path.Combine(source.Directory, "plain.db");
+        source.Session.Database.BackupToPlaintext(plainPath);
+
+        using var target = new SessionContext();
+        target.Session.Settings.DropboxSyncEncryptionEnabled = false;
+        Configure(target.Session, lastSync: null);
+        var dropbox = new FakeDropboxSyncService
+        {
+            RemoteMetadata = new DropboxMetadata(DateTimeOffset.UtcNow, "remote", null),
+            RemoteContent = await File.ReadAllBytesAsync(plainPath),
+        };
+        var coordinator = new DropboxSyncCoordinator(target.Session, dropbox);
+
+        var result = await coordinator.SyncNowAsync();
+
+        Assert.Equal(DropboxSyncStatus.Downloaded, result.Status);
+        Assert.Equal(["Remote"], target.Session.Service.ListProjects().Select(project => project.Name));
+    }
+
+    [Fact]
+    public async Task VersionThreeRemoteDownloadUsesStoredPassphrase()
+    {
+        const string passphrase = "correct horse battery staple";
+        using var source = new SessionContext();
+        source.Session.Service.CreateProject("Remote");
+        var plainPath = Path.Combine(source.Directory, "plain.db");
+        var encryptedPath = plainPath + ".enc";
+        source.Session.Database.BackupToPlaintext(plainPath);
+        SyncEncryptionService.EncryptFileWithPassphrase(
+            plainPath,
+            encryptedPath,
+            passphrase);
+
+        using var target = new SessionContext();
+        target.Session.Settings.DropboxSyncPassphrase = passphrase;
+        target.Session.Settings.DropboxSyncEncryptionEnabled = true;
+        Configure(target.Session, lastSync: null);
+        var dropbox = new FakeDropboxSyncService
+        {
+            RemoteMetadata = new DropboxMetadata(DateTimeOffset.UtcNow, "remote", null),
+            RemoteContent = await File.ReadAllBytesAsync(encryptedPath),
+        };
+        var coordinator = new DropboxSyncCoordinator(target.Session, dropbox);
+
+        var result = await coordinator.SyncNowAsync();
+
+        Assert.Equal(DropboxSyncStatus.Downloaded, result.Status);
+        Assert.Equal(["Remote"], target.Session.Service.ListProjects().Select(project => project.Name));
+    }
+
+    [Fact]
+    public async Task VersionThreeRemoteDownloadWithoutPassphraseFails()
+    {
+        using var source = new SessionContext();
+        source.Session.Service.CreateProject("Remote");
+        var plainPath = Path.Combine(source.Directory, "plain.db");
+        var encryptedPath = plainPath + ".enc";
+        source.Session.Database.BackupToPlaintext(plainPath);
+        SyncEncryptionService.EncryptFileWithPassphrase(
+            plainPath,
+            encryptedPath,
+            "correct horse battery staple");
+
+        using var target = new SessionContext();
+        target.Session.Settings.DropboxSyncEncryptionEnabled = true;
+        Configure(target.Session, lastSync: null);
+        var dropbox = new FakeDropboxSyncService
+        {
+            RemoteMetadata = new DropboxMetadata(DateTimeOffset.UtcNow, "remote", null),
+            RemoteContent = await File.ReadAllBytesAsync(encryptedPath),
+        };
+        var coordinator = new DropboxSyncCoordinator(target.Session, dropbox);
+
+        var result = await coordinator.SyncNowAsync();
+
+        Assert.Equal(DropboxSyncStatus.Error, result.Status);
+        Assert.Contains(
+            LocalizationService.T("DropboxSyncPassphraseMissing"),
+            result.Message,
+            StringComparison.Ordinal);
+        Assert.Empty(target.Session.Service.ListProjects());
     }
 
     [Fact]

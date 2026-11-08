@@ -4,36 +4,86 @@ using System.Text;
 
 namespace TimeReport.Services;
 
+public enum SyncContainerVersion
+{
+    None = 0,
+    Version1 = 1,
+    Version2 = 2,
+    Version3 = 3,
+}
+
 /// <summary>
 /// Authenticated, chunked AES-GCM container used for Dropbox uploads.
-/// Version 2 authenticates a per-file identifier, chunk index, chunk length and
-/// final marker. Version 1 files remain readable for backward compatibility.
+/// Version 3 derives a per-file key from the sync passphrase with PBKDF2 and a
+/// random salt stored in the container. Version 1 and 2 files remain readable
+/// with their legacy derived key.
 /// </summary>
 public static class SyncEncryptionService
 {
     private static readonly byte[] MagicV1 = "TRSYNC1\0"u8.ToArray();
     private static readonly byte[] MagicV2 = "TRSYNC2\0"u8.ToArray();
+    private static readonly byte[] MagicV3 = "TRSYNC3\0"u8.ToArray();
     private const int FileIdSize = 16;
+    private const int SaltSize = 16;
     private const int ChunkSize = 1024 * 1024;
     private const int NonceSize = 12;
     private const int TagSize = 16;
+    private const int LegacyPbkdf2Iterations = 200_000;
+    private const int Pbkdf2Iterations = 600_000;
+    private const int MinimumPassphraseLength = 12;
+    private const int MinimumDistinctCharacters = 6;
 
-    public static bool IsEncryptedFile(string path)
+    public static SyncContainerVersion GetContainerVersion(string path)
     {
-        if (!File.Exists(path))
+        if (!PathSafety.IsRegularFile(path))
         {
-            return false;
+            return SyncContainerVersion.None;
         }
-        using var stream = File.OpenRead(path);
-        Span<byte> header = stackalloc byte[8];
-        var read = stream.ReadAtLeast(header, header.Length, throwOnEndOfStream: false);
-        return read == header.Length &&
-               (header.SequenceEqual(MagicV1) || header.SequenceEqual(MagicV2));
+
+        try
+        {
+            using var stream = File.OpenRead(path);
+            Span<byte> header = stackalloc byte[8];
+            var read = stream.ReadAtLeast(header, header.Length, throwOnEndOfStream: false);
+            if (read != header.Length)
+            {
+                return SyncContainerVersion.None;
+            }
+            if (header.SequenceEqual(MagicV1))
+            {
+                return SyncContainerVersion.Version1;
+            }
+            if (header.SequenceEqual(MagicV2))
+            {
+                return SyncContainerVersion.Version2;
+            }
+            if (header.SequenceEqual(MagicV3))
+            {
+                return SyncContainerVersion.Version3;
+            }
+            return SyncContainerVersion.None;
+        }
+        catch (IOException)
+        {
+            return SyncContainerVersion.None;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return SyncContainerVersion.None;
+        }
     }
+
+    public static bool IsEncryptedFile(string path) =>
+        GetContainerVersion(path) != SyncContainerVersion.None;
 
     public static string GenerateKey() =>
         Convert.ToBase64String(RandomNumberGenerator.GetBytes(32));
 
+    /// <summary>
+    /// Legacy version 1/2 key derivation with a fixed salt. Kept only so existing
+    /// settings and containers continue to work. New passphrase containers use a
+    /// random per-file salt.
+    /// </summary>
     public static string DeriveKey(string passphrase)
     {
         if (string.IsNullOrWhiteSpace(passphrase))
@@ -41,21 +91,186 @@ public static class SyncEncryptionService
             throw new ArgumentException("Enter a sync passphrase.", nameof(passphrase));
         }
         var salt = Encoding.UTF8.GetBytes("TimeReport sync encryption v1");
-        var key = Rfc2898DeriveBytes.Pbkdf2(
-            passphrase,
-            salt,
-            200_000,
-            HashAlgorithmName.SHA256,
-            32);
-        return Convert.ToBase64String(key);
+        return Convert.ToBase64String(
+            DeriveKeyBytes(passphrase, salt, LegacyPbkdf2Iterations));
+    }
+
+    public static bool IsPassphraseAcceptable(string? passphrase)
+    {
+        if (string.IsNullOrWhiteSpace(passphrase))
+        {
+            return false;
+        }
+
+        var value = passphrase.Trim();
+        if (value.Length < MinimumPassphraseLength ||
+            value.Distinct().Count() < MinimumDistinctCharacters)
+        {
+            return false;
+        }
+
+        if (value.Length < 16)
+        {
+            var categories = 0;
+            if (value.Any(char.IsLower))
+            {
+                categories++;
+            }
+            if (value.Any(char.IsUpper))
+            {
+                categories++;
+            }
+            if (value.Any(char.IsDigit))
+            {
+                categories++;
+            }
+            if (value.Any(character => !char.IsLetterOrDigit(character)))
+            {
+                categories++;
+            }
+            if (categories < 3)
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    public static void ValidatePassphrase(string passphrase)
+    {
+        if (string.IsNullOrWhiteSpace(passphrase))
+        {
+            throw new ArgumentException("Enter a sync passphrase.", nameof(passphrase));
+        }
+        if (!IsPassphraseAcceptable(passphrase))
+        {
+            throw new ArgumentException(
+                "Use a sync passphrase with at least 12 characters and more variety. " +
+                "A longer multi-word passphrase is recommended.");
+        }
     }
 
     public static void EncryptFile(string sourcePath, string destinationPath, string key)
     {
         var keyBytes = DecodeKey(key);
-        using var source = File.OpenRead(sourcePath);
-        using var destination = File.Create(destinationPath);
-        destination.Write(MagicV2);
+        using var source = OpenSource(sourcePath);
+        using var destination = AppPaths.CreatePrivateFileStream(
+            destinationPath,
+            FileMode.Create,
+            FileAccess.Write,
+            FileShare.None);
+        EncryptFileCore(source, destination, MagicV2, salt: null, keyBytes);
+        destination.Flush();
+        AppPaths.SecureFile(destinationPath);
+    }
+
+    public static void EncryptFileWithPassphrase(
+        string sourcePath,
+        string destinationPath,
+        string passphrase)
+    {
+        if (string.IsNullOrWhiteSpace(passphrase))
+        {
+            throw new ArgumentException("Enter a sync passphrase.", nameof(passphrase));
+        }
+
+        var salt = RandomNumberGenerator.GetBytes(SaltSize);
+        var keyBytes = DeriveKeyBytes(passphrase, salt, Pbkdf2Iterations);
+        using var source = OpenSource(sourcePath);
+        using var destination = AppPaths.CreatePrivateFileStream(
+            destinationPath,
+            FileMode.Create,
+            FileAccess.Write,
+            FileShare.None);
+        EncryptFileCore(source, destination, MagicV3, salt, keyBytes);
+        destination.Flush();
+        AppPaths.SecureFile(destinationPath);
+    }
+
+    public static void DecryptFile(string sourcePath, string destinationPath, string key)
+    {
+        var keyBytes = DecodeKey(key);
+        using var source = OpenSource(sourcePath);
+        Span<byte> header = stackalloc byte[8];
+        ReadExactly(source, header);
+
+        using var destination = AppPaths.CreatePrivateFileStream(
+            destinationPath,
+            FileMode.Create,
+            FileAccess.Write,
+            FileShare.None);
+        if (header.SequenceEqual(MagicV2))
+        {
+            var fileId = new byte[FileIdSize];
+            ReadExactly(source, fileId);
+            DecryptVersion2Records(source, destination, keyBytes, MagicV2, fileId);
+        }
+        else if (header.SequenceEqual(MagicV1))
+        {
+            DecryptVersion1(source, destination, keyBytes);
+        }
+        else if (header.SequenceEqual(MagicV3))
+        {
+            throw new CryptographicException(
+                "The sync file uses version 3 encryption. Enter the sync passphrase used on the device that uploaded it.");
+        }
+        else
+        {
+            throw new CryptographicException("The sync file is not a TimeReport encrypted container.");
+        }
+
+        destination.Flush();
+        AppPaths.SecureFile(destinationPath);
+    }
+
+    public static void DecryptFileWithPassphrase(
+        string sourcePath,
+        string destinationPath,
+        string passphrase)
+    {
+        if (string.IsNullOrWhiteSpace(passphrase))
+        {
+            throw new ArgumentException("Enter a sync passphrase.", nameof(passphrase));
+        }
+
+        using var source = OpenSource(sourcePath);
+        Span<byte> header = stackalloc byte[8];
+        ReadExactly(source, header);
+        if (!header.SequenceEqual(MagicV3))
+        {
+            throw new CryptographicException(
+                "The sync file is not a version 3 TimeReport encrypted container.");
+        }
+
+        var salt = new byte[SaltSize];
+        ReadExactly(source, salt);
+        var fileId = new byte[FileIdSize];
+        ReadExactly(source, fileId);
+        var keyBytes = DeriveKeyBytes(passphrase, salt, Pbkdf2Iterations);
+
+        using var destination = AppPaths.CreatePrivateFileStream(
+            destinationPath,
+            FileMode.Create,
+            FileAccess.Write,
+            FileShare.None);
+        DecryptVersion2Records(source, destination, keyBytes, MagicV3, fileId);
+        destination.Flush();
+        AppPaths.SecureFile(destinationPath);
+    }
+
+    private static void EncryptFileCore(
+        Stream source,
+        Stream destination,
+        byte[] magic,
+        byte[]? salt,
+        byte[] keyBytes)
+    {
+        destination.Write(magic);
+        if (salt is not null)
+        {
+            destination.Write(salt);
+        }
         var fileId = RandomNumberGenerator.GetBytes(FileIdSize);
         destination.Write(fileId);
 
@@ -72,7 +287,7 @@ public static class SyncEncryptionService
         {
             RandomNumberGenerator.Fill(nonce);
             var associatedData = BuildAssociatedData(
-                MagicV2,
+                magic,
                 fileId,
                 chunkIndex,
                 read,
@@ -89,7 +304,7 @@ public static class SyncEncryptionService
 
         RandomNumberGenerator.Fill(nonce);
         var finalAssociatedData = BuildAssociatedData(
-            MagicV2,
+            magic,
             fileId,
             chunkIndex,
             0,
@@ -101,41 +316,15 @@ public static class SyncEncryptionService
             tag,
             finalAssociatedData);
         WriteRecord(destination, lengthBuffer, 0, nonce, tag, ReadOnlySpan<byte>.Empty);
-
-        destination.Flush();
-        AppPaths.SecureFile(destinationPath);
     }
 
-    public static void DecryptFile(string sourcePath, string destinationPath, string key)
+    private static void DecryptVersion2Records(
+        Stream source,
+        Stream destination,
+        byte[] keyBytes,
+        byte[] magic,
+        byte[] fileId)
     {
-        var keyBytes = DecodeKey(key);
-        using var source = File.OpenRead(sourcePath);
-        Span<byte> header = stackalloc byte[8];
-        ReadExactly(source, header);
-
-        using var destination = File.Create(destinationPath);
-        if (header.SequenceEqual(MagicV2))
-        {
-            DecryptVersion2(source, destination, keyBytes);
-        }
-        else if (header.SequenceEqual(MagicV1))
-        {
-            DecryptVersion1(source, destination, keyBytes);
-        }
-        else
-        {
-            throw new CryptographicException("The sync file is not a TimeReport encrypted container.");
-        }
-
-        destination.Flush();
-        AppPaths.SecureFile(destinationPath);
-    }
-
-    private static void DecryptVersion2(Stream source, Stream destination, byte[] keyBytes)
-    {
-        var fileId = new byte[FileIdSize];
-        ReadExactly(source, fileId);
-
         var plain = new byte[ChunkSize];
         var cipher = new byte[ChunkSize];
         var nonce = new byte[NonceSize];
@@ -158,7 +347,7 @@ public static class SyncEncryptionService
             if (length == 0)
             {
                 var finalAssociatedData = BuildAssociatedData(
-                    MagicV2,
+                    magic,
                     fileId,
                     chunkIndex,
                     0,
@@ -178,7 +367,7 @@ public static class SyncEncryptionService
 
             ReadExactly(source, cipher.AsSpan(0, length));
             var associatedData = BuildAssociatedData(
-                MagicV2,
+                magic,
                 fileId,
                 chunkIndex,
                 length,
@@ -258,6 +447,34 @@ public static class SyncEncryptionService
             length);
         associatedData[^1] = final ? (byte)1 : (byte)0;
         return associatedData;
+    }
+
+    private static byte[] DeriveKeyBytes(
+        string passphrase,
+        byte[] salt,
+        int iterations) =>
+        Rfc2898DeriveBytes.Pbkdf2(
+            passphrase,
+            salt,
+            iterations,
+            HashAlgorithmName.SHA256,
+            32);
+
+    private static FileStream OpenSource(string path)
+    {
+        try
+        {
+            FileSafety.EnsureRegularFile(
+                path,
+                FileSafety.MaxDatabaseBytes,
+                "sync file");
+        }
+        catch (IOException exception)
+        {
+            throw new CryptographicException(exception.Message, exception);
+        }
+
+        return File.OpenRead(path);
     }
 
     private static byte[] DecodeKey(string key)

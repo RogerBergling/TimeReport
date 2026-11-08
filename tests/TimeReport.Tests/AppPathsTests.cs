@@ -136,24 +136,134 @@ public sealed class AppPathsTests
         Directory.CreateDirectory(directory);
         try
         {
+            AppPaths.MarkAppDataDirectory(directory);
             var tempDir = AppPaths.TempDir(directory);
             Directory.CreateDirectory(tempDir);
             var staleRoot = Path.Combine(directory, ".dropbox-upload-stale.db");
             var staleTemp = Path.Combine(tempDir, ".dropbox-download-stale.db.plain.db");
+            var staleExport = Path.Combine(tempDir, ".timereport-export-stale.xlsx");
             var unrelated = Path.Combine(directory, "notes.txt");
+            var unrelatedTemp = Path.Combine(tempDir, "user-file.txt");
             File.WriteAllText(staleRoot, "stale");
             File.WriteAllText(staleTemp, "stale");
+            File.WriteAllText(staleExport, "stale");
             File.WriteAllText(unrelated, "keep");
+            File.WriteAllText(unrelatedTemp, "keep");
 
             AppPaths.CleanupTemporaryFiles(directory);
 
             Assert.False(File.Exists(staleRoot));
             Assert.False(File.Exists(staleTemp));
+            Assert.False(File.Exists(staleExport));
             Assert.True(File.Exists(unrelated));
+            Assert.True(File.Exists(unrelatedTemp));
         }
         finally
         {
             Directory.Delete(directory, true);
+        }
+    }
+
+    [Fact]
+    public void CleanupTemporaryFilesSkipsUnmarkedDirectories()
+    {
+        var directory = Path.Combine(
+            Path.GetTempPath(),
+            "timereport-tests",
+            Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(directory);
+        try
+        {
+            var tempDir = AppPaths.TempDir(directory);
+            Directory.CreateDirectory(tempDir);
+            var staleRoot = Path.Combine(directory, ".dropbox-upload-stale.db");
+            var staleTemp = Path.Combine(tempDir, ".dropbox-download-stale.db.plain.db");
+            var unrelatedTemp = Path.Combine(tempDir, "user-file.txt");
+            File.WriteAllText(staleRoot, "stale");
+            File.WriteAllText(staleTemp, "stale");
+            File.WriteAllText(unrelatedTemp, "keep");
+
+            AppPaths.CleanupTemporaryFiles(directory);
+
+            Assert.True(File.Exists(staleRoot));
+            Assert.True(File.Exists(staleTemp));
+            Assert.True(File.Exists(unrelatedTemp));
+        }
+        finally
+        {
+            Directory.Delete(directory, true);
+        }
+    }
+
+    [Fact]
+    public void EnsureDataDirDoesNotHardenExistingUnmarkedDirectory()
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        var directory = Path.Combine(
+            Path.GetTempPath(),
+            "timereport-tests",
+            Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(directory);
+        try
+        {
+            var mode =
+                UnixFileMode.UserRead |
+                UnixFileMode.UserWrite |
+                UnixFileMode.UserExecute |
+                UnixFileMode.GroupRead |
+                UnixFileMode.GroupExecute |
+                UnixFileMode.OtherRead |
+                UnixFileMode.OtherExecute;
+            File.SetUnixFileMode(directory, mode);
+
+            AppPaths.EnsureDataDir(directory);
+
+            Assert.Equal(mode, File.GetUnixFileMode(directory));
+            Assert.False(File.Exists(
+                Path.Combine(directory, AppPaths.DataDirectoryMarkerFileName)));
+        }
+        finally
+        {
+            Directory.Delete(directory, true);
+        }
+    }
+
+    [Fact]
+    public void EnsureDataDirMarksNewAppDirectory()
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        var directory = Path.Combine(
+            Path.GetTempPath(),
+            "timereport-tests",
+            Guid.NewGuid().ToString("N"),
+            "data");
+        try
+        {
+            AppPaths.EnsureDataDir(directory);
+
+            Assert.True(File.Exists(
+                Path.Combine(directory, AppPaths.DataDirectoryMarkerFileName)));
+            Assert.Equal(
+                UnixFileMode.UserRead |
+                UnixFileMode.UserWrite |
+                UnixFileMode.UserExecute,
+                File.GetUnixFileMode(directory));
+            Assert.True(AppPaths.IsAppOwnedDataDir(directory));
+        }
+        finally
+        {
+            if (Directory.Exists(directory))
+            {
+                Directory.Delete(directory, true);
+            }
         }
     }
 

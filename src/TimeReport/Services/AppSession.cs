@@ -83,7 +83,9 @@ public sealed class AppSession : IDisposable
             }
             if (string.IsNullOrWhiteSpace(Settings.DropboxSyncKey))
             {
-                Settings.DropboxSyncKey = SyncEncryptionService.GenerateKey();
+                Settings.DropboxSyncKey = !string.IsNullOrWhiteSpace(Settings.DropboxSyncPassphrase)
+                    ? SyncEncryptionService.DeriveKey(Settings.DropboxSyncPassphrase!)
+                    : SyncEncryptionService.GenerateKey();
                 keyGenerated = true;
             }
             if (keyGenerated)
@@ -116,14 +118,19 @@ public sealed class AppSession : IDisposable
 
     public TimeReportService SwitchDatabase(string newPath, bool copyCurrentData)
     {
-        var fullPath = Path.GetFullPath(newPath);
+        var fullPath = Path.GetFullPath(AppPaths.ExpandHome(newPath));
         if (Directory.Exists(fullPath))
         {
             fullPath = Path.Combine(fullPath, "timereport.db");
         }
-        if (PathsEqual(fullPath, Database.Path))
+        if (PathSafety.AreSameFile(fullPath, Database.Path))
         {
             return Service;
+        }
+        if (PathSafety.IsDatabaseFile(fullPath, Database.Path))
+        {
+            throw new DatabaseException(
+                "The selected path is a sidecar file of the live database.");
         }
 
         if (File.Exists(fullPath))

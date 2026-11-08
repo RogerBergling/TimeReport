@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Security;
+using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 
 namespace TimeReport.Services;
@@ -20,14 +21,17 @@ public static class HttpClientFactory
         var handler = new HttpClientHandler();
         if (!string.IsNullOrWhiteSpace(settings.DropboxProxyUrl))
         {
-            if (Uri.TryCreate(settings.DropboxProxyUrl.Trim(), UriKind.Absolute, out var proxyUri))
+            if (TryValidateProxyUrl(settings.DropboxProxyUrl, out var containsCredentials))
             {
                 handler.UseProxy = true;
-                handler.Proxy = new WebProxy(proxyUri);
+                handler.Proxy = new WebProxy(new Uri(settings.DropboxProxyUrl.Trim()));
             }
             else
             {
-                AppLog.Warn($"Ignoring invalid proxy URL: {settings.DropboxProxyUrl}");
+                var reason = containsCredentials
+                    ? "Ignoring proxy URL with embedded credentials"
+                    : "Ignoring invalid proxy URL";
+                AppLog.Warn($"{reason}: {RedactProxyUrl(settings.DropboxProxyUrl)}");
             }
         }
 
@@ -38,8 +42,21 @@ public static class HttpClientFactory
             !string.IsNullOrWhiteSpace(caPath) &&
             File.Exists(caPath))
         {
-            handler.ServerCertificateCustomValidationCallback =
-                (_, certificate, _, errors) => ValidateWithCustomCa(certificate, errors, caPath);
+            try
+            {
+                FileSafety.EnsureRegularFile(
+                    caPath,
+                    FileSafety.MaxCertificateBytes,
+                    "custom CA certificate");
+                handler.ServerCertificateCustomValidationCallback =
+                    (_, certificate, _, errors) => ValidateWithCustomCa(certificate, errors, caPath);
+            }
+            catch (IOException exception)
+            {
+                AppLog.Warn(
+                    $"Ignoring custom CA certificate file {Path.GetFileName(caPath)}.",
+                    exception);
+            }
         }
 
         return new HttpClient(handler)
@@ -48,7 +65,58 @@ public static class HttpClientFactory
         };
     }
 
-    private static bool ValidateWithCustomCa(
+    /// <summary>
+    /// Validates that a proxy URL is an absolute HTTP(S) URL without embedded
+    /// credentials. Credentials in proxy URLs leak into logs and settings dumps.
+    /// </summary>
+    public static bool TryValidateProxyUrl(string? value, out bool containsCredentials)
+    {
+        containsCredentials = false;
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return true;
+        }
+
+        if (!Uri.TryCreate(value.Trim(), UriKind.Absolute, out var uri) ||
+            (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps) ||
+            string.IsNullOrWhiteSpace(uri.Host))
+        {
+            return false;
+        }
+
+        if (!string.IsNullOrEmpty(uri.UserInfo))
+        {
+            containsCredentials = true;
+            return false;
+        }
+
+        return true;
+    }
+
+    /// <summary>
+    /// Removes user information (and query/fragment data) before a proxy URL is
+    /// written to the log.
+    /// </summary>
+    public static string RedactProxyUrl(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return string.Empty;
+        }
+
+        if (!Uri.TryCreate(value.Trim(), UriKind.Absolute, out var uri) ||
+            (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps) ||
+            string.IsNullOrWhiteSpace(uri.Host))
+        {
+            return "<invalid>";
+        }
+
+        return uri.GetComponents(
+            UriComponents.SchemeAndServer | UriComponents.Path,
+            UriFormat.UriEscaped);
+    }
+
+    internal static bool ValidateWithCustomCa(
         X509Certificate2? certificate,
         SslPolicyErrors errors,
         string caPath)
@@ -66,6 +134,10 @@ public static class HttpClientFactory
             using var chain = new X509Chain();
             chain.ChainPolicy.TrustMode = X509ChainTrustMode.CustomRootTrust;
             chain.ChainPolicy.CustomTrustStore.Add(root);
+            // Require a TLS server authentication EKU even when the system trust
+            // result was overridden by a custom enterprise root.
+            chain.ChainPolicy.ApplicationPolicy.Add(
+                new Oid("1.3.6.1.5.5.7.3.1"));
             // Internal enterprise roots often have no reachable revocation endpoint.
             // The user explicitly selected this CA for Dropbox; keep the build
             // deterministic instead of failing every request while offline.

@@ -48,7 +48,12 @@ public static class XlsxWriter
 
         try
         {
-            using (var archive = ZipFile.Open(temporary, ZipArchiveMode.Create))
+            using (var stream = AppPaths.CreatePrivateFileStream(
+                       temporary,
+                       FileMode.CreateNew,
+                       FileAccess.ReadWrite,
+                       FileShare.None))
+            using (var archive = new ZipArchive(stream, ZipArchiveMode.Create))
             {
                 WriteEntry(archive, "[Content_Types].xml", BuildContentTypes(sheets));
                 WriteEntry(archive, "_rels/.rels", BuildRootRelationships());
