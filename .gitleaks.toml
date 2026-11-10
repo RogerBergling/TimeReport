@@ -1,0 +1,7 @@
+title = "TimeReport Gitleaks configuration"
+
+[allowlist]
+description = "Compiled self-contained release binaries are scanned from source instead"
+paths = [
+  '''release/''',
+]
