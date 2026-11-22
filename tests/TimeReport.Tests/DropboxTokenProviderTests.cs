@@ -203,6 +203,17 @@ public sealed class DropboxOAuthServiceTests
         await stream.FlushAsync();
         client.Client.Shutdown(SocketShutdown.Send);
         using var reader = new StreamReader(stream, Encoding.ASCII);
-        await reader.ReadToEndAsync();
+        try
+        {
+            await reader.ReadToEndAsync();
+        }
+        catch (IOException)
+        {
+            // The listener intentionally closes oversized or rejected requests
+            // without a response; Windows reports that as a reset connection.
+        }
+        catch (SocketException)
+        {
+        }
     }
 }

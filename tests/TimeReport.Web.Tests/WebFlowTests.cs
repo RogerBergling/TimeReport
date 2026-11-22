@@ -344,7 +344,9 @@ public sealed partial class WebFlowTests
 
     private static async Task CreateProjectAsync(HttpClient client, string name)
     {
-        var page = await client.GetStringAsync("/projects");
+        var pageResponse = await client.GetAsync("/projects");
+        var page = await pageResponse.Content.ReadAsStringAsync();
+        Assert.True(pageResponse.IsSuccessStatusCode, page);
         var response = await PostFormAsync(
             client,
             "/projects?handler=Create",
