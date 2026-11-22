@@ -1,8 +1,9 @@
 # syntax=docker/dockerfile:1
 
-ARG DOTNET_VERSION=10.0
+ARG DOTNET_SDK_VERSION=10.0.403
+ARG DOTNET_RUNTIME_VERSION=10.0.14
 
-FROM mcr.microsoft.com/dotnet/sdk:${DOTNET_VERSION}-noble AS build
+FROM mcr.microsoft.com/dotnet/sdk:${DOTNET_SDK_VERSION}-noble AS build
 
 ARG BUILD_NUMBER=local
 ARG BUILD_COMMIT=unknown
@@ -27,7 +28,7 @@ RUN dotnet publish src/TimeReport.Web/TimeReport.Web.csproj \
       -p:BuildNumber="${BUILD_NUMBER}" \
       -p:BuildCommit="${BUILD_COMMIT}"
 
-FROM mcr.microsoft.com/dotnet/aspnet:${DOTNET_VERSION}-noble AS runtime
+FROM mcr.microsoft.com/dotnet/aspnet:${DOTNET_RUNTIME_VERSION}-noble AS runtime
 
 ARG DEBIAN_FRONTEND=noninteractive
 ARG DEMO_MODE=false
