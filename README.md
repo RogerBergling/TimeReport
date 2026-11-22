@@ -1,11 +1,16 @@
 # TimeReport
 
-A local-first desktop time report for Linux and Windows, written in C#/.NET 10 with
+A local-first desktop time report for Linux and Windows, plus a multiuser web
+application for self-hosting. The desktop app is written in C#/.NET 10 with
 Avalonia. The published executables are self-contained single-file binaries: they do
 not require Python or a separate .NET installation.
 
-> **Just want to use it?** Download one executable and run it. No installer, account,
-> or .NET installation is required. [Jump to the quick start](#the-easy-way-to-get-up-and-running)
+> **Just want the desktop app?** Download one executable and run it. No installer,
+> account, or .NET installation is required. [Jump to the quick start](#the-easy-way-to-get-up-and-running)
+>
+> **Want the web app?** Run the container with Docker Compose, terminate TLS in your
+> reverse proxy, and create accounts with mandatory TOTP. See
+> [`docs/WEB.md`](docs/WEB.md) for the full deployment and security guide.
 
 ## The easy way to get up and running
 
@@ -70,9 +75,50 @@ settings files.
 - [Build from source](#building-from-source) — for developers
 
 The rest of this README is the full reference for data, backups, Dropbox, building,
-packaging and operations.
+packaging and operations. The web application is documented separately in
+[`docs/WEB.md`](docs/WEB.md).
 
-## Screenshots
+## Web application
+
+The web build is a server-rendered ASP.NET Core application in
+`src/TimeReport.Web`. It adds:
+
+- admin-created accounts and an administrator role;
+- mandatory TOTP with QR enrollment and one-time recovery codes;
+- a private encrypted SQLCipher database per account;
+- password hashing, login throttling, CSRF protection, strict security headers,
+  secure cookies and an encrypted audit log;
+- the same timesheet rules, projects, entry types, totals and Excel export as the
+  desktop application.
+
+Quick start:
+
+```bash
+./scripts/generate-master-key.sh
+cp .env.example .env
+# Edit .env: set your domain and proxy CIDR, keep the port on loopback.
+docker compose pull
+docker compose up -d
+docker compose logs -f timereport
+```
+
+Open `https://your-domain/setup`. The first-run token is printed once in the
+container log unless you set `TIMEREPORT_SETUP_TOKEN`. The reverse proxy must
+terminate TLS and pass `X-Forwarded-Proto: https`.
+
+The image is published to
+`ghcr.io/rogerbergling/timereport-web` for `linux/amd64` and `linux/arm64`.
+Read [`docs/WEB.md`](docs/WEB.md) before exposing it to a network. In particular,
+back up the master key with the data volume; without it, every encrypted database
+is unrecoverable.
+
+A disposable public demo image is published as
+`ghcr.io/rogerbergling/timereport-web-demo`. It runs with fake data, guest/guest
+plus TOTP shown on the login page, and a tmpfs database that resets every two
+hours. See [`compose.demo.yaml`](compose.demo.yaml) and the demo section of
+[`docs/WEB.md`](docs/WEB.md). Never put real data in the demo image.
+
+## Desktop screenshots
 
 ![TimeReport main window](docs/screenshots/main-window.png)
 
@@ -82,7 +128,7 @@ packaging and operations.
 
 *Totals view with daily rows, X-Pause and overtime.*
 
-## Features
+## Desktop features
 
 - Weekly timesheet showing all seven days, Monday–Sunday.
 - Multiple entries per day: work, lunch, away and X-Pause.
@@ -346,6 +392,10 @@ the README, MIT license and third-party notices. See [`packaging/README.md`](pac
 dotnet test TimeReport.slnx -c Release
 ```
 
+The web tests include first-run setup, TOTP, recovery-code login, admin pages and
+per-user data isolation. They use temporary data directories and do not touch a
+real deployment.
+
 The Linux GUI smoke test requires Xvfb:
 
 ```bash
@@ -356,22 +406,28 @@ xvfb-run -a dotnet run --project src/TimeReport/TimeReport.csproj -c Release -- 
 ## Project layout
 
 ```text
-src/TimeReport/
+src/TimeReport.Core/        Shared domain, SQLCipher persistence, totals, Excel
+src/TimeReport/             Avalonia desktop application
   App.axaml                 Application theme and startup
   Program.cs                CLI and Avalonia bootstrap
-  Data/Database.cs          SQLite schema, migrations, backup and restore
-  Models/                   Projects, entries, totals
-  Services/                 Validation, totals, paths, time utilities, logging
-  Services/ExcelExportService.cs  Excel workbook generation
-  Services/XlsxWriter.cs    Dependency-free XLSX writer
+  AppSession.cs             Desktop settings, database and single-instance guard
   ViewModels/               Main timesheet and totals view models
   Views/                    Main window and dialogs
   Styles/AppStyles.axaml    Shared light/dark theme resources
-  Assets/                   Application icon
+src/TimeReport.Web/         ASP.NET Core Razor Pages web application
+  Auth/                     Accounts, passwords, TOTP, recovery codes, audit
+  Security/                 Master key, cookies, headers, throttling
+  Services/                 Per-user database access and middleware
+  Pages/                    Sign-in, timesheet, totals, projects, admin
+  wwwroot/                  Portal theme CSS, JS and icon
 packaging/                  Linux desktop entry and packaging notes
-scripts/                    Linux/Windows packaging scripts
-tests/TimeReport.Tests/     xUnit tests for time, database, validation, totals,
-                            backup, Dropbox sync, token protection and Excel export
+docker/                     Container entrypoint
+scripts/                    Packaging and master-key scripts
+tests/TimeReport.Tests/     Desktop/core xUnit tests
+tests/TimeReport.Web.Tests/ Web auth and multiuser integration tests
+Dockerfile                  Multi-stage web image
+compose.yaml                Hardened Docker Compose example
+docs/WEB.md                 Web deployment, security and operations guide
 ```
 
 ## Settings
@@ -473,7 +529,10 @@ before trying again.
 - The live database and automatic backups are encrypted at rest. Plaintext sync
   snapshots exist only transiently in an owner-only temp folder and are cleaned up on
   startup. A plaintext Dropbox copy is never imported while sync encryption is enabled.
-  The app is intended for local, single-user use.
+  The desktop app is intended for local, single-user use. The web app is multiuser;
+  each account has its own encrypted database. The admin UI does not expose another
+  user's timesheet, but administrators can perform audited password/MFA resets, which
+  can grant account access for support or recovery.
 - Dates are ISO dates and times use the 24-hour clock.
 
 ## License
@@ -487,8 +546,9 @@ own risk. See [TERMS.md](TERMS.md) for the disclaimer and responsibilities.
 See [CONTRIBUTING.md](CONTRIBUTING.md) for build, test and release steps,
 [CHANGELOG.md](CHANGELOG.md) for release history, [SECURITY.md](SECURITY.md) for
 the security policy, [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md) for
-dependency licenses and [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the
-architecture overview.
+dependency licenses, [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the
+architecture overview and [docs/WEB.md](docs/WEB.md) for web deployment and
+operations.
 
 ## Version
 

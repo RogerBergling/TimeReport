@@ -1,8 +1,11 @@
 <Solution>
   <Folder Name="/src/">
+    <Project Path="src/TimeReport.Core/TimeReport.Core.csproj" />
     <Project Path="src/TimeReport/TimeReport.csproj" />
+    <Project Path="src/TimeReport.Web/TimeReport.Web.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/TimeReport.Tests/TimeReport.Tests.csproj" />
+    <Project Path="tests/TimeReport.Web.Tests/TimeReport.Web.Tests.csproj" />
   </Folder>
 </Solution>

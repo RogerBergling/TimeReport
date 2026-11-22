@@ -1,0 +1,137 @@
+@page
+@model TimeReport.Web.Pages.Entries.EditModel
+@{
+    ViewData["Title"] = Model.IsEdit ? "Edit entry" : "Add entry";
+    var entryTypes = Model.Types;
+    var projects = Model.Projects;
+}
+
+<div class="page-head">
+    <div>
+        <p class="eyebrow">Timesheet</p>
+        <h1>@(Model.IsEdit ? "Edit entry" : "Add entry")</h1>
+        <p class="page-sub">Work entries need a project. Away entries need a reason. X-Pause must sit inside a work entry.</p>
+    </div>
+    <a class="btn btn-ghost" asp-page="/Index" asp-route-week="@Model.ReturnWeek">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-arrow-left"></use></svg>
+        Back to week
+    </a>
+</div>
+
+<div class="split">
+    <section class="panel">
+        <div class="panel-head">
+            <div>
+                <h2>Entry details</h2>
+                <p>Times use the 24-hour clock. A work entry must end on the same date.</p>
+            </div>
+        </div>
+        <div class="panel-body">
+            <form method="post" novalidate>
+                <input type="hidden" asp-for="Id" />
+                <div class="form-grid">
+                    <div class="field">
+                        <label asp-for="Date">@LocalizationService.T("LabelDate")</label>
+                        <input asp-for="Date" type="date" required />
+                    </div>
+                    <div class="field">
+                        <label asp-for="TypeId">@LocalizationService.T("LabelType")</label>
+                        <select asp-for="TypeId" id="TypeId" required>
+                            @foreach (var type in entryTypes)
+                            {
+                                <option value="@type.Id" data-category="@type.Category.ToDbString()">
+                                    @type.DisplayName
+                                </option>
+                            }
+                        </select>
+                    </div>
+                    <div class="field" data-entry-project>
+                        <label asp-for="ProjectId">@LocalizationService.T("LabelProject")</label>
+                        <select asp-for="ProjectId">
+                            <option value="">— choose a project —</option>
+                            @foreach (var project in projects)
+                            {
+                                <option value="@project.Id">@project.Name@(project.Archived ? " (archived)" : "")</option>
+                            }
+                        </select>
+                        @if (projects.Count == 0)
+                        {
+                            <p class="hint">
+                                No projects yet. <a asp-page="/Projects">Create one first</a>.
+                            </p>
+                        }
+                    </div>
+                    <div class="field" data-entry-away>
+                        <label asp-for="AwayReason">@LocalizationService.T("LabelAwayReason")</label>
+                        <input asp-for="AwayReason" maxlength="80" placeholder="Reason for the away time" />
+                    </div>
+                    <div class="field">
+                        <label>@LocalizationService.T("LabelTime")</label>
+                        <div class="inline-fields">
+                            <div class="field">
+                                <label asp-for="Start">@LocalizationService.T("LabelStart")</label>
+                                <input asp-for="Start" inputmode="numeric" placeholder="HH:MM" class="mono" required />
+                            </div>
+                            <div class="field">
+                                <label asp-for="End">@LocalizationService.T("LabelEnd")</label>
+                                <input asp-for="End" inputmode="numeric" placeholder="HH:MM" class="mono" required />
+                            </div>
+                        </div>
+                    </div>
+                    <div class="field">
+                        <label asp-for="TimeZoneId">@LocalizationService.T("LabelTimeZone")</label>
+                        <select asp-for="TimeZoneId">
+                            @foreach (var zone in Model.TimeZones)
+                            {
+                                <option value="@zone.Id">@zone.DisplayName</option>
+                            }
+                        </select>
+                    </div>
+                </div>
+
+                @if (!string.IsNullOrWhiteSpace(Model.XPauseHint))
+                {
+                    <div class="callout calm mt-1">@Model.XPauseHint</div>
+                }
+
+                <div class="field-actions">
+                    <a class="btn btn-ghost" asp-page="/Index" asp-route-week="@Model.ReturnWeek">Cancel</a>
+                    <button class="btn btn-primary" type="submit">
+                        <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-check"></use></svg>
+                        @LocalizationService.T("ButtonSave")
+                    </button>
+                </div>
+            </form>
+
+            @if (Model.IsEdit)
+            {
+                <hr class="divider" />
+                <form method="post" asp-page-handler="Delete" asp-route-id="@Model.Id"
+                      data-confirm="Delete this entry?">
+                    <button class="btn btn-danger" type="submit">
+                        <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-trash"></use></svg>
+                        Delete entry
+                    </button>
+                </form>
+            }
+        </div>
+    </section>
+
+    <section class="panel">
+        <div class="panel-head">
+            <div>
+                <h2>Rules</h2>
+                <p>Validation is transactional and runs on the server.</p>
+            </div>
+        </div>
+        <div class="panel-body">
+            <ul class="security-list">
+                <li><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-check"></use></svg><span>Work cannot overlap work or away time.</span></li>
+                <li><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-check"></use></svg><span>Lunch may overlap work and is deducted from worked time.</span></li>
+                <li><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-check"></use></svg><span>Away time is tracked separately and needs a reason.</span></li>
+                <li><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-check"></use></svg><span>X-Pause is Monday–Friday only, in 15-minute steps, inside work hours, max 1:00 per ISO week.</span></li>
+                <li><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-check"></use></svg><span>Archived projects and types remain valid on historical entries only.</span></li>
+            </ul>
+        </div>
+    </section>
+</div>

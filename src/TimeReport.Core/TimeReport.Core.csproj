@@ -1,0 +1,32 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <AnalysisLevel>latest-recommended</AnalysisLevel>
+    <Version>2.6.1</Version>
+    <AssemblyVersion>2.6.1.0</AssemblyVersion>
+    <FileVersion>2.6.1.0</FileVersion>
+    <BuildNumber Condition="'$(BuildNumber)' == ''">local</BuildNumber>
+    <BuildCommit Condition="'$(BuildCommit)' == ''">$(SourceRevisionId)</BuildCommit>
+    <Authors>Roger Bergling</Authors>
+    <Company>Roger Bergling</Company>
+    <Description>Shared domain, persistence and service layer for TimeReport.</Description>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <RepositoryUrl>https://github.com/RogerBergling/TimeReport</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <InvariantGlobalization>true</InvariantGlobalization>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <AssemblyMetadata Include="BuildNumber" Value="$(BuildNumber)" />
+    <AssemblyMetadata Include="BuildCommit" Value="$(BuildCommit)" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Data.Sqlite.Core" />
+    <PackageReference Include="SQLitePCLRaw.bundle_e_sqlcipher" />
+    <PackageReference Include="System.Security.Cryptography.ProtectedData" />
+  </ItemGroup>
+</Project>

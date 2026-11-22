@@ -38,7 +38,10 @@ jobs:
       - name: Check vulnerable packages
         run: |
           dotnet list src/TimeReport/TimeReport.csproj package --vulnerable --include-transitive
+          dotnet list src/TimeReport.Core/TimeReport.Core.csproj package --vulnerable --include-transitive
+          dotnet list src/TimeReport.Web/TimeReport.Web.csproj package --vulnerable --include-transitive
           dotnet list tests/TimeReport.Tests/TimeReport.Tests.csproj package --vulnerable --include-transitive
+          dotnet list tests/TimeReport.Web.Tests/TimeReport.Web.Tests.csproj package --vulnerable --include-transitive
       - name: Upload coverage
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
@@ -80,7 +83,10 @@ jobs:
       - name: Check vulnerable packages
         run: |
           dotnet list src/TimeReport/TimeReport.csproj package --vulnerable --include-transitive
+          dotnet list src/TimeReport.Core/TimeReport.Core.csproj package --vulnerable --include-transitive
+          dotnet list src/TimeReport.Web/TimeReport.Web.csproj package --vulnerable --include-transitive
           dotnet list tests/TimeReport.Tests/TimeReport.Tests.csproj package --vulnerable --include-transitive
+          dotnet list tests/TimeReport.Web.Tests/TimeReport.Web.Tests.csproj package --vulnerable --include-transitive
       - name: Format check
         run: dotnet format TimeReport.slnx --verify-no-changes --no-restore
       - name: GUI smoke test

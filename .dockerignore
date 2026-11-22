@@ -32,3 +32,12 @@ target
 .idea
 Dockerfile
 docker-compose*.yml
+secrets
+data
+tests
+release
+docs
+packaging
+bin
+obj
+TestResults

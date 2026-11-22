@@ -1,0 +1,85 @@
+@page
+@model TimeReport.Web.Pages.Account.SettingsModel
+@{
+    ViewData["Title"] = "Settings";
+    ViewData["Active"] = "account";
+}
+
+<div class="page-head">
+    <div>
+        <p class="eyebrow">Account</p>
+        <h1>Settings</h1>
+        <p class="page-sub">Time zone, overtime thresholds and backup retention. The web UI is English in this release.</p>
+    </div>
+    <a class="btn btn-ghost" asp-page="/Account/Security">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-shield"></use></svg>
+        Security
+    </a>
+</div>
+
+<form method="post" novalidate>
+    <section class="panel">
+        <div class="panel-head">
+            <div>
+                <h2>Profile</h2>
+                <p>Your username is permanent. The display name can be changed.</p>
+            </div>
+        </div>
+        <div class="panel-body">
+            <div class="form-grid">
+                <div class="field">
+                    <label>Username</label>
+                    <input value="@Model.CurrentUser.Username" readonly disabled />
+                </div>
+                <div class="field">
+                    <label asp-for="DisplayName">Display name</label>
+                    <input asp-for="DisplayName" autocomplete="name" maxlength="80" />
+                </div>
+                <div class="field">
+                    <label asp-for="TimeZoneId">Time zone</label>
+                    <select asp-for="TimeZoneId">
+                        @foreach (var zone in Model.TimeZones)
+                        {
+                            <option value="@zone.Id">@zone.DisplayName</option>
+                        }
+                    </select>
+                    <p class="hint">Controls "today" and the default dates for new entries.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="panel">
+        <div class="panel-head">
+            <div>
+                <h2>Overtime</h2>
+                <p>Set a daily threshold, a weekly threshold, or both. Use 0 to disable.</p>
+            </div>
+        </div>
+        <div class="panel-body">
+            <div class="form-grid">
+                <div class="field">
+                    <label asp-for="OvertimeDailyHours">Daily threshold (hours)</label>
+                    <input asp-for="OvertimeDailyHours" type="number" min="0" max="24" step="0.25" />
+                </div>
+                <div class="field">
+                    <label asp-for="OvertimeWeeklyHours">Weekly threshold (hours)</label>
+                    <input asp-for="OvertimeWeeklyHours" type="number" min="0" max="168" step="0.25" />
+                </div>
+                <div class="field">
+                    <label asp-for="BackupRetentionCount">Automatic backup retention</label>
+                    <input asp-for="BackupRetentionCount" type="number" min="1" max="365" />
+                    <p class="hint">Used by automatic pre-restore, pre-migration and pre-repair backups.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <div class="btn-row">
+        <button class="btn btn-primary" type="submit">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-check"></use></svg>
+            Save settings
+        </button>
+        <a class="btn btn-ghost" asp-page="/Index">Cancel</a>
+    </div>
+</form>

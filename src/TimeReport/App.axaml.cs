@@ -13,6 +13,20 @@ public partial class App : Application
     public override void Initialize()
     {
         AvaloniaXamlLoader.Load(this);
+        LocalizationService.LanguageChanged += ApplyLocalizationResources;
+    }
+
+    private static void ApplyLocalizationResources()
+    {
+        if (Application.Current is null)
+        {
+            return;
+        }
+
+        foreach (var (key, value) in LocalizationService.Translations(LocalizationService.CurrentLanguage))
+        {
+            Application.Current.Resources[key] = value;
+        }
     }
 
     public override void OnFrameworkInitializationCompleted()

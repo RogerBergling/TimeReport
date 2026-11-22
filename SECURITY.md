@@ -18,6 +18,51 @@ and include:
 You will receive an acknowledgement when the report has been reviewed. Please allow
 time for a fix before publishing details.
 
+## Web application
+
+The web build in `src/TimeReport.Web` is a separate ASP.NET Core deployment. It
+terminates no TLS itself; put it behind a TLS reverse proxy, bind it to loopback
+or a private interface, and trust forwarded headers only from the configured
+proxy addresses.
+
+- The deployment master key is supplied with `TIMEREPORT_MASTER_KEY_FILE` or
+  `TIMEREPORT_MASTER_KEY`. HKDF-SHA256 derives the authentication database key,
+  every user database key, the AES-GCM key for TOTP secrets and the HMAC key for
+  recovery-code hashes and pending-MFA tokens. The emergency MFA reset is
+  available only to someone who controls the master key and data volume.
+- Every account has a private SQLCipher database. The admin UI does not provide a
+  direct view of another account's time entries, but administrators can perform
+  audited password and MFA resets, which can grant access to an account for
+  support or recovery. A host operator with the volume and master key can decrypt
+  the files.
+- Passwords use PBKDF2-HMAC-SHA256 with 210,000 iterations and a per-user salt.
+  TOTP is mandatory for every account, uses a 30-second step with replay
+  protection, and requires single-use recovery codes before application access.
+- Authentication cookies are encrypted, `HttpOnly`, `SameSite=Strict`,
+  `Secure` in production and use the `__Host-` prefix. Data Protection keys are
+  kept only in the container temporary filesystem, so a restart signs everyone
+  out. Account state and TOTP secrets are in the encrypted auth database.
+- State-changing forms use antiforgery tokens. Responses send a strict Content
+  Security Policy, `X-Content-Type-Options`, `X-Frame-Options`,
+  `Referrer-Policy`, `Permissions-Policy`, COOP/CORP and HSTS on HTTPS.
+- Password, MFA, recovery-code, re-authentication and setup attempts are
+  rate-limited. Authentication and account changes are written to an encrypted
+  audit log without passwords, codes or secrets.
+- The image runs as a non-root user. The example compose file uses a read-only
+  root filesystem, a private `/tmp`, `no-new-privileges`, all capabilities
+  dropped and a persistent `/data` volume.
+- Back up the master key with the data volume. Without the key, every encrypted
+  database is unrecoverable. See [`docs/WEB.md`](docs/WEB.md).
+
+## Public demo
+
+`TIMEREPORT_DEMO_MODE=true` is a deliberately insecure, disposable mode for the
+public demo image. It creates a `guest` administrator, publishes the password,
+TOTP secret and a recovery code on the sign-in page, seeds fake data and deletes
+its database state on every restart. Never enable demo mode on a production
+deployment or attach a production volume to the demo image. Use
+`compose.demo.yaml` with a dedicated tmpfs and hostname.
+
 ## Data and network model
 
 - The SQLite database is encrypted at rest with SQLCipher. The database key and

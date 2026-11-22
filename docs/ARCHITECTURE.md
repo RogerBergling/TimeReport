@@ -1,27 +1,30 @@
 # Architecture
 
-TimeReport is a single-process Avalonia desktop application. The design keeps the
-UI, domain rules, persistence and integrations in separate layers so they can be
-tested without a window.
+TimeReport has two front ends over one shared domain layer:
+
+- a single-process Avalonia desktop application for Linux and Windows;
+- a server-rendered ASP.NET Core web application for multiuser self-hosting.
+
+`TimeReport.Core` owns the domain rules, validation, totals, SQLCipher persistence
+and Excel export. The desktop and web projects add their own UI, settings and
+deployment concerns.
 
 ## Layers
 
 ```text
-Views / ViewModels
-        |
-        v
-Services (TimeReportService, ExcelExportService, DropboxSyncCoordinator)
-        |
-        v
-Data (Database, migrations, backup/restore)
-        |
-        v
-SQLite file
+Desktop Views / ViewModels        Web Razor Pages / auth
+              \                    /
+               v                  v
+        TimeReport.Core (TimeReportService, ExcelExportService,
+                         validation, totals, Database, migrations)
+                         |
+                         v
+                    SQLite/SQLCipher
 ```
 
-### Startup
+### Desktop startup
 
-`Program` parses `--database`, `--data-dir`, `--version` and `--smoke-test`.
+The desktop `Program` parses `--database`, `--data-dir`, `--version` and `--smoke-test`.
 `App` creates an `AppSession`, which loads settings, resolves the database path,
 opens SQLite, applies migrations and exposes a `TimeReportService`. The main window
 binds to `MainWindowViewModel` and `TotalsViewModel`. The header displays the
@@ -124,9 +127,70 @@ newer version is available. Release URLs are restricted to HTTPS GitHub release 
 for this repository; update checks use the system certificate trust store. Database
 maintenance supports integrity checks, compaction and repair with a pre-repair backup.
 
+## Web application
+
+```text
+Razor Pages / wwwroot
+        |
+        v
+ASPNET Core auth, antiforgery, security headers, TOTP gate
+        |
+        +--> AuthDatabase (SQLCipher)        users, MFA, audit
+        |
+        +--> UserDataStore (SQLCipher)       one database per account
+                  |
+                  v
+             TimeReportService
+                  |
+                  v
+             ExcelExportService
+```
+
+The master key is never stored by the application. HKDF-SHA256 derives:
+
+- the authentication database key;
+- a per-account time database key, keyed by the account GUID;
+- an AES-GCM key for TOTP secrets;
+- an HMAC key for recovery-code hashes and pending-MFA tokens.
+
+`AuthDatabase` uses short-lived SQLCipher connections so ASP.NET Core requests can
+run concurrently. `UserDataStore` opens one private database per request and uses
+SQLite WAL mode for short overlapping reads and writes. The account database and
+the time databases are separate, so admin account operations never require
+opening a user's time data.
+
+Authentication is a two-stage flow. Password verification creates a short-lived,
+single-use pending-MFA record if TOTP is confirmed. A successful TOTP or recovery
+code consumes the record and issues the encrypted authentication cookie. The
+cookie contains a security stamp; password changes, MFA resets, role changes and
+disable operations rotate the stamp and invalidate existing sessions.
+
+TOTP is mandatory. Middleware keeps authenticated users inside the setup flow:
+temporary password change, TOTP enrollment, then recovery-code generation. The
+same middleware prevents a half-configured account from opening the timesheet.
+
+The web app deliberately does not include Dropbox sync, update checks or desktop
+database import. It has no public JSON API; all state changes are Razor Page form
+posts protected by antiforgery tokens. The CSP blocks inline scripts, inline
+styles and third-party requests.
+
+### Demo mode
+
+`TIMEREPORT_DEMO_MODE=true` is a disposable deployment mode. Startup removes
+TimeReport database files, creates a random in-memory master key, seeds a public
+`guest` administrator with fake data, and opens a public `/demo/otp` endpoint so
+the sign-in page can display a current TOTP code. A hosted service stops the
+process after the configured interval; the container restarts, tmpfs data is
+lost and the seeder rebuilds the demo. Guest credential mutations are blocked so
+visitors cannot lock out the shared account. The demo image is built separately
+and must never be pointed at a production volume.
+
 ## Tests
 
 `tests/TimeReport.Tests` contains xUnit tests for time parsing, validation, totals,
 database migrations, backup/restore, path safety, settings/key failure handling,
 single-instance locking, versioned sync encryption, Dropbox sync and Excel export.
-Tests run serially because some services use static localization and logging state.
+`tests/TimeReport.Web.Tests` covers TOTP vectors, key derivation, recovery codes,
+encrypted auth/user databases, first-run setup, login with TOTP and recovery
+codes, admin pages and per-user data isolation. Tests run serially because some
+services use static localization and logging state.

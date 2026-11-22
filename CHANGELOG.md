@@ -7,6 +7,27 @@ and the project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- Multiuser ASP.NET Core web application with a portal-inspired dark/light theme.
+- First-run administrator setup, admin-created accounts and an administrator role.
+- Mandatory TOTP with QR enrollment, single-use recovery codes and a break-glass
+  administrator MFA reset command.
+- One private SQLCipher database per account, keyed with HKDF from a deployment
+  master key separate from the data volume.
+- Web timesheet, totals, projects, entry types and Excel export.
+- Per-user time zone, overtime and backup-retention settings.
+- Encrypted authentication audit log.
+- Hardened multi-stage Docker image, Docker Compose example, environment template,
+  master-key generation script and GHCR multi-arch publishing workflow.
+- Shared `TimeReport.Core` library used by both the desktop and web applications.
+- Web integration tests for setup, TOTP, recovery-code login, admin pages and
+  per-user data isolation.
+- Disposable public demo image with guest/guest + TOTP shown on the login page,
+  seeded fake timesheet data, guest administrator access, protected demo
+  credentials and a two-hour tmpfs restart/reset cycle.
+- Separate GHCR production and demo images built from the same commit.
+
 ### Security
 
 - Encrypt pre-encryption migration backups with the database key.

@@ -39,8 +39,9 @@
     <PackageReference Include="Avalonia.Themes.Fluent" />
     <PackageReference Include="Avalonia.Fonts.Inter" />
     <PackageReference Include="CommunityToolkit.Mvvm" />
-    <PackageReference Include="Microsoft.Data.Sqlite.Core" />
-    <PackageReference Include="SQLitePCLRaw.bundle_e_sqlcipher" />
-    <PackageReference Include="System.Security.Cryptography.ProtectedData" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\TimeReport.Core\TimeReport.Core.csproj" />
   </ItemGroup>
 </Project>

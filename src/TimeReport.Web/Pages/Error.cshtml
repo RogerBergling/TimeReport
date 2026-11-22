@@ -1,0 +1,23 @@
+@page
+@model TimeReport.Web.Pages.ErrorModel
+@{
+    ViewData["Title"] = Model.Heading;
+}
+
+<div class="page-head">
+    <div>
+        <p class="eyebrow">HTTP @Model.HttpStatus</p>
+        <h1>@Model.Heading</h1>
+        <p class="page-sub">@Model.Message</p>
+    </div>
+</div>
+
+<div class="panel">
+    <div class="panel-body">
+        <div class="btn-row">
+            <a class="btn btn-primary" asp-page="/Index">Go to timesheet</a>
+            <a class="btn btn-ghost" asp-page="/Login">Sign in</a>
+        </div>
+        <p class="hint">Request ID: <code>@HttpContext.TraceIdentifier</code></p>
+    </div>
+</div>

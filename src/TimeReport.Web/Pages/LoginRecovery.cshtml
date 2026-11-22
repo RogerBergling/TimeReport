@@ -1,0 +1,45 @@
+@page "/login/recovery"
+@model TimeReport.Web.Pages.LoginRecoveryModel
+@{
+    ViewData["Title"] = "Recovery code";
+    Layout = "_AuthLayout";
+}
+
+@if (Model.PendingUser is not null)
+{
+    <h1 id="auth-title">Use a recovery code</h1>
+    <p class="auth-lede">
+        Enter one of the single-use recovery codes you saved when you enabled
+        two-factor authentication.
+    </p>
+
+    <partial name="_DemoHint" />
+
+    <form method="post">
+        <input type="hidden" asp-for="ReturnUrl" />
+        <div class="field">
+            <label asp-for="Code">Recovery code</label>
+            <input asp-for="Code" autocomplete="off" autofocus required
+                   placeholder="XXXX-XXXX-XXXX" class="mono" />
+            <p class="hint">Each code can be used once. Regenerate unused codes in Security after signing in.</p>
+        </div>
+        <div class="field-actions">
+            <a asp-page="/LoginMfa">Use an authenticator code</a>
+            <button class="btn btn-primary" type="submit">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-key"></use></svg>
+                Verify
+            </button>
+        </div>
+    </form>
+
+    <div class="auth-footer">
+        <span>Recovery codes are hashed at rest.</span>
+        <a asp-page="/Login">Back to sign in</a>
+    </div>
+}
+else
+{
+    <h1 id="auth-title">Verification expired</h1>
+    <p class="auth-lede">Start again from the sign-in page.</p>
+    <a class="btn btn-primary" asp-page="/Login">Back to sign in</a>
+}

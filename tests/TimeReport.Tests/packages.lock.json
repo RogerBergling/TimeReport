@@ -278,6 +278,12 @@
           "Avalonia.Fonts.Inter": "[12.1.4, )",
           "Avalonia.Themes.Fluent": "[12.1.4, )",
           "CommunityToolkit.Mvvm": "[8.4.2, )",
+          "TimeReport.Core": "[2.6.1, )"
+        }
+      },
+      "timereport.core": {
+        "type": "Project",
+        "dependencies": {
           "Microsoft.Data.Sqlite.Core": "[10.0.14, )",
           "SQLitePCLRaw.bundle_e_sqlcipher": "[2.1.11, )",
           "System.Security.Cryptography.ProtectedData": "[10.0.14, )"

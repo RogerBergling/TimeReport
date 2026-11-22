@@ -13,6 +13,9 @@ binaries and source packages.
 | [SQLCipher](https://www.zetetic.net/sqlcipher/) | BSD-style |
 | [SQLitePCLRaw](https://github.com/ericsink/SQLitePCL.raw) | Apache-2.0 |
 | [System.Security.Cryptography.ProtectedData](https://github.com/dotnet/runtime) | MIT |
+| [ASP.NET Core](https://github.com/dotnet/aspnetcore) (web build) | MIT |
+| [QRCoder](https://github.com/codebude/QRCoder) (web build) | MIT |
+| [System.Drawing.Common](https://github.com/dotnet/runtime) (QRCoder dependency) | MIT |
 | [SQLite](https://www.sqlite.org/) | Public domain |
 | [SkiaSharp](https://github.com/mono/SkiaSharp) | MIT |
 | [HarfBuzzSharp](https://github.com/mono/SkiaSharp) | MIT |

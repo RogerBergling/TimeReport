@@ -1,0 +1,144 @@
+@page
+@model TimeReport.Web.Pages.IndexModel
+@{
+    ViewData["Title"] = "Timesheet";
+    ViewData["Active"] = "timesheet";
+    var week = Model.Week;
+}
+
+<div class="page-head">
+    <div>
+        <p class="eyebrow">Timesheet</p>
+        <h1>Your week</h1>
+        <p class="page-sub">Work, lunch, away and X-Pause for the selected Monday–Sunday week.</p>
+    </div>
+    <a class="btn btn-primary" asp-page="/Entries/Edit" asp-route-date="@week.Start.ToString("yyyy-MM-dd")">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-plus"></use></svg>
+        Add entry
+    </a>
+</div>
+
+<div class="week-toolbar">
+    <a class="btn btn-icon" asp-page="/Index" asp-route-week="@(week.Start.AddDays(-7).ToString("yyyy-MM-dd"))"
+       aria-label="Previous week" title="Previous week">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-arrow-left"></use></svg>
+    </a>
+    <span class="week-label">@week.Label</span>
+    <a class="btn btn-icon" asp-page="/Index" asp-route-week="@(week.Start.AddDays(7).ToString("yyyy-MM-dd"))"
+       aria-label="Next week" title="Next week">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-arrow-right"></use></svg>
+    </a>
+    <a class="btn btn-sm" asp-page="/Index">This week</a>
+    <a class="btn btn-sm btn-ghost" asp-page="/Totals" asp-route-period="week" asp-route-anchor="@(week.Start.ToString("yyyy-MM-dd"))">
+        Open totals
+    </a>
+</div>
+
+<div class="cards">
+    <div class="stat-card">
+        <span class="stat-label">@LocalizationService.T("LabelWorked")</span>
+        <span class="stat-value">@week.WorkedText</span>
+    </div>
+    <div class="stat-card">
+        <span class="stat-label">@LocalizationService.T("LabelLunch")</span>
+        <span class="stat-value">@week.LunchText</span>
+    </div>
+    <div class="stat-card">
+        <span class="stat-label">@LocalizationService.T("LabelAway")</span>
+        <span class="stat-value">@week.AwayText</span>
+    </div>
+    <div class="stat-card">
+        <span class="stat-label">@LocalizationService.T("LabelXPause")</span>
+        <span class="stat-value violet">@week.XPauseText</span>
+    </div>
+    <div class="stat-card">
+        <span class="stat-label">@LocalizationService.T("LabelOvertime")</span>
+        <span class="stat-value accent">@week.OvertimeText</span>
+    </div>
+    <div class="stat-card">
+        <span class="stat-label">@LocalizationService.T("LabelDaysWorked")</span>
+        <span class="stat-value">@week.DaysWorkedText</span>
+    </div>
+</div>
+
+@foreach (var day in week.Days)
+{
+    <section class="day-card @(day.IsToday ? "today" : null)">
+        <div class="day-head">
+            <div class="day-title">
+                @day.Title
+                @if (day.IsToday)
+                {
+                    <span class="today-mark">Today</span>
+                }
+            </div>
+            <div class="day-totals">
+                <span>Worked <strong>@day.WorkedText</strong></span>
+                <span>Lunch <strong>@day.LunchText</strong></span>
+                <span>Away <strong>@day.AwayText</strong></span>
+                <span>X-Pause <strong>@day.XPauseText</strong></span>
+                <span>Overtime <strong>@day.OvertimeText</strong></span>
+            </div>
+            <a class="btn btn-sm btn-ghost" asp-page="/Entries/Edit" asp-route-date="@day.Date.ToString("yyyy-MM-dd")">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-plus"></use></svg>
+                Add
+            </a>
+        </div>
+
+        @if (day.Entries.Count == 0)
+        {
+            <p class="empty-row">No entries yet.</p>
+        }
+        else
+        {
+            <div class="table-wrap table-flush">
+                <table class="entry-table">
+                    <thead>
+                        <tr>
+                            <th>Type</th>
+                            <th>Project / reason</th>
+                            <th>Start</th>
+                            <th>End</th>
+                            <th>Duration</th>
+                            <th class="actions-col">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var entry in day.Entries)
+                        {
+                            <tr>
+                                <td>
+                                    <span class="entry-type @entry.TypeClass">
+                                        <span class="dot" aria-hidden="true"></span>
+                                        @entry.TypeText
+                                    </span>
+                                </td>
+                                <td class="detail">@entry.DetailText</td>
+                                <td class="entry-time">@entry.StartText</td>
+                                <td class="entry-time">@entry.EndText</td>
+                                <td class="entry-duration">@entry.DurationText</td>
+                                <td>
+                                    <div class="table-actions">
+                                        <a class="btn btn-icon" asp-page="/Entries/Edit" asp-route-id="@entry.Id"
+                                           aria-label="Edit @entry.TypeText entry" title="Edit">
+                                            <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-edit"></use></svg>
+                                        </a>
+                                        <form method="post" asp-page="/Index" asp-page-handler="Delete"
+                                              data-confirm="Delete this entry?">
+                                            <input type="hidden" name="id" value="@entry.Id" />
+                                            <input type="hidden" name="week" value="@(week.Start.ToString("yyyy-MM-dd"))" />
+                                            <button class="btn btn-icon" type="submit"
+                                                    aria-label="Delete @entry.TypeText entry" title="Delete">
+                                                <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-trash"></use></svg>
+                                            </button>
+                                        </form>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </section>
+}

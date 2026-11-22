@@ -1,7 +1,12 @@
 title = "TimeReport Gitleaks configuration"
 
 [allowlist]
-description = "Compiled self-contained release binaries are scanned from source instead"
+description = "Compiled release binaries and documented non-secret test tokens are not findings"
 paths = [
   '''release/''',
+]
+regexes = [
+  '''dev-setup-token-1234567890''',
+  '''test-setup-token-1234567890''',
+  '''smoke-test-token-1234567890''',
 ]

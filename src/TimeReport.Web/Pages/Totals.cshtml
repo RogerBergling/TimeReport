@@ -1,0 +1,140 @@
+@page
+@model TimeReport.Web.Pages.TotalsModel
+@{
+    ViewData["Title"] = "Totals";
+    ViewData["Active"] = "totals";
+}
+
+<div class="page-head">
+    <div>
+        <p class="eyebrow">Totals</p>
+        <h1>Time in perspective</h1>
+        <p class="page-sub">Daily, weekly, monthly, yearly and all-time totals for your private data.</p>
+    </div>
+    <a class="btn btn-ghost" asp-page="/Export">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-download"></use></svg>
+        Export
+    </a>
+</div>
+
+<form method="get" class="week-toolbar">
+    <label class="sr-only" for="period">Period</label>
+    <select id="period" name="period" data-auto-submit class="w-10">
+        @foreach (var option in Model.PeriodOptions)
+        {
+            <option value="@option.Code" selected="@(option.Code == Model.PeriodCode ? "selected" : null)">@option.Label</option>
+        }
+    </select>
+    <input type="hidden" name="anchor" value="@Model.Anchor" />
+    @if (Model.CanNavigate)
+    {
+        <a class="btn btn-icon" asp-page="/Totals" asp-route-period="@Model.PeriodCode"
+           asp-route-anchor="@Model.PreviousAnchor" aria-label="Previous period" title="Previous period">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-arrow-left"></use></svg>
+        </a>
+    }
+    <span class="week-label">@Model.PeriodLabel</span>
+    @if (Model.CanNavigate)
+    {
+        <a class="btn btn-icon" asp-page="/Totals" asp-route-period="@Model.PeriodCode"
+           asp-route-anchor="@Model.NextAnchor" aria-label="Next period" title="Next period">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-arrow-right"></use></svg>
+        </a>
+        <a class="btn btn-sm" asp-page="/Totals" asp-route-period="@Model.PeriodCode">Current</a>
+    }
+</form>
+
+<div class="cards">
+    <div class="stat-card">
+        <span class="stat-label">@LocalizationService.T("LabelWorked")</span>
+        <span class="stat-value">@TimeUtil.FormatDuration(Model.Total.WorkedMinutes)</span>
+    </div>
+    <div class="stat-card">
+        <span class="stat-label">@LocalizationService.T("LabelLunch")</span>
+        <span class="stat-value">@TimeUtil.FormatDuration(Model.Total.LunchMinutes)</span>
+    </div>
+    <div class="stat-card">
+        <span class="stat-label">@LocalizationService.T("LabelAway")</span>
+        <span class="stat-value">@TimeUtil.FormatDuration(Model.Total.AwayMinutes)</span>
+    </div>
+    <div class="stat-card">
+        <span class="stat-label">@LocalizationService.T("LabelXPause")</span>
+        <span class="stat-value violet">@TimeUtil.FormatDuration(Model.Total.XPauseMinutes)</span>
+    </div>
+    <div class="stat-card">
+        <span class="stat-label">@LocalizationService.T("LabelOvertime")</span>
+        <span class="stat-value accent">@TimeUtil.FormatDuration(Model.Total.OvertimeMinutes)</span>
+    </div>
+    <div class="stat-card">
+        <span class="stat-label">@LocalizationService.T("LabelDaysWorked")</span>
+        <span class="stat-value">@Model.Total.DaysWorked</span>
+    </div>
+    <div class="stat-card">
+        <span class="stat-label">@LocalizationService.T("LabelDaysAway")</span>
+        <span class="stat-value">@Model.Total.DaysAway</span>
+    </div>
+</div>
+
+<section class="panel">
+    <div class="panel-head">
+        <div>
+            <h2>Breakdown</h2>
+            <p>Rows follow the selected period.</p>
+        </div>
+        <span class="pill accent">@Model.PeriodLabel</span>
+    </div>
+    <div class="panel-body tight">
+        @if (Model.Rows.Count == 0)
+        {
+            <div class="empty-state">
+                <h3>No data in this period</h3>
+                <p>Add an entry to start building totals.</p>
+                <a class="btn btn-primary" asp-page="/Entries/Edit">Add entry</a>
+            </div>
+        }
+        else
+        {
+            <div class="table-wrap">
+                <table class="totals-table">
+                    <thead>
+                        <tr>
+                            <th>@LocalizationService.T("LabelPeriod")</th>
+                            <th class="num">@LocalizationService.T("LabelWorked")</th>
+                            <th class="num">@LocalizationService.T("LabelLunch")</th>
+                            <th class="num">@LocalizationService.T("LabelAway")</th>
+                            <th class="num">@LocalizationService.T("LabelXPause")</th>
+                            <th class="num">@LocalizationService.T("LabelOvertime")</th>
+                            <th class="num">@LocalizationService.T("LabelDaysWorked")</th>
+                            <th class="num">@LocalizationService.T("LabelDaysAway")</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var row in Model.Rows)
+                        {
+                            <tr>
+                                <td>@row.Period</td>
+                                <td class="num">@row.WorkedText</td>
+                                <td class="num">@row.LunchText</td>
+                                <td class="num">@row.AwayText</td>
+                                <td class="num">@row.XPauseText</td>
+                                <td class="num">@row.OvertimeText</td>
+                                <td class="num">@row.DaysWorkedText</td>
+                                <td class="num">@row.DaysAwayText</td>
+                            </tr>
+                        }
+                        <tr class="total-row">
+                            <td>Total</td>
+                            <td class="num">@TimeUtil.FormatDuration(Model.Total.WorkedMinutes)</td>
+                            <td class="num">@TimeUtil.FormatDuration(Model.Total.LunchMinutes)</td>
+                            <td class="num">@TimeUtil.FormatDuration(Model.Total.AwayMinutes)</td>
+                            <td class="num">@TimeUtil.FormatDuration(Model.Total.XPauseMinutes)</td>
+                            <td class="num">@TimeUtil.FormatDuration(Model.Total.OvertimeMinutes)</td>
+                            <td class="num">@Model.Total.DaysWorked</td>
+                            <td class="num">@Model.Total.DaysAway</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+</section>

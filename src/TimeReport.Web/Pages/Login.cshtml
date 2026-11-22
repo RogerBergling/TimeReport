@@ -1,0 +1,42 @@
+@page
+@model TimeReport.Web.Pages.LoginModel
+@{
+    ViewData["Title"] = "Sign in";
+    Layout = "_AuthLayout";
+    ViewData["ShowDemoFill"] = true;
+}
+
+<h1 id="auth-title">Sign in</h1>
+<p class="auth-lede">Use the account created for you by an administrator. Two-factor authentication is required.</p>
+
+<partial name="_DemoHint" />
+
+<form method="post" novalidate>
+    <input type="hidden" asp-for="ReturnUrl" />
+    <div class="field">
+        <label asp-for="Username">Username</label>
+        <input asp-for="Username" autocomplete="username" autofocus required />
+    </div>
+    <div class="field">
+        <label asp-for="Password">Password</label>
+        <div class="inline-fields">
+            <div class="field grow">
+                <input asp-for="Password" type="password" autocomplete="current-password" required />
+            </div>
+            <button class="btn btn-sm" type="button" data-toggle-password="Password"
+                    aria-pressed="false" aria-label="Show password">Show</button>
+        </div>
+    </div>
+    <div class="field-actions">
+        <span class="hint">Accounts are created by an administrator.</span>
+        <button class="btn btn-primary" type="submit">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-lock"></use></svg>
+            Sign in
+        </button>
+    </div>
+</form>
+
+<div class="auth-footer">
+    <span>@AppInfo.Version · build @AppInfo.BuildNumber</span>
+    <a asp-page="/About">About TimeReport</a>
+</div>

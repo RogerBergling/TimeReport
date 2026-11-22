@@ -66,3 +66,16 @@ identity.
 
 TimeReport is released under the MIT License. See `LICENSE`, `TERMS.md` and
 `THIRD-PARTY-NOTICES.md` for the license, disclaimer and dependency licenses.
+
+## Web application
+
+The multiuser web application is published as a container image at
+`ghcr.io/rogerbergling/timereport-web` for `linux/amd64` and `linux/arm64`. It is
+not part of these desktop executables. See `docs/WEB.md` in the repository for the
+Docker Compose example, reverse-proxy setup, TOTP enrollment and backup
+requirements.
+
+A separate public demo image is published at
+`ghcr.io/rogerbergling/timereport-web-demo`. It contains only fake data, uses
+guest/guest plus TOTP printed on the login page, and resets every two hours. It
+is not suitable for real data.

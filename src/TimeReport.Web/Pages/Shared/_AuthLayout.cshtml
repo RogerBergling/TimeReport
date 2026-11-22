@@ -1,0 +1,98 @@
+@{
+    var title = ViewData["Title"] as string;
+    var pageModel = Model as AppPageModel;
+    var fullTitle = string.IsNullOrWhiteSpace(title)
+        ? "TimeReport"
+        : $"{title} · TimeReport";
+}
+<!doctype html>
+<html lang="@LocalizationService.CurrentLanguage" data-theme="dark">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="dark light">
+    <meta name="theme-color" content="#070b14">
+    <title>@fullTitle</title>
+    <link rel="icon" href="~/favicon.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true">
+    <script src="~/js/theme-init.js" asp-append-version="true"></script>
+</head>
+<body class="auth-body">
+<a class="skip-link" href="#main">Skip to content</a>
+<canvas id="matrix" aria-hidden="true"></canvas>
+<div class="scanlines" aria-hidden="true"></div>
+<partial name="_Icons" />
+
+@if (Demo.Enabled)
+{
+    <div class="demo-ribbon" role="status">
+        <span class="pill warn">Demo</span>
+        Fake data only · resets every @Demo.ResetHours hour(s)
+    </div>
+}
+
+<div class="auth-topbar">
+    <button class="tool-btn theme-toggle" id="theme-toggle" type="button"
+            title="Switch theme" aria-label="Switch theme">
+        <svg class="icon-sun" viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-sun"></use></svg>
+        <svg class="icon-moon" viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-moon"></use></svg>
+        <span class="tool-label">Theme</span>
+    </button>
+    <button class="tool-btn" id="matrix-toggle" type="button"
+            title="Toggle matrix background" aria-label="Toggle matrix background" aria-pressed="true">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-matrix"></use></svg>
+        <span class="tool-label">Matrix</span>
+    </button>
+</div>
+
+<main id="main" class="auth-shell">
+    <section class="auth-card" aria-labelledby="auth-title">
+        <a class="brand auth-brand" asp-page="/Login" aria-label="TimeReport">
+            <span class="brand-mark" aria-hidden="true">
+                <svg viewBox="0 0 24 24"><use href="#icon-clock"></use></svg>
+            </span>
+            <span class="brand-text">
+                <strong>TimeReport</strong>
+                <span>Private time reporting</span>
+            </span>
+        </a>
+
+        @if (!string.IsNullOrWhiteSpace(pageModel?.StatusMessage))
+        {
+            <div class="callout success" role="status">@pageModel.StatusMessage</div>
+        }
+        @if (!string.IsNullOrWhiteSpace(pageModel?.ErrorMessage))
+        {
+            <div class="callout danger" role="alert">@pageModel.ErrorMessage</div>
+        }
+        @RenderBody()
+    </section>
+
+    <aside class="auth-aside" aria-label="Security information">
+        <div class="terminal">
+            <div class="terminal-bar">
+                <span class="terminal-dots" aria-hidden="true"><span></span><span></span><span></span></span>
+                <span class="terminal-title">timereport@server:~</span>
+                <span class="terminal-live"><span class="live-dot" aria-hidden="true"></span>secure</span>
+            </div>
+            <pre class="terminal-body"><code><span class="t-prompt">$</span> ./timereport --status
+<span class="t-ok">✓</span> per-user encrypted databases
+<span class="t-ok">✓</span> TOTP required for every account
+<span class="t-ok">✓</span> recovery codes, hashed and single-use
+<span class="t-ok">✓</span> no telemetry, no analytics
+<span class="t-ok">✓</span> no third-party browser requests
+
+<span class="t-prompt">$</span> <span class="cursor">█</span></code></pre>
+            <div class="terminal-foot"><span>SQLCipher · TOTP · ASP.NET Core</span><span>@AppInfo.Version</span></div>
+        </div>
+        <div class="auth-note">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-shield"></use></svg>
+            <p>TLS is terminated by your reverse proxy. This app binds to a private address and never exposes the database key to the browser.</p>
+        </div>
+    </aside>
+</main>
+
+<script src="~/js/site.js" asp-append-version="true" defer></script>
+@await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

@@ -1,0 +1,60 @@
+@inject TimeReport.Web.Auth.TotpService Totp
+@if (Demo.Enabled)
+{
+    var now = DateTimeOffset.UtcNow;
+    var currentCode = Totp.GenerateCode(DemoInfo.GuestTotpSecret, now);
+    var qrDataUrl = Totp.QrCodeDataUrl(
+        Totp.BuildUri(Demo.Issuer, Demo.GuestUsername, DemoInfo.GuestTotpSecret));
+
+    <aside class="demo-card" aria-labelledby="demo-title">
+        <div class="demo-card-head">
+            <span class="pill warn">Demo</span>
+            <h2 id="demo-title">Guest access</h2>
+        </div>
+        <p class="hint">
+            Fake data only. The demo resets every @Demo.ResetHours hour(s).
+            The guest account is an administrator so every page can be explored.
+            The TOTP code changes every 30 seconds; the page refreshes it automatically.
+        </p>
+        <dl class="demo-credentials">
+            <div>
+                <dt>Username</dt>
+                <dd><code>@Demo.GuestUsername</code></dd>
+            </div>
+            <div>
+                <dt>Password</dt>
+                <dd><code>@Demo.GuestPassword</code></dd>
+            </div>
+            <div>
+                <dt>Current TOTP</dt>
+                <dd><span class="secret-code" id="demo-current-code" data-demo-otp>@currentCode</span></dd>
+            </div>
+            <div>
+                <dt>Recovery code</dt>
+                <dd><code>@Demo.GuestRecoveryCode</code></dd>
+            </div>
+        </dl>
+        <p class="hint">
+            TOTP secret:
+            <span class="mono" id="demo-totp-secret">@DemoInfo.GuestTotpSecret</span>
+        </p>
+        <div class="btn-row">
+            @if (ViewData["ShowDemoFill"] is true)
+            {
+                <button class="btn btn-sm" type="button" data-demo-fill>Fill guest credentials</button>
+            }
+            <button class="btn btn-sm" type="button" data-copy-target="demo-current-code">Copy current code</button>
+            <button class="btn btn-sm" type="button" data-copy-target="demo-totp-secret">Copy TOTP secret</button>
+        </div>
+        <details class="demo-qr">
+            <summary>Show authenticator QR code</summary>
+            <div class="qr-code mt-1">
+                <img src="@qrDataUrl" alt="QR code for the TimeReport demo guest" width="190" height="190" />
+            </div>
+        </details>
+        <p class="hint mt-1">
+            Recovery code is one-time. If it has already been used, wait for the next
+            demo reset or log in with the TOTP code.
+        </p>
+    </aside>
+}

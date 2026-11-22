@@ -38,6 +38,7 @@ timereport.log*
 .env
 .env.*
 !.env.example
+!.env.demo.example
 *.pem
 *.key
 id_ed25519
@@ -63,3 +64,8 @@ id_ecdsa
 credentials.json
 terraform.tfstate
 terraform.tfstate.*
+
+# Web deployment data and secrets
+data/
+secrets/*
+!secrets/.gitkeep

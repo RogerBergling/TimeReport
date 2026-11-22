@@ -1,0 +1,116 @@
+@page "/account/recovery-codes"
+@model TimeReport.Web.Pages.Account.RecoveryCodesModel
+@{
+    ViewData["Title"] = "Recovery codes";
+    ViewData["Active"] = "account";
+}
+
+<div class="page-head">
+    <div>
+        <p class="eyebrow">Account security</p>
+        <h1>Recovery codes</h1>
+        <p class="page-sub">
+            Recovery codes let you sign in when your authenticator app is unavailable.
+            Each code works once.
+        </p>
+    </div>
+</div>
+
+@if (Model.Required)
+{
+    <div class="callout warn">
+        <strong>Recovery codes are required.</strong>
+        Generate a set before using the application. If you lose your authenticator and
+        have no codes, an administrator must reset your MFA.
+    </div>
+}
+
+@if (Model.NewCodes is not null)
+{
+    <section class="panel">
+        <div class="panel-head">
+            <div>
+                <h2>Save these codes now</h2>
+                <p>They are not shown again. Store them offline, not in the same place as your password.</p>
+            </div>
+            <span class="pill warn">Shown once</span>
+        </div>
+        <div class="panel-body">
+            <div class="recovery-grid">
+                @foreach (var code in Model.NewCodes)
+                {
+                    <span class="recovery-code">@code</span>
+                }
+            </div>
+            <div class="btn-row">
+                <button class="btn btn-primary" type="button" data-print>
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-download"></use></svg>
+                    Print / save as PDF
+                </button>
+                <a class="btn btn-ghost" asp-page="/Account/Security">I saved them</a>
+            </div>
+            <p class="hint mt-1">Printing uses your browser's print dialog. Choose "Save as PDF" to keep a copy.</p>
+        </div>
+    </section>
+}
+else if (Demo.IsGuest(Model.CurrentUser))
+{
+    <div class="callout warn">
+        <strong>Demo guest recovery codes are fixed.</strong>
+        Use <code>@Demo.GuestRecoveryCode</code> on the sign-in page. Create another
+        user to test credential changes and recovery-code regeneration.
+    </div>
+}
+else
+{
+    <div class="split">
+        <section class="panel">
+            <div class="panel-head">
+                <div>
+                    <h2>Generate a new set</h2>
+                    <p>Generating a new set invalidates every unused code from the previous set.</p>
+                </div>
+                <span class="pill @(Model.Remaining > 0 ? "ok" : "warn")">@Model.Remaining remaining</span>
+            </div>
+            <div class="panel-body">
+                <form method="post" novalidate>
+                    <div class="field">
+                        <label asp-for="CurrentPassword">Current password</label>
+                        <div class="inline-fields">
+                            <div class="field grow">
+                                <input asp-for="CurrentPassword" type="password" autocomplete="current-password" required />
+                            </div>
+                            <button class="btn btn-sm" type="button" data-toggle-password="CurrentPassword"
+                                    aria-pressed="false" aria-label="Show password">Show</button>
+                        </div>
+                        <p class="hint">Re-authentication is required to replace recovery codes.</p>
+                    </div>
+                    <div class="field-actions">
+                        <span class="hint">Ten codes are generated each time.</span>
+                        <button class="btn btn-primary" type="submit">
+                            <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-key"></use></svg>
+                            Generate codes
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </section>
+
+        <section class="panel">
+            <div class="panel-head">
+                <div>
+                    <h2>How recovery codes work</h2>
+                    <p>Useful when your phone is lost, replaced or wiped.</p>
+                </div>
+            </div>
+            <div class="panel-body">
+                <ul class="security-list">
+                    <li><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-check"></use></svg><span>Each code can be used exactly once.</span></li>
+                    <li><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-check"></use></svg><span>Codes are stored as keyed hashes, never as plaintext.</span></li>
+                    <li><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-check"></use></svg><span>When you use a code, it is marked used immediately.</span></li>
+                    <li><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-check"></use></svg><span>Generating replacements removes all old unused codes.</span></li>
+                </ul>
+            </div>
+        </section>
+    </div>
+}

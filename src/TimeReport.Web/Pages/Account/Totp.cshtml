@@ -1,0 +1,107 @@
+@page
+@model TimeReport.Web.Pages.Account.TotpModel
+@{
+    ViewData["Title"] = "Two-factor authentication";
+    ViewData["Active"] = "account";
+}
+
+<div class="page-head">
+    <div>
+        <p class="eyebrow">Account security</p>
+        <h1>Two-factor authentication</h1>
+        <p class="page-sub">
+            TOTP is mandatory. Add TimeReport to an authenticator app, then enter a code
+            to finish setup.
+        </p>
+    </div>
+</div>
+
+@if (Model.AlreadyConfirmed)
+{
+    <div class="callout success">
+        <strong>Two-factor authentication is enabled.</strong>
+        Your account is protected with an authenticator app.
+    </div>
+    <div class="panel">
+        <div class="panel-body">
+            <div class="btn-row">
+                <a class="btn btn-primary" asp-page="/Account/Security">Security overview</a>
+                <a class="btn btn-ghost" asp-page="/Account/RecoveryCodes">Recovery codes</a>
+            </div>
+        </div>
+    </div>
+}
+else
+{
+    <div class="split">
+        <section class="panel">
+            <div class="panel-head">
+                <div>
+                    <h2>Scan the QR code</h2>
+                    <p>Use Google Authenticator, Microsoft Authenticator, 1Password, Bitwarden or any TOTP app.</p>
+                </div>
+            </div>
+            <div class="panel-body">
+                <div class="qr-wrap">
+                    <div class="qr-code">
+                        <img src="@Model.QrDataUrl" alt="QR code for TimeReport authenticator setup" width="190" height="190" />
+                    </div>
+                    <div>
+                        <p class="muted">Can't scan it? Enter this secret manually:</p>
+                        <span class="secret-code" id="totp-secret">@Model.SecretDisplay</span>
+                        <div class="btn-row mt-1">
+                            <button class="btn btn-sm" type="button" data-copy-target="totp-secret">Copy secret</button>
+                        </div>
+                    </div>
+                </div>
+
+                <hr class="divider" />
+
+                <form method="post">
+                    <div class="field">
+                        <label asp-for="CurrentPassword">Current password</label>
+                        <div class="inline-fields">
+                            <div class="field grow">
+                                <input asp-for="CurrentPassword" type="password" autocomplete="current-password" required autofocus />
+                            </div>
+                            <button class="btn btn-sm" type="button" data-toggle-password="CurrentPassword"
+                                    aria-pressed="false" aria-label="Show password">Show</button>
+                        </div>
+                        <p class="hint">Re-authentication is required to enable TOTP.</p>
+                    </div>
+                    <div class="field">
+                        <label asp-for="Code">Enter the 6-digit code</label>
+                        <input asp-for="Code" inputmode="numeric" autocomplete="one-time-code"
+                               pattern="[0-9]{6}" maxlength="6" placeholder="000000"
+                               class="mono" required />
+                        <p class="hint">The code changes every 30 seconds. Make sure the device clock is correct.</p>
+                    </div>
+                    <div class="field-actions">
+                        <span class="hint">Recovery codes are generated after verification.</span>
+                        <button class="btn btn-primary" type="submit">
+                            <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-shield"></use></svg>
+                            Enable TOTP
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </section>
+
+        <section class="panel">
+            <div class="panel-head">
+                <div>
+                    <h2>Why this is required</h2>
+                    <p>Your time data is private; a password alone is not enough.</p>
+                </div>
+            </div>
+            <div class="panel-body">
+                <ul class="security-list">
+                    <li><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-check"></use></svg><span>Every account must confirm TOTP before opening timesheets.</span></li>
+                    <li><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-check"></use></svg><span>Recovery codes are single-use and stored only as keyed hashes.</span></li>
+                    <li><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-check"></use></svg><span>An administrator must reset MFA if your authenticator is lost.</span></li>
+                    <li><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-check"></use></svg><span>Keep a copy of your recovery codes somewhere offline.</span></li>
+                </ul>
+            </div>
+        </section>
+    </div>
+}

@@ -1,5 +1,4 @@
 using System.Globalization;
-using Avalonia;
 
 namespace TimeReport.Services;
 
@@ -101,6 +100,8 @@ public static class LocalizationService
             ["ExportLastYear"] = "Last year",
             ["ExportRangeInfo"] = "{0} – {1} · {2} days",
             ["ExportInvalidRange"] = "The start date must be before the end date.",
+            ["ExportRangeTooLarge"] = "Choose an export range of 10 years or less.",
+            ["ExportDateOutOfRange"] = "Dates must be between 1900-01-01 and 9999-12-31.",
             ["ExportPathIsDatabase"] = "Choose a location other than the live database.",
             ["ExportNoData"] = "There is no data to export.",
             ["Exporting"] = "Exporting…",
@@ -516,6 +517,8 @@ public static class LocalizationService
             ["ExportLastYear"] = "Förra året",
             ["ExportRangeInfo"] = "{0} – {1} · {2} dagar",
             ["ExportInvalidRange"] = "Startdatumet måste vara före slutdatumet.",
+            ["ExportRangeTooLarge"] = "Välj ett exportintervall på högst 10 år.",
+            ["ExportDateOutOfRange"] = "Datum måste vara mellan 1900-01-01 och 9999-12-31.",
             ["ExportPathIsDatabase"] = "Välj en annan plats än den aktiva databasen.",
             ["ExportNoData"] = "Det finns inga data att exportera.",
             ["Exporting"] = "Exporterar…",
@@ -870,7 +873,13 @@ public static class LocalizationService
         },
     };
 
-    public static string CurrentLanguage { get; private set; } = "en";
+    // The default language is process-wide for the desktop app. Web requests use
+    // UseLanguage so concurrent users can render different languages without
+    // mutating shared state.
+    private static readonly AsyncLocal<string?> ScopedLanguage = new();
+    private static string _defaultLanguage = "en";
+
+    public static string CurrentLanguage => NormalizeLanguage(ScopedLanguage.Value ?? _defaultLanguage);
 
     public static IReadOnlyList<LanguageOption> Languages { get; } =
     [
@@ -883,7 +892,7 @@ public static class LocalizationService
     public static IReadOnlyCollection<string> Keys => Strings["en"].Keys;
 
     public static bool HasTranslation(string key, string language) =>
-        Strings.TryGetValue(language, out var values) && values.ContainsKey(key);
+        Strings.TryGetValue(NormalizeLanguage(language), out var values) && values.ContainsKey(key);
 
     public static IReadOnlyList<string> WeekdayNames =>
         Weekdays.TryGetValue(CurrentLanguage, out var values) ? values : Weekdays["en"];
@@ -894,20 +903,46 @@ public static class LocalizationService
     public static IReadOnlyList<string> MonthNames =>
         Months.TryGetValue(CurrentLanguage, out var values) ? values : Months["en"];
 
+    public static IReadOnlyDictionary<string, string> Translations(string? code) =>
+        Strings[NormalizeLanguage(code)];
+
+    /// <summary>
+    /// Sets the process-wide default language. Used by the desktop application.
+    /// </summary>
     public static void SetLanguage(string? code)
     {
-        var normalized = string.Equals(code, "sv", StringComparison.OrdinalIgnoreCase) ? "sv" : "en";
-        CurrentLanguage = normalized;
-
-        if (Application.Current is not null)
-        {
-            foreach (var (key, value) in Strings[normalized])
-            {
-                Application.Current.Resources[key] = value;
-            }
-        }
-
+        _defaultLanguage = NormalizeLanguage(code);
+        ScopedLanguage.Value = null;
         LanguageChanged?.Invoke();
+    }
+
+    /// <summary>
+    /// Applies a language to the current async flow only. Disposing the scope
+    /// restores the previous value. Used by the web application per request.
+    /// </summary>
+    public static IDisposable UseLanguage(string? code)
+    {
+        var previous = ScopedLanguage.Value;
+        ScopedLanguage.Value = NormalizeLanguage(code);
+        return new LanguageScope(previous);
+    }
+
+    private static string NormalizeLanguage(string? code) =>
+        string.Equals(code, "sv", StringComparison.OrdinalIgnoreCase) ? "sv" : "en";
+
+    private sealed class LanguageScope(string? previous) : IDisposable
+    {
+        private bool _disposed;
+
+        public void Dispose()
+        {
+            if (_disposed)
+            {
+                return;
+            }
+            _disposed = true;
+            ScopedLanguage.Value = previous;
+        }
     }
 
     public static string T(string key)

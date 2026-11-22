@@ -151,6 +151,19 @@ public sealed class Database : IDisposable
 
     public int BackupRetentionCount { get; set; } = 20;
 
+    /// <summary>
+    /// Enables write-ahead logging. Used by the web application where one user
+    /// database can receive short concurrent requests. The desktop application
+    /// keeps the default rollback journal.
+    /// </summary>
+    public bool EnableWal { get; set; }
+
+    /// <summary>
+    /// Asks SQLCipher to zero key material and page buffers more aggressively.
+    /// The web application enables this for user databases.
+    /// </summary>
+    public bool CipherMemorySecurity { get; set; }
+
     public bool IsEncrypted => EncryptionKey is not null;
 
     public SqliteConnection Connection =>
@@ -199,10 +212,18 @@ public sealed class Database : IDisposable
         try
         {
             ApplyKey(connection, EncryptionKey);
+            if (CipherMemorySecurity)
+            {
+                Execute("PRAGMA cipher_memory_security = ON");
+            }
             Execute("PRAGMA trusted_schema = OFF");
             Execute("PRAGMA foreign_keys = ON");
             Execute("PRAGMA busy_timeout = 5000");
             Execute("PRAGMA synchronous = NORMAL");
+            if (EnableWal)
+            {
+                Execute("PRAGMA journal_mode = WAL");
+            }
             Migrate();
         }
         catch (SqliteException exception) when (EncryptionKey is not null)

@@ -1,0 +1,55 @@
+services:
+  timereport:
+    # Use an immutable tag or digest in production. :main and :latest track
+    # the default branch/release and are convenient for testing. :latest is
+    # published from v* tags; before the first release use :main or build locally.
+    image: ghcr.io/rogerbergling/timereport-web:latest
+    # To build the image locally instead, uncomment:
+    # build: .
+    container_name: timereport
+    restart: unless-stopped
+    ports:
+      # Keep the container on loopback and let your TLS reverse proxy reach it.
+      - "${TIMEREPORT_HTTP_BIND:-127.0.0.1}:${TIMEREPORT_HTTP_PORT:-8080}:8080"
+    environment:
+      TIMEREPORT_DATA_DIR: /data
+      TIMEREPORT_COOKIE_SECURE: "true"
+      # Trust X-Forwarded-* only from your proxy. The default covers the Docker
+      # bridge network; narrow this to the proxy's exact address/CIDR.
+      TIMEREPORT_TRUSTED_PROXIES: "${TIMEREPORT_TRUSTED_PROXIES:-172.16.0.0/12}"
+      # Set this to your public hostname instead of * when possible.
+      TIMEREPORT_ALLOWED_HOSTS: "${TIMEREPORT_ALLOWED_HOSTS:-*}"
+      TIMEREPORT_SESSION_MINUTES: "${TIMEREPORT_SESSION_MINUTES:-30}"
+      TIMEREPORT_SESSION_ABSOLUTE_HOURS: "${TIMEREPORT_SESSION_ABSOLUTE_HOURS:-12}"
+      TIMEREPORT_MFA_MINUTES: "${TIMEREPORT_MFA_MINUTES:-5}"
+      TIMEREPORT_MASTER_KEY_FILE: /run/secrets/timereport_master_key
+      # Optional. Leave empty to have a token generated and printed once in
+      # the container log at first start.
+      TIMEREPORT_SETUP_TOKEN: "${TIMEREPORT_SETUP_TOKEN:-}"
+      TZ: "${TZ:-UTC}"
+    secrets:
+      - timereport_master_key
+    volumes:
+      - timereport-data:/data
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=64m,mode=1777
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    mem_limit: 512m
+    pids_limit: 256
+    stop_grace_period: 30s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  timereport-data:
+
+secrets:
+  timereport_master_key:
+    file: ./secrets/timereport_master_key

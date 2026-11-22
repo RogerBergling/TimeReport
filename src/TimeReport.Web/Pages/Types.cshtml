@@ -1,0 +1,109 @@
+@page
+@model TimeReport.Web.Pages.TypesModel
+@{
+    ViewData["Title"] = "Entry types";
+    ViewData["Active"] = "types";
+}
+
+<div class="page-head">
+    <div>
+        <p class="eyebrow">Data</p>
+        <h1>Entry types</h1>
+        <p class="page-sub">Work, Lunch, Away and X-Pause are built in. Add your own types with the same behaviour.</p>
+    </div>
+</div>
+
+<section class="panel">
+    <div class="panel-head">
+        <div>
+            <h2>Create type</h2>
+            <p>Choose how the type behaves. The category cannot be changed later.</p>
+        </div>
+    </div>
+    <div class="panel-body">
+        <form method="post" asp-page-handler="Create" class="inline-fields">
+            <div class="field grow">
+                <label for="new-type-name">Type name</label>
+                <input id="new-type-name" name="name" maxlength="80" required placeholder="e.g. Meeting" />
+            </div>
+            <div class="field">
+                <label for="new-type-category">Category</label>
+                <select id="new-type-category" name="category">
+                    @foreach (var category in Model.Categories)
+                    {
+                        <option value="@category.ToDbString()">@category.DisplayName()</option>
+                    }
+                </select>
+            </div>
+            <button class="btn btn-primary" type="submit">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-plus"></use></svg>
+                Create
+            </button>
+        </form>
+    </div>
+</section>
+
+<section class="panel">
+    <div class="panel-head">
+        <div>
+            <h2>All types</h2>
+            <p>@Model.Types.Count type(s). Types used by entries can be archived, not deleted.</p>
+        </div>
+    </div>
+    <div class="panel-body tight">
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Type</th>
+                        <th>Category</th>
+                        <th>Status</th>
+                        <th class="num">Entries</th>
+                        <th>Rename</th>
+                        <th class="actions-col">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var row in Model.Types)
+                    {
+                        <tr>
+                            <td>@row.Type.DisplayName</td>
+                            <td>@row.CategoryText</td>
+                            <td>
+                                <span class="pill @(row.Type.Archived ? "warn" : "ok")">@row.StatusText</span>
+                            </td>
+                            <td class="num">@row.EntryCount</td>
+                            <td>
+                                <form method="post" asp-page-handler="Rename" class="inline-fields">
+                                    <input type="hidden" name="id" value="@row.Type.Id" />
+                                    <input name="name" value="@row.Type.Name" maxlength="80"
+                                           aria-label="New name for @row.Type.DisplayName" />
+                                    <button class="btn btn-sm" type="submit">Save</button>
+                                </form>
+                            </td>
+                            <td>
+                                <div class="table-actions">
+                                    <form method="post" asp-page-handler="Archive">
+                                        <input type="hidden" name="id" value="@row.Type.Id" />
+                                        <input type="hidden" name="archived" value="@((!row.Type.Archived).ToString().ToLowerInvariant())" />
+                                        <button class="btn btn-sm" type="submit">
+                                            @(row.Type.Archived ? "Restore" : "Archive")
+                                        </button>
+                                    </form>
+                                    @if (row.EntryCount == 0)
+                                    {
+                                        <form method="post" asp-page-handler="Delete"
+                                              data-confirm="Delete this entry type?">
+                                            <input type="hidden" name="id" value="@row.Type.Id" />
+                                            <button class="btn btn-sm btn-danger" type="submit">Delete</button>
+                                        </form>
+                                    }
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</section>
