@@ -951,7 +951,11 @@ public sealed class AuthDatabase
             return false;
         }
 
-        using var stream = File.OpenRead(path);
+        using var stream = new FileStream(
+            path,
+            FileMode.Open,
+            FileAccess.Read,
+            FileShare.ReadWrite | FileShare.Delete);
         Span<byte> header = stackalloc byte[16];
         var read = stream.Read(header);
         return read == header.Length && header.SequenceEqual("SQLite format 3\0"u8);

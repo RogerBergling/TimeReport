@@ -251,7 +251,13 @@ public sealed class Database : IDisposable
             return false;
         }
 
-        using var stream = File.OpenRead(path);
+        // SQLite may already hold the database open in another request. Windows
+        // enforces FileShare on File.OpenRead, so request shared read access.
+        using var stream = new FileStream(
+            path,
+            FileMode.Open,
+            FileAccess.Read,
+            FileShare.ReadWrite | FileShare.Delete);
         Span<byte> header = stackalloc byte[16];
         var read = stream.Read(header);
         return read == header.Length &&
