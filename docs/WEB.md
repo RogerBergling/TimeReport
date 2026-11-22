@@ -360,7 +360,9 @@ settings or run `docker login ghcr.io` with a token that has `read:packages`.
 
 The demo image is published separately as
 `ghcr.io/rogerbergling/timereport-web-demo`; production and demo tags are built
-from the same commit by `.github/workflows/web-image.yml`.
+from the same commit by `.github/workflows/web-image.yml`. The demo Compose
+example uses `:main` so it follows the latest main build; pin a version or
+digest for a stable demo.
 
 The image runs as UID/GID `10001`, with a read-only root filesystem in the
 example compose file. The only writable paths are the `/data` volume and a

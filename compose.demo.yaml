@@ -1,8 +1,9 @@
 services:
   timereport-demo:
     # Build with DEMO_MODE=true is published separately from the production
-    # image. The guest password is public and the data is fake.
-    image: ghcr.io/rogerbergling/timereport-web-demo:latest
+    # image. :main tracks the latest main build; pin a version or digest for a
+    # stable demo.
+    image: ghcr.io/rogerbergling/timereport-web-demo:main
     # To build locally instead, uncomment:
     # build:
     #   context: .
