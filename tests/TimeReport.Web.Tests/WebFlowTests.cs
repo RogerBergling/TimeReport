@@ -132,15 +132,19 @@ public sealed partial class WebFlowTests
         var home = await client.GetStringAsync("/");
         Assert.Contains("Your week", home);
 
+        var entryDate = DateOnly.FromDateTime(DateTime.UtcNow);
+        var entryDateText = entryDate.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture);
         await CreateProjectAsync(client, "Test project");
-        await CreateEntryAsync(client, "2026-11-20");
-        home = await client.GetStringAsync("/");
+        await CreateEntryAsync(client, entryDateText);
+        home = await client.GetStringAsync($"/?week={entryDateText}");
         Assert.Contains("Test project", home);
 
-        var totals = await client.GetStringAsync("/totals?period=week&anchor=2026-11-20");
+        var totals = await client.GetStringAsync($"/totals?period=week&anchor={entryDateText}");
         Assert.Contains("Worked", totals);
 
-        var export = await client.GetAsync("/export/download?start=2026-11-01&end=2026-11-30");
+        var exportStart = entryDate.AddDays(-10).ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture);
+        var exportEnd = entryDate.AddDays(10).ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture);
+        var export = await client.GetAsync($"/export/download?start={exportStart}&end={exportEnd}");
         Assert.Equal(HttpStatusCode.OK, export.StatusCode);
         Assert.Equal(
             "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -283,11 +287,13 @@ public sealed partial class WebFlowTests
             new() { ["CurrentPassword"] = UserPassword });
         Assert.Equal(HttpStatusCode.OK, recovery.StatusCode);
 
+        var aliceEntryDate = DateOnly.FromDateTime(DateTime.UtcNow)
+            .ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture);
         await CreateProjectAsync(alice, "Alice private");
-        await CreateEntryAsync(alice, "2026-11-20");
+        await CreateEntryAsync(alice, aliceEntryDate);
 
         var adminHome = await admin.GetStringAsync("/");
-        var aliceHome = await alice.GetStringAsync("/");
+        var aliceHome = await alice.GetStringAsync($"/?week={aliceEntryDate}");
         Assert.DoesNotContain("Alice private", adminHome);
         Assert.DoesNotContain("Admin project", aliceHome);
         Assert.Contains("Alice private", aliceHome);

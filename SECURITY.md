@@ -26,7 +26,10 @@ or a private interface, and trust forwarded headers only from the configured
 proxy addresses.
 
 - The deployment master key is supplied with `TIMEREPORT_MASTER_KEY_FILE` or
-  `TIMEREPORT_MASTER_KEY`. HKDF-SHA256 derives the authentication database key,
+  `TIMEREPORT_MASTER_KEY`. Docker Compose file secrets are bind-mounted with
+  host permissions; the generator keeps the `secrets/` directory at `0700` and
+  the key readable by container UID `10001` (`0644`). The private directory
+  prevents other host users from reading it. HKDF-SHA256 derives the authentication database key,
   every user database key, the AES-GCM key for TOTP secrets and the HMAC key for
   recovery-code hashes and pending-MFA tokens. The emergency MFA reset is
   available only to someone who controls the master key and data volume.

@@ -39,7 +39,27 @@ public sealed class MasterKey
                     $"The master key file '{path}' is not a readable regular file.",
                     exception);
             }
-            encoded = File.ReadAllText(path).Trim();
+            try
+            {
+                encoded = File.ReadAllText(path).Trim();
+            }
+            catch (UnauthorizedAccessException exception)
+            {
+                throw new InvalidOperationException(
+                    $"The master key file '{path}' exists but is not readable by the " +
+                    "application user (UID 10001 in the container). Docker Compose " +
+                    "file secrets are bind mounts and keep the host file mode. Run " +
+                    "scripts/generate-master-key.sh again to set the key to 0644 " +
+                    "and the secrets directory to 0700, or fix those permissions " +
+                    "manually.",
+                    exception);
+            }
+            catch (IOException exception)
+            {
+                throw new InvalidOperationException(
+                    $"The master key file '{path}' could not be read: {exception.Message}",
+                    exception);
+            }
         }
         else
         {

@@ -63,7 +63,11 @@ available for a restore.
    ./scripts/generate-master-key.sh
    ```
 
-   This writes `secrets/timereport_master_key` with mode `0600`. Back it up now.
+   This writes `secrets/timereport_master_key` with mode `0644` and makes the
+   `secrets/` directory `0700`. The container runs as UID `10001`; Docker Compose
+   file secrets are bind mounts, so the non-root container user must be able to
+   read the file. The private directory still prevents other host users from
+   reading the key. Back it up now.
 
 2. Copy and edit the environment file:
 
@@ -420,6 +424,18 @@ docker run --rm -p 127.0.0.1:8080:8080 \
   volume.
 - **Everyone is signed out after an upgrade.** Data Protection keys are
   deliberately ephemeral in `/tmp`. Accounts and data are unaffected.
+- **`Access to the path '/run/secrets/timereport_master_key' is denied`.** Docker
+  Compose file secrets are bind mounts and keep the host file permissions. The
+  app runs as UID `10001`. Re-run the generator to fix an existing key without
+  replacing it:
+
+  ```bash
+  ./scripts/generate-master-key.sh
+  ```
+
+  This sets the key to `0644` and the `secrets/` directory to `0700`. Do not make
+  `secrets/` itself world-readable.
+
 - **The container cannot write `/data`.** The image runs as UID/GID `10001`. A
   fresh named volume is initialized from the image directory, but an existing
   bind mount or pre-created volume may be root-owned. Fix ownership once:

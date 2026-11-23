@@ -51,5 +51,8 @@ volumes:
   timereport-data:
 
 secrets:
+  # Compose file secrets are bind-mounted with the host file mode. The non-root
+  # container user (10001) must be able to read the key. generate-master-key.sh
+  # sets the secrets directory to 0700 and the key to 0644.
   timereport_master_key:
     file: ./secrets/timereport_master_key

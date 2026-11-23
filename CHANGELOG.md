@@ -28,6 +28,14 @@ and the project uses [Semantic Versioning](https://semver.org/).
   credentials and a two-hour tmpfs restart/reset cycle.
 - Separate GHCR production and demo images built from the same commit.
 
+### Fixed
+
+- Allow the non-root web container to read the Compose file secret while
+  keeping the `secrets/` directory private to the host account.
+- Detect plaintext databases with shared file access so concurrent Windows web
+  requests do not fail on a locked SQLite file.
+- Keep web integration tests date-independent.
+
 ### Security
 
 - Encrypt pre-encryption migration backups with the database key.
