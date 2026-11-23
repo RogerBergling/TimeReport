@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using TimeReport.Web.Auth;
 using TimeReport.Web.Configuration;
+using TimeReport.Web.Localization;
 using TimeReport.Web.Security;
 using TimeReport.Web.ViewModels;
 
@@ -64,7 +65,7 @@ public sealed class TotpModel : AppPageModel
 
         if (!_auth.VerifyCurrentPassword(CurrentUser, CurrentPassword, "totp-enroll", ClientIp))
         {
-            ErrorMessage = "The current password is not correct.";
+            ErrorMessage = WebText.T("The current password is not correct.");
             CurrentPassword = null;
             Code = null;
             PrepareEnrollment();
@@ -75,7 +76,7 @@ public sealed class TotpModel : AppPageModel
         {
             var updated = _auth.ConfirmTotp(CurrentUser, Code);
             await _cookies.SignInAsync(HttpContext, updated);
-            SetStatus("Two-factor authentication is enabled. Save your recovery codes next.");
+            SetStatus(WebText.T("Two-factor authentication is enabled. Save your recovery codes next."));
             return RedirectToPage("/Account/RecoveryCodes", new { required = 1 });
         }
         catch (AuthException exception)

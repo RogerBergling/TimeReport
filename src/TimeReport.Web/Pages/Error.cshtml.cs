@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using TimeReport.Web.Localization;
 
 namespace TimeReport.Web.Pages;
 
@@ -8,10 +9,10 @@ public sealed class ErrorModel : PageModel
 {
     public int HttpStatus { get; private set; } = 500;
 
-    public string Heading { get; private set; } = "Something went wrong";
+    public string Heading { get; private set; } = WebText.T("Something went wrong");
 
     public string Message { get; private set; } =
-        "The request could not be completed. Try again, or check the server log.";
+        WebText.T("The request could not be completed. Try again, or check the server log.");
 
     public void OnGet(int? code = null)
     {
@@ -20,12 +21,12 @@ public sealed class ErrorModel : PageModel
 
         (Heading, Message) = HttpStatus switch
         {
-            400 => ("Bad request", "The request was not valid. Go back and try again."),
-            401 => ("Sign in required", "Your session has expired. Sign in again."),
-            403 => ("Access denied", "Your account does not have permission for that page."),
-            404 => ("Page not found", "That page does not exist. It may have moved or been deleted."),
-            405 => ("Method not allowed", "That action is not available from this page."),
-            _ => ("Something went wrong", "The request could not be completed. Try again, or check the server log."),
+            400 => (WebText.T("Bad request"), WebText.T("The request was not valid. Go back and try again.")),
+            401 => (WebText.T("Sign in required"), WebText.T("Your session has expired. Sign in again.")),
+            403 => (WebText.T("Access denied"), WebText.T("Your account does not have permission for that page.")),
+            404 => (WebText.T("Page not found"), WebText.T("That page does not exist. It may have moved or been deleted.")),
+            405 => (WebText.T("Method not allowed"), WebText.T("That action is not available from this page.")),
+            _ => (WebText.T("Something went wrong"), WebText.T("The request could not be completed. Try again, or check the server log.")),
         };
     }
 }

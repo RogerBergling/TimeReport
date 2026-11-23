@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using TimeReport.Web.Auth;
+using TimeReport.Web.Localization;
 using TimeReport.Web.Security;
 using TimeReport.Web.ViewModels;
 
@@ -37,7 +38,7 @@ public sealed class PasswordModel : AppPageModel
     {
         if (!string.Equals(NewPassword, ConfirmPassword, StringComparison.Ordinal))
         {
-            ErrorMessage = "The new passwords do not match.";
+            ErrorMessage = WebText.T("The new passwords do not match.");
             CurrentPassword = null;
             NewPassword = null;
             ConfirmPassword = null;
@@ -48,7 +49,7 @@ public sealed class PasswordModel : AppPageModel
         {
             var updated = _auth.ChangePassword(CurrentUser, CurrentPassword, NewPassword);
             await _cookies.SignInAsync(HttpContext, updated);
-            SetStatus("Password changed.");
+            SetStatus(WebText.T("Password changed."));
             return RedirectToPage(
                 updated.TotpConfirmed ? "/Account/Security" : "/Account/Totp");
         }

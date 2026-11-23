@@ -216,6 +216,84 @@ public sealed partial class WebFlowTests
     }
 
     [Fact]
+    public async Task SwedishUiSwitchPersistsAndKeepsMondayFirst24HourWeeks()
+    {
+        using var factory = new TestWebApplicationFactory();
+        using var client = factory.CreateClientWithoutRedirects();
+
+        var switchResponse = await client.GetAsync("/language?code=sv&returnUrl=%2Flogin");
+        AssertRedirect(switchResponse, "/login");
+
+        var setupPage = await client.GetStringAsync("/setup");
+        var setupHtml = System.Net.WebUtility.HtmlDecode(setupPage);
+        Assert.Contains("lang=\"sv\"", setupHtml);
+        Assert.Contains("Skapa den första administratören", setupHtml);
+        Assert.Contains("Installationstoken", setupHtml);
+
+        await CompleteSetupAsync(client);
+
+        var home = System.Net.WebUtility.HtmlDecode(
+            await client.GetStringAsync("/?week=2024-01-03"));
+        Assert.Contains("lang=\"sv\"", home);
+        Assert.Contains("Din vecka", home);
+        Assert.Contains("Veckan börjar på måndag", home);
+        Assert.Contains("24-timmarsklocka", home);
+
+        var monday = home.IndexOf("måndag 1 januari 2024", StringComparison.Ordinal);
+        var sunday = home.IndexOf("söndag 7 januari 2024", StringComparison.Ordinal);
+        Assert.True(monday >= 0, "The Monday of the selected week should be shown first.");
+        Assert.True(sunday > monday, "The week should run Monday through Sunday.");
+
+        await CreateProjectAsync(client, "Svenskt projekt");
+        await CreateEntryAsync(client, "2024-01-03");
+        home = System.Net.WebUtility.HtmlDecode(
+            await client.GetStringAsync("/?week=2024-01-03"));
+        Assert.Contains("Svenskt projekt", home);
+        Assert.Contains("13:00", home);
+        Assert.Contains("17:00", home);
+        Assert.DoesNotContain("1:00 PM", home);
+
+        var settings = System.Net.WebUtility.HtmlDecode(
+            await client.GetStringAsync("/account/settings"));
+        Assert.Contains("Språk", settings);
+        var changeLanguage = await PostFormAsync(
+            client,
+            "/account/settings",
+            TestHtml.AntiforgeryToken(settings),
+            new()
+            {
+                ["DisplayName"] = "Admin",
+                ["Language"] = "en",
+                ["OvertimeDailyHours"] = "0",
+                ["OvertimeWeeklyHours"] = "0",
+                ["BackupRetentionCount"] = "20",
+            });
+        AssertRedirect(changeLanguage, "/account/settings");
+
+        settings = await client.GetStringAsync("/account/settings");
+        Assert.Contains("lang=\"en\"", settings);
+        Assert.Contains("Language", settings);
+        Assert.Contains("Save settings", settings);
+    }
+
+    [Fact]
+    public async Task AnonymousLanguageFallsBackToAcceptLanguageHeader()
+    {
+        using var factory = new TestWebApplicationFactory();
+        using var client = factory.CreateClientWithoutRedirects();
+
+        using var request = new HttpRequestMessage(HttpMethod.Get, "/setup");
+        request.Headers.AcceptLanguage.ParseAdd("sv-SE,sv;q=0.9,en;q=0.5");
+        var response = await client.SendAsync(request);
+        response.EnsureSuccessStatusCode();
+
+        var html = System.Net.WebUtility.HtmlDecode(
+            await response.Content.ReadAsStringAsync());
+        Assert.Contains("lang=\"sv\"", html);
+        Assert.Contains("Skapa den första administratören", html);
+    }
+
+    [Fact]
     public async Task MultiuserDataIsIsolatedAndAdminPagesAreProtected()
     {
         using var factory = new TestWebApplicationFactory();

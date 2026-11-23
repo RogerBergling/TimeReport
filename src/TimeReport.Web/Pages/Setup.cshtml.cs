@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using TimeReport.Web.Auth;
 using TimeReport.Web.Configuration;
+using TimeReport.Web.Localization;
 using TimeReport.Web.Security;
 using TimeReport.Web.ViewModels;
 
@@ -66,7 +67,7 @@ public sealed class SetupModel : AppPageModel
         var throttleKey = $"setup:{ClientIp}";
         if (_throttle.IsBlocked(throttleKey, _options.MaxSetupAttempts, window))
         {
-            ErrorMessage = "Too many setup attempts. Restart the service to generate a new setup token.";
+            ErrorMessage = WebText.T("Too many setup attempts. Restart the service to generate a new setup token.");
             Password = null;
             ConfirmPassword = null;
             return Page();
@@ -75,7 +76,7 @@ public sealed class SetupModel : AppPageModel
         if (!_setupToken.Validate(SetupToken))
         {
             _throttle.RecordFailure(throttleKey, window);
-            ErrorMessage = "The setup token is not valid.";
+            ErrorMessage = WebText.T("The setup token is not valid.");
             Password = null;
             ConfirmPassword = null;
             SetupToken = null;
@@ -84,7 +85,7 @@ public sealed class SetupModel : AppPageModel
 
         if (!string.Equals(Password, ConfirmPassword, StringComparison.Ordinal))
         {
-            ErrorMessage = "The passwords do not match.";
+            ErrorMessage = WebText.T("The passwords do not match.");
             Password = null;
             ConfirmPassword = null;
             return Page();

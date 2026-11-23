@@ -13,11 +13,25 @@ public sealed class LocalizationMiddleware
 
     public async Task InvokeAsync(HttpContext context)
     {
-        // The web UI is English-only for now. The desktop app keeps its
-        // English/Swedish switch. This still scopes localization state per
-        // request so adding web languages later cannot race between users.
-        var language = context.GetAuthUser()?.Language ?? "en";
-        using var scope = LocalizationService.UseLanguage(language);
+        // Authenticated users keep their saved language. Anonymous pages use
+        // the language switch cookie or the browser's Accept-Language header.
+        var language = context.GetAuthUser()?.Language;
+        if (string.IsNullOrWhiteSpace(language))
+        {
+            var cookie = context.Request.Cookies["timereport.lang"];
+            if (cookie is "en" or "sv")
+            {
+                language = cookie;
+            }
+            else if (context.Request.Headers.AcceptLanguage
+                         .ToString()
+                         .StartsWith("sv", StringComparison.OrdinalIgnoreCase))
+            {
+                language = "sv";
+            }
+        }
+
+        using var scope = LocalizationService.UseLanguage(language ?? "en");
         await _next(context);
     }
 }

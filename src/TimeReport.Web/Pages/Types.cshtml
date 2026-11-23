@@ -1,33 +1,33 @@
 @page
 @model TimeReport.Web.Pages.TypesModel
 @{
-    ViewData["Title"] = "Entry types";
+    ViewData["Title"] = WebText.T("Entry types");
     ViewData["Active"] = "types";
 }
 
 <div class="page-head">
     <div>
-        <p class="eyebrow">Data</p>
-        <h1>Entry types</h1>
-        <p class="page-sub">Work, Lunch, Away and X-Pause are built in. Add your own types with the same behaviour.</p>
+        <p class="eyebrow">@WebText.T("Data")</p>
+        <h1>@WebText.T("Entry types")</h1>
+        <p class="page-sub">@WebText.T("Work, Lunch, Away and X-Pause are built in. Add your own types with the same behaviour.")</p>
     </div>
 </div>
 
 <section class="panel">
     <div class="panel-head">
         <div>
-            <h2>Create type</h2>
-            <p>Choose how the type behaves. The category cannot be changed later.</p>
+            <h2>@WebText.T("Create type")</h2>
+            <p>@WebText.T("Choose how the type behaves. The category cannot be changed later.")</p>
         </div>
     </div>
     <div class="panel-body">
         <form method="post" asp-page-handler="Create" class="inline-fields">
             <div class="field grow">
-                <label for="new-type-name">Type name</label>
-                <input id="new-type-name" name="name" maxlength="80" required placeholder="e.g. Meeting" />
+                <label for="new-type-name">@WebText.T("Type name")</label>
+                <input id="new-type-name" name="name" maxlength="80" required placeholder="@WebText.T("e.g. Meeting")" />
             </div>
             <div class="field">
-                <label for="new-type-category">Category</label>
+                <label for="new-type-category">@WebText.T("Category")</label>
                 <select id="new-type-category" name="category">
                     @foreach (var category in Model.Categories)
                     {
@@ -37,7 +37,7 @@
             </div>
             <button class="btn btn-primary" type="submit">
                 <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-plus"></use></svg>
-                Create
+                @WebText.T("Create")
             </button>
         </form>
     </div>
@@ -46,8 +46,8 @@
 <section class="panel">
     <div class="panel-head">
         <div>
-            <h2>All types</h2>
-            <p>@Model.Types.Count type(s). Types used by entries can be archived, not deleted.</p>
+            <h2>@WebText.T("All types")</h2>
+            <p>@WebText.T("Types used by entries can be archived, not deleted.")</p>
         </div>
     </div>
     <div class="panel-body tight">
@@ -55,12 +55,12 @@
             <table>
                 <thead>
                     <tr>
-                        <th>Type</th>
-                        <th>Category</th>
-                        <th>Status</th>
-                        <th class="num">Entries</th>
-                        <th>Rename</th>
-                        <th class="actions-col">Actions</th>
+                        <th>@WebText.T("Type")</th>
+                        <th>@WebText.T("Category")</th>
+                        <th>@WebText.T("Status")</th>
+                        <th class="num">@WebText.T("Entries")</th>
+                        <th>@WebText.T("Rename")</th>
+                        <th class="actions-col">@WebText.T("Actions")</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -77,8 +77,8 @@
                                 <form method="post" asp-page-handler="Rename" class="inline-fields">
                                     <input type="hidden" name="id" value="@row.Type.Id" />
                                     <input name="name" value="@row.Type.Name" maxlength="80"
-                                           aria-label="New name for @row.Type.DisplayName" />
-                                    <button class="btn btn-sm" type="submit">Save</button>
+                                           aria-label="@WebText.T("New name for {0}", row.Type.DisplayName)" />
+                                    <button class="btn btn-sm" type="submit">@WebText.T("Save")</button>
                                 </form>
                             </td>
                             <td>
@@ -87,15 +87,15 @@
                                         <input type="hidden" name="id" value="@row.Type.Id" />
                                         <input type="hidden" name="archived" value="@((!row.Type.Archived).ToString().ToLowerInvariant())" />
                                         <button class="btn btn-sm" type="submit">
-                                            @(row.Type.Archived ? "Restore" : "Archive")
+                                            @WebText.T(row.Type.Archived ? "Restore" : "Archive")
                                         </button>
                                     </form>
                                     @if (row.EntryCount == 0)
                                     {
                                         <form method="post" asp-page-handler="Delete"
-                                              data-confirm="Delete this entry type?">
+                                              data-confirm="@WebText.T("Delete this entry type?")">
                                             <input type="hidden" name="id" value="@row.Type.Id" />
-                                            <button class="btn btn-sm btn-danger" type="submit">Delete</button>
+                                            <button class="btn btn-sm btn-danger" type="submit">@WebText.T("Delete")</button>
                                         </form>
                                     }
                                 </div>

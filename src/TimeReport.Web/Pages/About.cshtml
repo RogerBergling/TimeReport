@@ -1,18 +1,18 @@
 @page
 @model TimeReport.Web.Pages.AboutModel
 @{
-    ViewData["Title"] = "About";
+    ViewData["Title"] = WebText.T("About");
 }
 
 <div class="page-head">
     <div>
-        <p class="eyebrow">About</p>
+        <p class="eyebrow">@WebText.T("About")</p>
         <h1>TimeReport</h1>
-        <p class="page-sub">A private, multiuser time report for Linux servers. Each account has its own encrypted database.</p>
+        <p class="page-sub">@WebText.T("A private, multiuser time report for Linux servers. Each account has its own encrypted database.")</p>
     </div>
     <span class="pill ok">
         <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-check"></use></svg>
-        No telemetry
+        @WebText.T("No telemetry")
     </span>
 </div>
 
@@ -20,18 +20,18 @@
     <section class="panel">
         <div class="panel-head">
             <div>
-                <h2>Security model</h2>
-                <p>Built for a small team behind your own reverse proxy.</p>
+                <h2>@WebText.T("Security model")</h2>
+                <p>@WebText.T("Built for a small team behind your own reverse proxy.")</p>
             </div>
         </div>
         <div class="panel-body">
             <ul class="security-list">
-                <li><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-check"></use></svg><span>Passwords are hashed with PBKDF2-HMAC-SHA256 and a per-user salt.</span></li>
-                <li><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-check"></use></svg><span>TOTP is mandatory for every account, with one-time recovery codes.</span></li>
-                <li><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-check"></use></svg><span>Every user database is encrypted with SQLCipher using a key derived from the deployment master key.</span></li>
-                <li><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-check"></use></svg><span>Cookies are HttpOnly, SameSite=Strict and Secure in production.</span></li>
-                <li><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-check"></use></svg><span>Content Security Policy blocks inline scripts, inline styles and third-party requests.</span></li>
-                <li><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-check"></use></svg><span>The admin UI does not expose another user's timesheet. Audited credential resets are available for account recovery, so grant the administrator role carefully.</span></li>
+                <li><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-check"></use></svg><span>@WebText.T("Passwords are hashed with PBKDF2-HMAC-SHA256 and a per-user salt.")</span></li>
+                <li><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-check"></use></svg><span>@WebText.T("TOTP is mandatory for every account, with one-time recovery codes.")</span></li>
+                <li><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-check"></use></svg><span>@WebText.T("Every user database is encrypted with SQLCipher using a key derived from the deployment master key.")</span></li>
+                <li><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-check"></use></svg><span>@WebText.T("Cookies are HttpOnly, SameSite=Strict and Secure in production.")</span></li>
+                <li><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-check"></use></svg><span>@WebText.T("Content Security Policy blocks inline scripts, inline styles and third-party requests.")</span></li>
+                <li><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-check"></use></svg><span>@WebText.T("The admin UI does not expose another user's timesheet. Audited credential resets are available for account recovery, so grant the administrator role carefully.")</span></li>
             </ul>
         </div>
     </section>
@@ -39,29 +39,29 @@
     <section class="panel">
         <div class="panel-head">
             <div>
-                <h2>Build</h2>
-                <p>Version information from the running assembly.</p>
+                <h2>@WebText.T("Build")</h2>
+                <p>@WebText.T("Version information from the running assembly.")</p>
             </div>
         </div>
         <div class="panel-body">
             <div class="table-wrap">
                 <table class="table-plain">
                     <tbody>
-                        <tr><th>Version</th><td class="mono">@AppInfo.Version</td></tr>
-                        <tr><th>Build</th><td class="mono">@AppInfo.BuildNumber</td></tr>
-                        <tr><th>Commit</th><td class="mono">@(string.IsNullOrWhiteSpace(AppInfo.BuildCommit) ? "local" : AppInfo.BuildCommit)</td></tr>
-                        <tr><th>License</th><td>MIT</td></tr>
+                        <tr><th>@WebText.T("Version")</th><td class="mono">@AppInfo.Version</td></tr>
+                        <tr><th>@WebText.T("Build")</th><td class="mono">@AppInfo.BuildNumber</td></tr>
+                        <tr><th>@WebText.T("Commit")</th><td class="mono">@(string.IsNullOrWhiteSpace(AppInfo.BuildCommit) ? "local" : AppInfo.BuildCommit)</td></tr>
+                        <tr><th>@WebText.T("License")</th><td>MIT</td></tr>
                     </tbody>
                 </table>
             </div>
             <div class="btn-row mt-1">
                 <a class="btn btn-ghost" href="https://github.com/RogerBergling/TimeReport" target="_blank" rel="noopener noreferrer">
                     <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-github"></use></svg>
-                    Source code
+                    @WebText.T("Source code")
                 </a>
                 <a class="btn btn-ghost" href="https://github.com/RogerBergling/TimeReport/blob/main/docs/WEB.md" target="_blank" rel="noopener noreferrer">
                     <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-external"></use></svg>
-                    Deployment guide
+                    @WebText.T("Deployment guide")
                 </a>
             </div>
         </div>

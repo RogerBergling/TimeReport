@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using TimeReport.Data;
 using TimeReport.Services;
+using TimeReport.Web.Localization;
 using TimeReport.Web.Services;
 using TimeReport.Web.ViewModels;
 
@@ -26,7 +27,7 @@ public sealed class ProjectsModel : AppPageModel
         try
         {
             _data.Current.Service.CreateProject(name ?? string.Empty);
-            SetStatus("Project created.");
+            SetStatus(WebText.T("Project created."));
         }
         catch (ValidationException exception)
         {
@@ -44,7 +45,7 @@ public sealed class ProjectsModel : AppPageModel
         try
         {
             _data.Current.Service.RenameProject(id, name ?? string.Empty);
-            SetStatus("Project renamed.");
+            SetStatus(WebText.T("Project renamed."));
         }
         catch (ValidationException exception)
         {
@@ -58,7 +59,7 @@ public sealed class ProjectsModel : AppPageModel
         try
         {
             _data.Current.Service.SetProjectArchived(id, archived);
-            SetStatus(archived ? "Project archived." : "Project restored.");
+            SetStatus(WebText.T(archived ? "Project archived." : "Project restored."));
         }
         catch (ValidationException exception)
         {
@@ -72,7 +73,7 @@ public sealed class ProjectsModel : AppPageModel
         try
         {
             _data.Current.Service.DeleteProject(id);
-            SetStatus("Project deleted.");
+            SetStatus(WebText.T("Project deleted."));
         }
         catch (ValidationException exception)
         {

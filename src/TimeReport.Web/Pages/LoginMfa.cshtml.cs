@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using TimeReport.Web.Auth;
 using TimeReport.Web.Configuration;
+using TimeReport.Web.Localization;
 using TimeReport.Web.Security;
 using TimeReport.Web.ViewModels;
 
@@ -62,12 +63,12 @@ public sealed class LoginMfaModel : AppPageModel
             {
                 _auth.ClearPendingMfa(pending.Value.Pending);
                 _cookies.DeleteMfaCookie(HttpContext);
-                ErrorMessage = "Too many incorrect codes. Sign in again to start a new verification.";
+                ErrorMessage = WebText.T("Too many incorrect codes. Sign in again to start a new verification.");
                 PendingUser = null;
                 return Page();
             }
 
-            ErrorMessage = "The authenticator code is not valid. Check the code and your device clock.";
+            ErrorMessage = WebText.T("The authenticator code is not valid. Check the code and your device clock.");
             Code = null;
             return Page();
         }

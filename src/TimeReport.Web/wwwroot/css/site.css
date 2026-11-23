@@ -776,8 +776,23 @@ td.mono { font-family: var(--mono); font-size: 0.82rem; }
     right: 0.9rem;
     z-index: 20;
     display: flex;
+    align-items: center;
     gap: 0.3rem;
 }
+
+.auth-language {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0 0.55rem;
+    font-family: var(--mono);
+    font-size: 0.72rem;
+    color: var(--dim);
+    white-space: nowrap;
+}
+
+.auth-language a { color: var(--muted); }
+.auth-language a:hover { color: var(--accent); }
 
 .auth-shell {
     position: relative;

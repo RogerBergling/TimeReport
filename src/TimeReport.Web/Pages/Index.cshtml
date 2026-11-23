@@ -1,36 +1,36 @@
 @page
 @model TimeReport.Web.Pages.IndexModel
 @{
-    ViewData["Title"] = "Timesheet";
+    ViewData["Title"] = WebText.T("Timesheet");
     ViewData["Active"] = "timesheet";
     var week = Model.Week;
 }
 
 <div class="page-head">
     <div>
-        <p class="eyebrow">Timesheet</p>
-        <h1>Your week</h1>
-        <p class="page-sub">Work, lunch, away and X-Pause for the selected Monday–Sunday week.</p>
+        <p class="eyebrow">@WebText.T("Timesheet")</p>
+        <h1>@WebText.T("Your week")</h1>
+        <p class="page-sub">@WebText.T("Work, lunch, away and X-Pause for the selected Monday–Sunday week. Week starts Monday; times use the 24-hour clock.")</p>
     </div>
-    <a class="btn btn-primary" asp-page="/Entries/Edit" asp-route-date="@week.Start.ToString("yyyy-MM-dd")">
+    <a class="btn btn-primary" asp-page="/Entries/Edit" asp-route-date="@(week.Start.ToString("yyyy-MM-dd"))">
         <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-plus"></use></svg>
-        Add entry
+        @WebText.T("Add entry")
     </a>
 </div>
 
 <div class="week-toolbar">
     <a class="btn btn-icon" asp-page="/Index" asp-route-week="@(week.Start.AddDays(-7).ToString("yyyy-MM-dd"))"
-       aria-label="Previous week" title="Previous week">
+       aria-label="@WebText.T("Previous week")" title="@WebText.T("Previous week")">
         <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-arrow-left"></use></svg>
     </a>
     <span class="week-label">@week.Label</span>
     <a class="btn btn-icon" asp-page="/Index" asp-route-week="@(week.Start.AddDays(7).ToString("yyyy-MM-dd"))"
-       aria-label="Next week" title="Next week">
+       aria-label="@WebText.T("Next week")" title="@WebText.T("Next week")">
         <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-arrow-right"></use></svg>
     </a>
-    <a class="btn btn-sm" asp-page="/Index">This week</a>
+    <a class="btn btn-sm" asp-page="/Index">@WebText.T("This week")</a>
     <a class="btn btn-sm btn-ghost" asp-page="/Totals" asp-route-period="week" asp-route-anchor="@(week.Start.ToString("yyyy-MM-dd"))">
-        Open totals
+        @WebText.T("Open totals")
     </a>
 </div>
 
@@ -69,25 +69,25 @@
                 @day.Title
                 @if (day.IsToday)
                 {
-                    <span class="today-mark">Today</span>
+                    <span class="today-mark">@WebText.T("Today")</span>
                 }
             </div>
             <div class="day-totals">
-                <span>Worked <strong>@day.WorkedText</strong></span>
-                <span>Lunch <strong>@day.LunchText</strong></span>
-                <span>Away <strong>@day.AwayText</strong></span>
-                <span>X-Pause <strong>@day.XPauseText</strong></span>
-                <span>Overtime <strong>@day.OvertimeText</strong></span>
+                <span>@LocalizationService.T("LabelWorked") <strong>@day.WorkedText</strong></span>
+                <span>@LocalizationService.T("LabelLunch") <strong>@day.LunchText</strong></span>
+                <span>@LocalizationService.T("LabelAway") <strong>@day.AwayText</strong></span>
+                <span>@LocalizationService.T("LabelXPause") <strong>@day.XPauseText</strong></span>
+                <span>@LocalizationService.T("LabelOvertime") <strong>@day.OvertimeText</strong></span>
             </div>
             <a class="btn btn-sm btn-ghost" asp-page="/Entries/Edit" asp-route-date="@day.Date.ToString("yyyy-MM-dd")">
                 <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-plus"></use></svg>
-                Add
+                @WebText.T("Add")
             </a>
         </div>
 
         @if (day.Entries.Count == 0)
         {
-            <p class="empty-row">No entries yet.</p>
+            <p class="empty-row">@WebText.T("No entries yet.")</p>
         }
         else
         {
@@ -95,12 +95,12 @@
                 <table class="entry-table">
                     <thead>
                         <tr>
-                            <th>Type</th>
-                            <th>Project / reason</th>
-                            <th>Start</th>
-                            <th>End</th>
-                            <th>Duration</th>
-                            <th class="actions-col">Actions</th>
+                            <th>@WebText.T("Type")</th>
+                            <th>@WebText.T("Project / reason")</th>
+                            <th>@WebText.T("Start")</th>
+                            <th>@WebText.T("End")</th>
+                            <th>@WebText.T("Duration")</th>
+                            <th class="actions-col">@WebText.T("Actions")</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -120,15 +120,15 @@
                                 <td>
                                     <div class="table-actions">
                                         <a class="btn btn-icon" asp-page="/Entries/Edit" asp-route-id="@entry.Id"
-                                           aria-label="Edit @entry.TypeText entry" title="Edit">
+                                           aria-label="@WebText.T("Edit") @entry.TypeText" title="@WebText.T("Edit")">
                                             <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-edit"></use></svg>
                                         </a>
                                         <form method="post" asp-page="/Index" asp-page-handler="Delete"
-                                              data-confirm="Delete this entry?">
+                                              data-confirm="@WebText.T("Delete this entry?")">
                                             <input type="hidden" name="id" value="@entry.Id" />
                                             <input type="hidden" name="week" value="@(week.Start.ToString("yyyy-MM-dd"))" />
                                             <button class="btn btn-icon" type="submit"
-                                                    aria-label="Delete @entry.TypeText entry" title="Delete">
+                                                    aria-label="@WebText.T("Delete") @entry.TypeText" title="@WebText.T("Delete")">
                                                 <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-trash"></use></svg>
                                             </button>
                                         </form>

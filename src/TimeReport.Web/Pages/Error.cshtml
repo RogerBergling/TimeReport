@@ -15,9 +15,9 @@
 <div class="panel">
     <div class="panel-body">
         <div class="btn-row">
-            <a class="btn btn-primary" asp-page="/Index">Go to timesheet</a>
-            <a class="btn btn-ghost" asp-page="/Login">Sign in</a>
+            <a class="btn btn-primary" asp-page="/Index">@WebText.T("Go to timesheet")</a>
+            <a class="btn btn-ghost" asp-page="/Login">@WebText.T("Sign in")</a>
         </div>
-        <p class="hint">Request ID: <code>@HttpContext.TraceIdentifier</code></p>
+        <p class="hint">@WebText.T("Request ID"): <code>@HttpContext.TraceIdentifier</code></p>
     </div>
 </div>

@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using TimeReport.Services;
 using TimeReport.Web.Auth;
+using TimeReport.Web.Localization;
 using TimeReport.Web.Security;
 using TimeReport.Web.ViewModels;
 
@@ -23,6 +24,9 @@ public sealed class SettingsModel : AppPageModel
     public string? DisplayName { get; set; }
 
     [BindProperty]
+    public string? Language { get; set; }
+
+    [BindProperty]
     public string? TimeZoneId { get; set; }
 
     [BindProperty]
@@ -36,9 +40,12 @@ public sealed class SettingsModel : AppPageModel
 
     public IReadOnlyList<TimeZoneOption> TimeZones { get; private set; } = [];
 
+    public IReadOnlyList<LanguageOption> Languages => LocalizationService.Languages;
+
     public void OnGet()
     {
         DisplayName = CurrentUser.DisplayName;
+        Language = CurrentUser.Language;
         TimeZoneId = CurrentUser.TimeZoneId;
         OvertimeDailyHours = CurrentUser.OvertimeDailyMinutes / 60m;
         OvertimeWeeklyHours = CurrentUser.OvertimeWeeklyMinutes / 60m;
@@ -53,17 +60,17 @@ public sealed class SettingsModel : AppPageModel
         var weekly = OvertimeWeeklyHours ?? 0;
         if (daily is < 0 or > 24)
         {
-            ErrorMessage = "The daily overtime threshold must be between 0 and 24 hours.";
+            ErrorMessage = WebText.T("The daily overtime threshold must be between 0 and 24 hours.");
             return Page();
         }
         if (weekly is < 0 or > 168)
         {
-            ErrorMessage = "The weekly overtime threshold must be between 0 and 168 hours.";
+            ErrorMessage = WebText.T("The weekly overtime threshold must be between 0 and 168 hours.");
             return Page();
         }
         if (BackupRetentionCount is < 1 or > 365)
         {
-            ErrorMessage = "Backup retention must be between 1 and 365.";
+            ErrorMessage = WebText.T("Backup retention must be between 1 and 365.");
             return Page();
         }
 
@@ -72,14 +79,14 @@ public sealed class SettingsModel : AppPageModel
             var updated = _auth.UpdatePreferences(
                 CurrentUser,
                 DisplayName,
-                CurrentUser.Language,
+                Language,
                 CurrentUser.Theme,
                 TimeZoneId,
                 (int)Math.Round(daily * 60, MidpointRounding.AwayFromZero),
                 (int)Math.Round(weekly * 60, MidpointRounding.AwayFromZero),
                 BackupRetentionCount);
             await _cookies.SignInAsync(HttpContext, updated);
-            SetStatus("Settings saved.");
+            SetStatus(WebText.T("Settings saved."));
             return RedirectToPage();
         }
         catch (AuthException exception)

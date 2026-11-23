@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using TimeReport.Web.Auth;
+using TimeReport.Web.Localization;
 using TimeReport.Web.Services;
 using TimeReport.Web.ViewModels;
 
@@ -59,7 +60,7 @@ public sealed partial class UsersModel : AppPageModel
                 return Page();
             }
 
-            SetStatus("User created.");
+            SetStatus(WebText.T("User created."));
             return RedirectToPage();
         }
         catch (AuthException exception)
@@ -83,7 +84,7 @@ public sealed partial class UsersModel : AppPageModel
         var target = _auth.GetUserById(userId);
         if (target is null)
         {
-            SetError("The user no longer exists.");
+            SetError(WebText.T("The user no longer exists."));
             return RedirectToPage();
         }
 
@@ -106,14 +107,14 @@ public sealed partial class UsersModel : AppPageModel
         var target = _auth.GetUserById(userId);
         if (target is null)
         {
-            SetError("The user no longer exists.");
+            SetError(WebText.T("The user no longer exists."));
             return RedirectToPage();
         }
 
         try
         {
             _auth.ResetTotp(CurrentUser, target, ClientIp);
-            SetStatus($"MFA reset for {target.Username}. They must enroll again after signing in.");
+            SetStatus(WebText.T("MFA reset for {0}. They must enroll again after signing in.", target.Username));
         }
         catch (AuthException exception)
         {
@@ -127,14 +128,14 @@ public sealed partial class UsersModel : AppPageModel
         var target = _auth.GetUserById(userId);
         if (target is null)
         {
-            SetError("The user no longer exists.");
+            SetError(WebText.T("The user no longer exists."));
             return RedirectToPage();
         }
 
         try
         {
             _auth.SetDisabled(CurrentUser, target, disabled, ClientIp);
-            SetStatus(disabled ? $"{target.Username} disabled." : $"{target.Username} enabled.");
+            SetStatus(WebText.T(disabled ? "{0} disabled." : "{0} enabled.", target.Username));
         }
         catch (AuthException exception)
         {
@@ -148,16 +149,16 @@ public sealed partial class UsersModel : AppPageModel
         var target = _auth.GetUserById(userId);
         if (target is null)
         {
-            SetError("The user no longer exists.");
+            SetError(WebText.T("The user no longer exists."));
             return RedirectToPage();
         }
 
         try
         {
             _auth.SetAdmin(CurrentUser, target, isAdmin, ClientIp);
-            SetStatus(isAdmin
-                ? $"{target.Username} is now an administrator."
-                : $"{target.Username} is no longer an administrator.");
+            SetStatus(WebText.T(isAdmin
+                ? "{0} is now an administrator."
+                : "{0} is no longer an administrator.", target.Username));
         }
         catch (AuthException exception)
         {
@@ -171,13 +172,13 @@ public sealed partial class UsersModel : AppPageModel
         var target = _auth.GetUserById(userId);
         if (target is null)
         {
-            SetError("The user no longer exists.");
+            SetError(WebText.T("The user no longer exists."));
             return RedirectToPage();
         }
 
         if (!string.Equals(confirmUsername?.Trim(), target.Username, StringComparison.Ordinal))
         {
-            SetError("Type the username exactly to confirm deletion.");
+            SetError(WebText.T("Type the username exactly to confirm deletion."));
             return RedirectToPage();
         }
 
@@ -194,12 +195,12 @@ public sealed partial class UsersModel : AppPageModel
         try
         {
             _data.DeleteUserData(target.Id);
-            SetStatus($"{target.Username} and their private database were deleted.");
+            SetStatus(WebText.T("{0} and their private database were deleted.", target.Username));
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
         {
             LogDataCleanupFailure(_logger, target.Username, exception);
-            SetError($"{target.Username} was deleted, but their data directory could not be removed.");
+            SetError(WebText.T("{0} was deleted, but their data directory could not be removed.", target.Username));
         }
 
         return RedirectToPage();

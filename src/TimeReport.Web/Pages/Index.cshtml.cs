@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using TimeReport.Services;
+using TimeReport.Web.Localization;
 using TimeReport.Web.Services;
 using TimeReport.Web.ViewModels;
 
@@ -28,7 +29,7 @@ public sealed class IndexModel : AppPageModel
         try
         {
             _data.Current.Service.DeleteEntry(id);
-            SetStatus("Entry deleted.");
+            SetStatus(WebText.T("Entry deleted."));
         }
         catch (ValidationException exception)
         {
@@ -36,7 +37,7 @@ public sealed class IndexModel : AppPageModel
         }
         catch (Exception)
         {
-            SetError("The entry could not be deleted.");
+            SetError(WebText.T("The entry could not be deleted."));
         }
 
         return RedirectToPage(new { week });

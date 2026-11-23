@@ -12,7 +12,9 @@ no public API, no telemetry, no CDN and no third-party browser request.
 - Weekly timesheet with work, lunch, away and X-Pause.
 - Projects and custom entry types, private per account.
 - Daily, weekly, monthly, yearly and all-time totals.
-- Overtime thresholds and time zone, configured per account.
+- Overtime thresholds, time zone and interface language, configured per account.
+- English and Swedish interface. Weeks start on Monday and times use the 24-hour
+  clock.
 - Excel `.xlsx` export with the same six sheets as the desktop application.
   Web exports are capped at a 10-year range to bound work and memory.
 - Mandatory TOTP with QR enrollment and single-use recovery codes.
@@ -26,8 +28,7 @@ no public API, no telemetry, no CDN and no third-party browser request.
 
 Not included in the web build: Dropbox sync, desktop update checks, desktop
 database import, email delivery and password reset by email. Those are
-desktop-only or intentionally out of scope. The web UI is English in this
-release; the desktop app keeps its English/Swedish interface.
+desktop-only or intentionally out of scope.
 
 ## Architecture
 

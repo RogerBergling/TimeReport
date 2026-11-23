@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using TimeReport.Web.Auth;
+using TimeReport.Web.Localization;
 using TimeReport.Web.Security;
 using TimeReport.Web.Services;
 using TimeReport.Web.ViewModels;
@@ -57,8 +58,8 @@ public sealed class LoginModel : AppPageModel
         if (result.Status != PasswordLoginStatus.Success || result.User is null)
         {
             ErrorMessage = result.Status == PasswordLoginStatus.Throttled
-                ? "Too many sign-in attempts. Wait a few minutes and try again."
-                : "Invalid username or password.";
+                ? WebText.T("Too many sign-in attempts. Wait a few minutes and try again.")
+                : WebText.T("Invalid username or password.");
             Password = null;
             return Page();
         }

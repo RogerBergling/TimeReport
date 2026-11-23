@@ -1,15 +1,15 @@
 @page
 @model TimeReport.Web.Pages.ExportModel
 @{
-    ViewData["Title"] = "Export";
+    ViewData["Title"] = WebText.T("Export");
     ViewData["Active"] = "export";
 }
 
 <div class="page-head">
     <div>
-        <p class="eyebrow">Export</p>
-        <h1>Export to Excel</h1>
-        <p class="page-sub">The workbook contains Summary, Entries, Daily totals, Monthly totals, Projects and Types sheets.</p>
+        <p class="eyebrow">@WebText.T("Export")</p>
+        <h1>@WebText.T("Export to Excel")</h1>
+        <p class="page-sub">@WebText.T("The workbook contains Summary, Entries, Daily totals, Monthly totals, Projects and Types sheets.")</p>
     </div>
 </div>
 
@@ -17,27 +17,27 @@
     <section class="panel">
         <div class="panel-head">
             <div>
-                <h2>Custom range</h2>
-                <p>Only your own entries are included.</p>
+                <h2>@WebText.T("Custom range")</h2>
+                <p>@WebText.T("Only your own entries are included.")</p>
             </div>
         </div>
         <div class="panel-body">
             <form method="get" asp-page="/Export/Download">
                 <div class="form-grid">
                     <div class="field">
-                        <label for="export-start">From date</label>
+                        <label for="export-start">@WebText.T("From date")</label>
                         <input id="export-start" name="start" type="date" value="@Model.Start" required />
                     </div>
                     <div class="field">
-                        <label for="export-end">To date</label>
+                        <label for="export-end">@WebText.T("To date")</label>
                         <input id="export-end" name="end" type="date" value="@Model.End" required />
                     </div>
                 </div>
                 <div class="field-actions">
-                    <span class="hint">Any number of months. Times use the 24-hour clock.</span>
+                    <span class="hint">@WebText.T("Any number of months. Times use the 24-hour clock.")</span>
                     <button class="btn btn-primary" type="submit">
                         <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-download"></use></svg>
-                        Download .xlsx
+                        @WebText.T("Download .xlsx")
                     </button>
                 </div>
             </form>
@@ -47,32 +47,32 @@
     <section class="panel">
         <div class="panel-head">
             <div>
-                <h2>Quick ranges</h2>
-                <p>Presets are calculated in your selected time zone.</p>
+                <h2>@WebText.T("Quick ranges")</h2>
+                <p>@WebText.T("Presets are calculated in your selected time zone.")</p>
             </div>
         </div>
         <div class="panel-body">
             <div class="stack-sm">
                 <a class="btn" asp-page="/Export/Download" asp-route-start="@Model.ThisMonthStart" asp-route-end="@Model.ThisMonthEnd">
-                    This month · @Model.ThisMonthStart → @Model.ThisMonthEnd
+                    @WebText.T("This month") · @Model.ThisMonthStart → @Model.ThisMonthEnd
                 </a>
                 <a class="btn" asp-page="/Export/Download" asp-route-start="@Model.LastMonthStart" asp-route-end="@Model.LastMonthEnd">
-                    Last month · @Model.LastMonthStart → @Model.LastMonthEnd
+                    @WebText.T("Last month") · @Model.LastMonthStart → @Model.LastMonthEnd
                 </a>
                 <a class="btn" asp-page="/Export/Download" asp-route-start="@Model.ThisYearStart" asp-route-end="@Model.ThisYearEnd">
-                    This year · @Model.ThisYearStart → @Model.ThisYearEnd
+                    @WebText.T("This year") · @Model.ThisYearStart → @Model.ThisYearEnd
                 </a>
                 <a class="btn" asp-page="/Export/Download" asp-route-start="@Model.LastYearStart" asp-route-end="@Model.LastYearEnd">
-                    Last year · @Model.LastYearStart → @Model.LastYearEnd
+                    @WebText.T("Last year") · @Model.LastYearStart → @Model.LastYearEnd
                 </a>
                 @if (Model.AllTimeStart is not null && Model.AllTimeEnd is not null)
                 {
                     <a class="btn" asp-page="/Export/Download" asp-route-start="@Model.AllTimeStart" asp-route-end="@Model.AllTimeEnd">
-                        All time · @Model.AllTimeStart → @Model.AllTimeEnd
+                        @WebText.T("All time") · @Model.AllTimeStart → @Model.AllTimeEnd
                     </a>
                 }
             </div>
-            <p class="hint mt-1">The export is generated on the server and served directly to this browser. No file is left behind.</p>
+            <p class="hint mt-1">@WebText.T("The export is generated on the server and served directly to this browser. No file is left behind.")</p>
         </div>
     </section>
 </div>

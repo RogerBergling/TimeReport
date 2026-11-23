@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using TimeReport.Data;
 using TimeReport.Models;
 using TimeReport.Services;
+using TimeReport.Web.Localization;
 using TimeReport.Web.Services;
 using TimeReport.Web.ViewModels;
 
@@ -36,7 +37,7 @@ public sealed class TypesModel : AppPageModel
         {
             var kind = EntryKindExtensions.FromDbString(category ?? string.Empty);
             _data.Current.Service.CreateEntryType(name ?? string.Empty, kind);
-            SetStatus("Entry type created.");
+            SetStatus(WebText.T("Entry type created."));
         }
         catch (ValidationException exception)
         {
@@ -44,7 +45,7 @@ public sealed class TypesModel : AppPageModel
         }
         catch (ArgumentException)
         {
-            SetError("Choose a valid type category.");
+            SetError(WebText.T("Choose a valid type category."));
         }
         return RedirectToPage();
     }
@@ -54,7 +55,7 @@ public sealed class TypesModel : AppPageModel
         try
         {
             _data.Current.Service.RenameEntryType(id, name ?? string.Empty);
-            SetStatus("Entry type renamed.");
+            SetStatus(WebText.T("Entry type renamed."));
         }
         catch (ValidationException exception)
         {
@@ -68,7 +69,7 @@ public sealed class TypesModel : AppPageModel
         try
         {
             _data.Current.Service.SetEntryTypeArchived(id, archived);
-            SetStatus(archived ? "Entry type archived." : "Entry type restored.");
+            SetStatus(WebText.T(archived ? "Entry type archived." : "Entry type restored."));
         }
         catch (ValidationException exception)
         {
@@ -82,7 +83,7 @@ public sealed class TypesModel : AppPageModel
         try
         {
             _data.Current.Service.DeleteEntryType(id);
-            SetStatus("Entry type deleted.");
+            SetStatus(WebText.T("Entry type deleted."));
         }
         catch (ValidationException exception)
         {

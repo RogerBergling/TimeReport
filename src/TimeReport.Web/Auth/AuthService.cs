@@ -3,6 +3,7 @@ using System.Text.RegularExpressions;
 using TimeReport.Services;
 using TimeReport.Web.Configuration;
 using TimeReport.Web.Demo;
+using TimeReport.Web.Localization;
 using TimeReport.Web.Security;
 
 namespace TimeReport.Web.Auth;
@@ -216,7 +217,7 @@ public sealed partial class AuthService
         EnsureNotDemoGuest(user);
         if (user.TotpConfirmed)
         {
-            throw new AuthException("Two-factor authentication is already enabled.");
+            throw new AuthException(WebText.T("Two-factor authentication is already enabled."));
         }
 
         if (!string.IsNullOrWhiteSpace(user.TotpSecret))
@@ -245,19 +246,19 @@ public sealed partial class AuthService
         EnsureNotDemoGuest(user);
         if (user.TotpConfirmed)
         {
-            throw new AuthException("Two-factor authentication is already enabled.");
+            throw new AuthException(WebText.T("Two-factor authentication is already enabled."));
         }
 
         if (string.IsNullOrWhiteSpace(user.TotpSecret))
         {
-            throw new AuthException("Start the authenticator setup again.");
+            throw new AuthException(WebText.T("Start the authenticator setup again."));
         }
 
         var secret = UnprotectSecret(user.TotpSecret);
         var result = _totp.Validate(secret, code, user.TotpLastStep, _timeProvider.GetUtcNow());
         if (!result.Success)
         {
-            throw new AuthException("The authenticator code is not valid. Check the clock and try again.");
+            throw new AuthException(WebText.T("The authenticator code is not valid. Check the clock and try again."));
         }
 
         var newStamp = NewSecurityStamp();
@@ -285,19 +286,19 @@ public sealed partial class AuthService
         EnsureNotDemoGuest(user);
         if (!VerifyCurrentPassword(user, currentPassword, "password-change", null))
         {
-            throw new AuthException("The current password is not correct.");
+            throw new AuthException(WebText.T("The current password is not correct."));
         }
 
         if (_passwords.Verify(user, newPassword ?? string.Empty) !=
             Microsoft.AspNetCore.Identity.PasswordVerificationResult.Failed)
         {
-            throw new AuthException("Choose a password that is different from the current one.");
+            throw new AuthException(WebText.T("Choose a password that is different from the current one."));
         }
 
         var error = PasswordPolicy.Validate(newPassword, user.Username);
         if (error is not null)
         {
-            throw new AuthException(error);
+            throw new AuthException(WebText.T(error));
         }
 
         var hash = _passwords.Hash(user, newPassword!);
@@ -342,7 +343,14 @@ public sealed partial class AuthService
         string? password,
         string? ipAddress)
     {
-        var user = BuildNewUser(username, displayName, password, isAdmin: true, mustChange: false, out _);
+        var user = BuildNewUser(
+            username,
+            displayName,
+            password,
+            isAdmin: true,
+            mustChange: false,
+            LocalizationService.CurrentLanguage,
+            out _);
         _database.CreateFirstAdmin(user);
         Audit(user.Username, "setup.completed", "first administrator created", ipAddress);
         return user;
@@ -356,7 +364,14 @@ public sealed partial class AuthService
         bool isAdmin,
         string? ipAddress)
     {
-        var user = BuildNewUser(username, displayName, password, isAdmin, mustChange: true, out var temporary);
+        var user = BuildNewUser(
+            username,
+            displayName,
+            password,
+            isAdmin,
+            mustChange: true,
+            admin.Language,
+            out var temporary);
         _database.CreateUser(user);
         Audit(admin.Username, "user.created", $"{user.Username}; admin={isAdmin}", ipAddress);
         return (user, temporary);
@@ -400,7 +415,7 @@ public sealed partial class AuthService
             EnsureNotDemoGuest(target);
             if (disabled && admin.Id == target.Id)
             {
-                throw new AuthException("You cannot disable your own account.");
+                throw new AuthException(WebText.T("You cannot disable your own account."));
             }
             if (disabled)
             {
@@ -425,7 +440,7 @@ public sealed partial class AuthService
             EnsureNotDemoGuest(target);
             if (!isAdmin && admin.Id == target.Id)
             {
-                throw new AuthException("You cannot remove your own administrator role.");
+                throw new AuthException(WebText.T("You cannot remove your own administrator role."));
             }
             if (!isAdmin)
             {
@@ -450,7 +465,7 @@ public sealed partial class AuthService
             EnsureNotDemoGuest(target);
             if (admin.Id == target.Id)
             {
-                throw new AuthException("You cannot delete your own account.");
+                throw new AuthException(WebText.T("You cannot delete your own account."));
             }
             EnsureNotLastAdminIfNeeded(target, "delete");
 
@@ -519,6 +534,7 @@ public sealed partial class AuthService
         string? password,
         bool isAdmin,
         bool mustChange,
+        string? language,
         out string? temporaryPassword)
     {
         var cleanedUsername = NormalizeUsername(username);
@@ -535,7 +551,7 @@ public sealed partial class AuthService
         var error = PasswordPolicy.Validate(cleanedPassword, cleanedUsername);
         if (error is not null)
         {
-            throw new AuthException(error);
+            throw new AuthException(WebText.T(error));
         }
 
         var now = _timeProvider.GetUtcNow();
@@ -546,7 +562,7 @@ public sealed partial class AuthService
             DisplayName = CleanDisplayName(displayName, cleanedUsername),
             IsAdmin = isAdmin,
             MustChangePassword = mustChange,
-            Language = "en",
+            Language = NormalizeLanguage(language),
             Theme = "dark",
             TimeZoneId = TimeZoneService.ResolveId(null),
             BackupRetentionCount = 20,
@@ -562,14 +578,17 @@ public sealed partial class AuthService
     {
         if (!UsernamePattern().IsMatch(username))
         {
-            throw new AuthException(
+            throw new AuthException(WebText.T(
                 "Usernames must be 3–64 characters, start with a letter or digit, " +
-                "and contain only letters, digits, dot, underscore or hyphen.");
+                "and contain only letters, digits, dot, underscore or hyphen."));
         }
     }
 
     private static string NormalizeUsername(string? username) =>
         (username ?? string.Empty).Trim();
+
+    private static string NormalizeLanguage(string? code) =>
+        string.Equals(code, "sv", StringComparison.OrdinalIgnoreCase) ? "sv" : "en";
 
     private static string CleanDisplayName(string? displayName, string username)
     {
@@ -586,7 +605,7 @@ public sealed partial class AuthService
         }
         if (cleaned.Length > 80)
         {
-            throw new AuthException("Display names must be 80 characters or fewer.");
+            throw new AuthException(WebText.T("Display names must be 80 characters or fewer."));
         }
         return cleaned;
     }
@@ -595,15 +614,15 @@ public sealed partial class AuthService
     {
         if (_demo.Enabled && _demo.IsGuest(user))
         {
-            throw new AuthException(
+            throw new AuthException(WebText.T(
                 "The demo guest account has fixed credentials. " +
-                "Create another user to test credential changes.");
+                "Create another user to test credential changes."));
         }
     }
 
     private AuthUser RefreshWithinLock(AuthUser target) =>
         _database.GetUserById(target.Id)
-        ?? throw new AuthException("The user no longer exists.");
+        ?? throw new AuthException(WebText.T("The user no longer exists."));
 
     private void EnsureNotLastAdminIfNeeded(AuthUser target, string action)
     {
@@ -615,7 +634,7 @@ public sealed partial class AuthService
         if (_database.CountActiveAdmins(target.Id) == 0)
         {
             throw new AuthException(
-                $"You cannot {action} the last active administrator.");
+                WebText.T("You cannot {0} the last active administrator.", action));
         }
     }
 

@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using TimeReport.Data;
 using TimeReport.Models;
 using TimeReport.Services;
+using TimeReport.Web.Localization;
 using TimeReport.Web.Services;
 using TimeReport.Web.ViewModels;
 
@@ -62,7 +63,7 @@ public sealed class EditModel : AppPageModel
             var entry = service.GetEntry(entryId);
             if (entry is null)
             {
-                SetError("That entry no longer exists.");
+                SetError(WebText.T("That entry no longer exists."));
                 return RedirectToPage("/Index");
             }
 
@@ -147,7 +148,7 @@ public sealed class EditModel : AppPageModel
                 type.Name,
                 timeZone);
             var saved = service.SaveEntry(entry);
-            SetStatus(IsEdit ? "Entry updated." : "Entry added.");
+            SetStatus(WebText.T(IsEdit ? "Entry updated." : "Entry added."));
             return RedirectToPage(
                 "/Index",
                 new
@@ -176,7 +177,7 @@ public sealed class EditModel : AppPageModel
         {
             var entry = service.GetEntry(id);
             service.DeleteEntry(id);
-            SetStatus("Entry deleted.");
+            SetStatus(WebText.T("Entry deleted."));
             return RedirectToPage(
                 "/Index",
                 new
@@ -193,7 +194,7 @@ public sealed class EditModel : AppPageModel
         }
         catch (Exception)
         {
-            SetError("The entry could not be deleted.");
+            SetError(WebText.T("The entry could not be deleted."));
         }
 
         return RedirectToPage("/Index");

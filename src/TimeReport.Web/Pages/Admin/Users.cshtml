@@ -1,34 +1,31 @@
 @page
 @model TimeReport.Web.Pages.Admin.UsersModel
 @{
-    ViewData["Title"] = "Users";
+    ViewData["Title"] = WebText.T("Users");
     ViewData["Active"] = "admin";
     var currentId = Model.CurrentUser.Id;
 }
 
 <div class="page-head">
     <div>
-        <p class="eyebrow">Administration</p>
-        <h1>Users</h1>
-        <p class="page-sub">
-            Create accounts, reset credentials and manage roles. The admin UI does not open
-            another user's timesheet. Credential resets are audited and can grant account access.
-        </p>
+        <p class="eyebrow">@WebText.T("Administration")</p>
+        <h1>@WebText.T("Users")</h1>
+        <p class="page-sub">@WebText.T("Create accounts, reset credentials and manage roles. The admin UI does not open another user's timesheet. Credential resets are audited and can grant account access.")</p>
     </div>
     <a class="btn btn-ghost" asp-page="/Admin/Audit">
         <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-shield"></use></svg>
-        Audit log
+        @WebText.T("Audit log")
     </a>
 </div>
 
 @if (Model.TemporaryPassword is not null)
 {
     <div class="callout warn">
-        <strong>Temporary password for @Model.TemporaryPasswordUser.</strong>
-        <p class="mt-1">Show this once to the user. They must change it at first sign-in.</p>
+        <strong>@WebText.T("Temporary password for {0}.", Model.TemporaryPasswordUser ?? string.Empty)</strong>
+        <p class="mt-1">@WebText.T("Show this once to the user. They must change it at first sign-in.")</p>
         <span class="secret-code" id="temporary-password">@Model.TemporaryPassword</span>
         <div class="btn-row mt-1">
-            <button class="btn btn-sm" type="button" data-copy-target="temporary-password">Copy password</button>
+            <button class="btn btn-sm" type="button" data-copy-target="temporary-password">@WebText.T("Copy password")</button>
         </div>
     </div>
 }
@@ -36,40 +33,40 @@
 <section class="panel">
     <div class="panel-head">
         <div>
-            <h2>Create user</h2>
-            <p>Leave the password blank to generate a temporary password.</p>
+            <h2>@WebText.T("Create user")</h2>
+            <p>@WebText.T("Leave the password blank to generate a temporary password.")</p>
         </div>
     </div>
     <div class="panel-body">
         <form method="post" asp-page-handler="Create" novalidate>
             <div class="form-grid">
                 <div class="field">
-                    <label asp-for="NewUsername">Username</label>
+                    <label asp-for="NewUsername">@WebText.T("Username")</label>
                     <input asp-for="NewUsername" autocomplete="off" required />
-                    <p class="hint">3–64 characters: letters, digits, dot, underscore or hyphen.</p>
+                    <p class="hint">@WebText.T("3–64 characters: letters, digits, dot, underscore or hyphen.")</p>
                 </div>
                 <div class="field">
-                    <label asp-for="NewDisplayName">Display name (optional)</label>
+                    <label asp-for="NewDisplayName">@WebText.T("Display name (optional)")</label>
                     <input asp-for="NewDisplayName" autocomplete="off" maxlength="80" />
                 </div>
                 <div class="field">
-                    <label asp-for="NewPassword">Initial password (optional)</label>
+                    <label asp-for="NewPassword">@WebText.T("Initial password (optional)")</label>
                     <input asp-for="NewPassword" type="password" autocomplete="new-password" />
-                    <p class="hint">At least 12 characters if supplied.</p>
+                    <p class="hint">@WebText.T("At least 12 characters if supplied.")</p>
                 </div>
                 <div class="field">
-                    <label>Role</label>
+                    <label>@WebText.T("Role")</label>
                     <div class="checkbox-line">
                         <input asp-for="NewIsAdmin" id="NewIsAdmin" />
-                        <label asp-for="NewIsAdmin">Administrator</label>
+                        <label asp-for="NewIsAdmin">@WebText.T("Administrator")</label>
                     </div>
                 </div>
             </div>
             <div class="field-actions">
-                <span class="hint">New users must change their password and enroll TOTP.</span>
+                <span class="hint">@WebText.T("New users must change their password and enroll TOTP.")</span>
                 <button class="btn btn-primary" type="submit">
                     <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-plus"></use></svg>
-                    Create user
+                    @WebText.T("Create user")
                 </button>
             </div>
         </form>
@@ -79,8 +76,8 @@
 <section class="panel">
     <div class="panel-head">
         <div>
-            <h2>Accounts</h2>
-            <p>@Model.Users.Count account(s)</p>
+            <h2>@WebText.T("Accounts")</h2>
+            <p>@WebText.T("{0} account(s)", Model.Users.Count)</p>
         </div>
     </div>
     <div class="panel-body tight">
@@ -88,12 +85,12 @@
             <table>
                 <thead>
                     <tr>
-                        <th>User</th>
-                        <th>Role</th>
-                        <th>MFA</th>
-                        <th>Status</th>
-                        <th>Created</th>
-                        <th class="actions-col">Manage</th>
+                        <th>@WebText.T("User")</th>
+                        <th>@WebText.T("Role")</th>
+                        <th>@WebText.T("MFA")</th>
+                        <th>@WebText.T("Status")</th>
+                        <th>@WebText.T("Created")</th>
+                        <th class="actions-col">@WebText.T("Manage")</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -106,66 +103,66 @@
                                 <strong>@user.Username</strong>
                                 @if (self)
                                 {
-                                    <span class="tag">you</span>
+                                    <span class="tag">@WebText.T("you")</span>
                                 }
                                 @if (demoGuest)
                                 {
-                                    <span class="tag">demo</span>
+                                    <span class="tag">@WebText.T("demo")</span>
                                 }
                                 <div class="dim">@user.DisplayName</div>
                             </td>
-                            <td><span class="pill @(user.IsAdmin ? "accent" : "")">@(user.IsAdmin ? "Administrator" : "User")</span></td>
+                            <td><span class="pill @(user.IsAdmin ? "accent" : "")">@WebText.T(user.IsAdmin ? "Administrator" : "User")</span></td>
                             <td>
                                 <span class="pill @(user.TotpConfirmed ? "ok" : "warn")">
-                                    @(user.TotpConfirmed ? "Enabled" : "Setup pending")
+                                    @WebText.T(user.TotpConfirmed ? "Enabled" : "Setup pending")
                                 </span>
                             </td>
-                            <td><span class="pill @(user.Disabled ? "danger" : "ok")">@(user.Disabled ? "Disabled" : "Active")</span></td>
+                            <td><span class="pill @(user.Disabled ? "danger" : "ok")">@WebText.T(user.Disabled ? "Disabled" : "Active")</span></td>
                             <td class="mono">@user.CreatedAtUtc.ToString("yyyy-MM-dd")</td>
                             <td>
                                 <details class="row-details">
-                                    <summary>Actions</summary>
+                                    <summary>@WebText.T("Actions")</summary>
                                     <div class="stack-sm mt-1">
                                         @if (demoGuest)
                                         {
-                                            <p class="hint">The demo guest has fixed credentials. Use another account to test resets.</p>
+                                            <p class="hint">@WebText.T("The demo guest has fixed credentials. Use another account to test resets.")</p>
                                         }
                                         else
                                         {
-                                        <form method="post" asp-page-handler="ResetPassword" data-confirm="Reset this user's password?">
-                                            <input type="hidden" name="userId" value="@user.Id" />
-                                            <button class="btn btn-sm" type="submit">Reset password</button>
-                                        </form>
-                                        <form method="post" asp-page-handler="ResetMfa" data-confirm="Reset this user's MFA and recovery codes?">
-                                            <input type="hidden" name="userId" value="@user.Id" />
-                                            <button class="btn btn-sm" type="submit">Reset MFA</button>
-                                        </form>
-                                        @if (!self)
-                                        {
-                                            <form method="post" asp-page-handler="ToggleAdmin"
-                                                  data-confirm="@(user.IsAdmin ? "Remove administrator role?" : "Grant administrator role?")">
+                                            <form method="post" asp-page-handler="ResetPassword" data-confirm="@WebText.T("Reset this user's password?")">
                                                 <input type="hidden" name="userId" value="@user.Id" />
-                                                <input type="hidden" name="isAdmin" value="@((!user.IsAdmin).ToString().ToLowerInvariant())" />
-                                                <button class="btn btn-sm" type="submit">
-                                                    @(user.IsAdmin ? "Remove admin" : "Make admin")
-                                                </button>
+                                                <button class="btn btn-sm" type="submit">@WebText.T("Reset password")</button>
                                             </form>
-                                            <form method="post" asp-page-handler="ToggleDisabled"
-                                                  data-confirm="@(user.Disabled ? "Enable this account?" : "Disable this account and revoke sessions?")">
+                                            <form method="post" asp-page-handler="ResetMfa" data-confirm="@WebText.T("Reset this user's MFA and recovery codes?")">
                                                 <input type="hidden" name="userId" value="@user.Id" />
-                                                <input type="hidden" name="disabled" value="@((!user.Disabled).ToString().ToLowerInvariant())" />
-                                                <button class="btn btn-sm @(user.Disabled ? "" : "btn-danger")" type="submit">
-                                                    @(user.Disabled ? "Enable" : "Disable")
-                                                </button>
+                                                <button class="btn btn-sm" type="submit">@WebText.T("Reset MFA")</button>
                                             </form>
-                                            <form method="post" asp-page-handler="Delete"
-                                                  data-confirm="Delete this user and their private database?">
-                                                <input type="hidden" name="userId" value="@user.Id" />
-                                                <label for="confirm-@user.Id">Type <code>@user.Username</code> to delete</label>
-                                                <input id="confirm-@user.Id" name="confirmUsername" autocomplete="off" required />
-                                                <button class="btn btn-sm btn-danger mt-1" type="submit">Delete user</button>
-                                            </form>
-                                        }
+                                            @if (!self)
+                                            {
+                                                <form method="post" asp-page-handler="ToggleAdmin"
+                                                      data-confirm="@WebText.T(user.IsAdmin ? "Remove administrator role?" : "Grant administrator role?")">
+                                                    <input type="hidden" name="userId" value="@user.Id" />
+                                                    <input type="hidden" name="isAdmin" value="@((!user.IsAdmin).ToString().ToLowerInvariant())" />
+                                                    <button class="btn btn-sm" type="submit">
+                                                        @WebText.T(user.IsAdmin ? "Remove admin" : "Make admin")
+                                                    </button>
+                                                </form>
+                                                <form method="post" asp-page-handler="ToggleDisabled"
+                                                      data-confirm="@WebText.T(user.Disabled ? "Enable this account?" : "Disable this account and revoke sessions?")">
+                                                    <input type="hidden" name="userId" value="@user.Id" />
+                                                    <input type="hidden" name="disabled" value="@((!user.Disabled).ToString().ToLowerInvariant())" />
+                                                    <button class="btn btn-sm @(user.Disabled ? "" : "btn-danger")" type="submit">
+                                                        @WebText.T(user.Disabled ? "Enable" : "Disable")
+                                                    </button>
+                                                </form>
+                                                <form method="post" asp-page-handler="Delete"
+                                                      data-confirm="@WebText.T("Delete this user and their private database?")">
+                                                    <input type="hidden" name="userId" value="@user.Id" />
+                                                    <label for="confirm-@user.Id">@WebText.T("Type {0} to delete", user.Username)</label>
+                                                    <input id="confirm-@user.Id" name="confirmUsername" autocomplete="off" required />
+                                                    <button class="btn btn-sm btn-danger mt-1" type="submit">@WebText.T("Delete user")</button>
+                                                </form>
+                                            }
                                         }
                                     </div>
                                 </details>

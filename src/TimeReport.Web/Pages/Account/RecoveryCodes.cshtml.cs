@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using TimeReport.Web.Auth;
+using TimeReport.Web.Localization;
 using TimeReport.Web.ViewModels;
 
 namespace TimeReport.Web.Pages.Account;
@@ -34,7 +35,7 @@ public sealed class RecoveryCodesModel : AppPageModel
         Required = CurrentUser.UnusedRecoveryCodes == 0;
         if (!_auth.VerifyCurrentPassword(CurrentUser, CurrentPassword, "recovery-codes", ClientIp))
         {
-            ErrorMessage = "The current password is not correct.";
+            ErrorMessage = WebText.T("The current password is not correct.");
             CurrentPassword = null;
             return Page();
         }
@@ -43,7 +44,7 @@ public sealed class RecoveryCodesModel : AppPageModel
         {
             NewCodes = _auth.RegenerateRecoveryCodes(CurrentUser);
             Required = false;
-            SetStatus("New recovery codes generated. Save them now; they are shown only once.");
+            SetStatus(WebText.T("New recovery codes generated. Save them now; they are shown only once."));
             return Page();
         }
         catch (AuthException exception)

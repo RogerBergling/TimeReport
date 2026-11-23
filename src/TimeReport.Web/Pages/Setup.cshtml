@@ -1,53 +1,51 @@
 @page
 @model TimeReport.Web.Pages.SetupModel
 @{
-    ViewData["Title"] = "First-run setup";
+    ViewData["Title"] = WebText.T("First-run setup");
     Layout = "_AuthLayout";
 }
 
-<h1 id="auth-title">Create the first administrator</h1>
+<h1 id="auth-title">@WebText.T("Create the first administrator")</h1>
 <p class="auth-lede">
-    This page is available only while no accounts exist. The setup token is printed
-    once in the server log at startup (or supplied with
-    <code>TIMEREPORT_SETUP_TOKEN</code>).
+    @WebText.T("This page is available only while no accounts exist. The setup token is printed once in the server log at startup (or supplied with TIMEREPORT_SETUP_TOKEN).")
 </p>
 
 <form method="post" novalidate>
     <div class="field">
-        <label asp-for="SetupToken">Setup token</label>
+        <label asp-for="SetupToken">@WebText.T("Setup token")</label>
         <input asp-for="SetupToken" autocomplete="off" autofocus required
                placeholder="XXXX-XXXX-XXXX-XXXX" class="mono" />
     </div>
     <div class="form-grid">
         <div class="field">
-            <label asp-for="Username">Admin username</label>
+            <label asp-for="Username">@WebText.T("Admin username")</label>
             <input asp-for="Username" autocomplete="username" required />
-            <p class="hint">3–64 characters: letters, digits, dot, underscore or hyphen.</p>
+            <p class="hint">@WebText.T("3–64 characters: letters, digits, dot, underscore or hyphen.")</p>
         </div>
         <div class="field">
-            <label asp-for="DisplayName">Display name (optional)</label>
+            <label asp-for="DisplayName">@WebText.T("Display name (optional)")</label>
             <input asp-for="DisplayName" autocomplete="name" />
         </div>
         <div class="field">
-            <label asp-for="Password">Password</label>
+            <label asp-for="Password">@WebText.T("Password")</label>
             <input asp-for="Password" type="password" autocomplete="new-password" required />
-            <p class="hint">At least 12 characters. A long passphrase is best.</p>
+            <p class="hint">@WebText.T("At least 12 characters. A long passphrase is best.")</p>
         </div>
         <div class="field">
-            <label asp-for="ConfirmPassword">Confirm password</label>
+            <label asp-for="ConfirmPassword">@WebText.T("Confirm password")</label>
             <input asp-for="ConfirmPassword" type="password" autocomplete="new-password" required />
         </div>
     </div>
     <div class="field-actions">
-        <span class="hint">Next: scan a QR code to enable TOTP.</span>
+        <span class="hint">@WebText.T("Next: scan a QR code to enable TOTP.")</span>
         <button class="btn btn-primary" type="submit">
             <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-users"></use></svg>
-            Create administrator
+            @WebText.T("Create administrator")
         </button>
     </div>
 </form>
 
 <div class="auth-footer">
-    <span>Accounts are never self-registered.</span>
-    <a asp-page="/Login">Back to sign in</a>
+    <span>@WebText.T("Accounts are never self-registered.")</span>
+    <a asp-page="/Login">@WebText.T("Back to sign in")</a>
 </div>

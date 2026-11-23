@@ -88,6 +88,7 @@ The web build is a server-rendered ASP.NET Core application in
 - a private encrypted SQLCipher database per account;
 - password hashing, login throttling, CSRF protection, strict security headers,
   secure cookies and an encrypted audit log;
+- an English or Swedish interface, selected per account;
 - the same timesheet rules, projects, entry types, totals and Excel export as the
   desktop application.
 

@@ -1,23 +1,23 @@
 @page
 @model TimeReport.Web.Pages.DeniedModel
 @{
-    ViewData["Title"] = "Access denied";
+    ViewData["Title"] = WebText.T("Access denied");
 }
 
 <div class="page-head">
     <div>
         <p class="eyebrow">403</p>
-        <h1>Access denied</h1>
-        <p class="page-sub">Your account does not have permission to open that page.</p>
+        <h1>@WebText.T("Access denied")</h1>
+        <p class="page-sub">@WebText.T("Your account does not have permission to open that page.")</p>
     </div>
 </div>
 
 <div class="panel">
     <div class="panel-body">
-        <p class="muted">Administrator pages are limited to administrator accounts. If you need access, ask an administrator to change your role.</p>
+        <p class="muted">@WebText.T("Administrator pages are limited to administrator accounts. If you need access, ask an administrator to change your role.")</p>
         <div class="btn-row">
-            <a class="btn btn-primary" asp-page="/Index">Go to timesheet</a>
-            <a class="btn btn-ghost" asp-page="/Account/Security">Security settings</a>
+            <a class="btn btn-primary" asp-page="/Index">@WebText.T("Go to timesheet")</a>
+            <a class="btn btn-ghost" asp-page="/Account/Security">@WebText.T("Security settings")</a>
         </div>
     </div>
 </div>

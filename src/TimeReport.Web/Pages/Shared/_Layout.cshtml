@@ -21,7 +21,7 @@
     <script src="~/js/theme-init.js" asp-append-version="true"></script>
 </head>
 <body>
-<a class="skip-link" href="#main">Skip to content</a>
+<a class="skip-link" href="#main">@WebText.T("Skip to content")</a>
 <canvas id="matrix" aria-hidden="true"></canvas>
 <div class="scanlines" aria-hidden="true"></div>
 <partial name="_Icons" />
@@ -29,48 +29,48 @@
 @if (Demo.Enabled)
 {
     <div class="demo-ribbon" role="status">
-        <span class="pill warn">Demo</span>
-        Fake data only · resets every @Demo.ResetHours hour(s) · guest/guest + TOTP
+        <span class="pill warn">@WebText.T("Demo")</span>
+        @WebText.T("Fake data only · resets every {0} hour(s) · guest/guest + TOTP", Demo.ResetHours)
     </div>
 }
 
 <header class="topbar">
-    <a class="brand" asp-page="/Index" aria-label="TimeReport home">
+    <a class="brand" asp-page="/Index" aria-label="@WebText.T("TimeReport home")">
         <span class="brand-mark" aria-hidden="true">
             <svg viewBox="0 0 24 24"><use href="#icon-clock"></use></svg>
         </span>
         <span class="brand-text">
             <strong>TimeReport</strong>
-            <span>Time, without the busywork</span>
+            <span>@WebText.T("Time, without the busywork")</span>
         </span>
     </a>
 
     @if (currentUser is not null)
     {
-        <nav class="nav" aria-label="Main">
-            <a asp-page="/Index" class="@(active == "timesheet" ? "active" : null)">Timesheet</a>
-            <a asp-page="/Totals" class="@(active == "totals" ? "active" : null)">Totals</a>
-            <a asp-page="/Projects" class="@(active == "projects" ? "active" : null)">Projects</a>
-            <a asp-page="/Types" class="@(active == "types" ? "active" : null)">Types</a>
-            <a asp-page="/Export" class="@(active == "export" ? "active" : null)">Export</a>
+        <nav class="nav" aria-label="@WebText.T("Main")">
+            <a asp-page="/Index" class="@(active == "timesheet" ? "active" : null)">@WebText.T("Timesheet")</a>
+            <a asp-page="/Totals" class="@(active == "totals" ? "active" : null)">@WebText.T("Totals")</a>
+            <a asp-page="/Projects" class="@(active == "projects" ? "active" : null)">@WebText.T("Projects")</a>
+            <a asp-page="/Types" class="@(active == "types" ? "active" : null)">@WebText.T("Types")</a>
+            <a asp-page="/Export" class="@(active == "export" ? "active" : null)">@WebText.T("Export")</a>
             @if (currentUser.IsAdmin)
             {
-                <a asp-page="/Admin/Users" class="@(active == "admin" ? "active" : null)">Users</a>
+                <a asp-page="/Admin/Users" class="@(active == "admin" ? "active" : null)">@WebText.T("Users")</a>
             }
         </nav>
     }
 
     <div class="topbar-tools">
         <button class="tool-btn theme-toggle" id="theme-toggle" type="button"
-                title="Switch theme" aria-label="Switch theme">
+                title="@WebText.T("Switch theme")" aria-label="@WebText.T("Switch theme")">
             <svg class="icon-sun" viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-sun"></use></svg>
             <svg class="icon-moon" viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-moon"></use></svg>
-            <span class="tool-label">Theme</span>
+            <span class="tool-label">@WebText.T("Theme")</span>
         </button>
         <button class="tool-btn" id="matrix-toggle" type="button"
-                title="Toggle matrix background" aria-label="Toggle matrix background" aria-pressed="true">
+                title="@WebText.T("Toggle matrix background")" aria-label="@WebText.T("Toggle matrix background")" aria-pressed="true">
             <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-matrix"></use></svg>
-            <span class="tool-label">Matrix</span>
+            <span class="tool-label">@WebText.T("Matrix")</span>
         </button>
         @if (currentUser is not null)
         {
@@ -78,16 +78,16 @@
                 <span class="avatar" aria-hidden="true">@(currentUser.DisplayName.Length > 0 ? currentUser.DisplayName[..1].ToUpperInvariant() : "?")</span>
                 <span class="user-name">@currentUser.DisplayName</span>
             </span>
-            <a class="tool-btn" asp-page="/Account/Settings" title="Settings" aria-label="Settings">
+            <a class="tool-btn" asp-page="/Account/Settings" title="@WebText.T("Settings")" aria-label="@WebText.T("Settings")">
                 <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-settings"></use></svg>
             </a>
             <form method="post" asp-page="/Logout" class="inline-form">
-                <button class="tool-btn" type="submit" title="Sign out" aria-label="Sign out">
+                <button class="tool-btn" type="submit" title="@WebText.T("Sign out")" aria-label="@WebText.T("Sign out")">
                     <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-logout"></use></svg>
                 </button>
             </form>
             <button class="tool-btn menu-toggle" id="menu-toggle" type="button"
-                    aria-expanded="false" aria-controls="mobile-nav" aria-label="Open menu">
+                    aria-expanded="false" aria-controls="mobile-nav" aria-label="@WebText.T("Open menu")">
                 <svg class="icon-menu" viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-menu"></use></svg>
                 <svg class="icon-close" viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-close"></use></svg>
             </button>
@@ -96,19 +96,19 @@
 
     @if (currentUser is not null)
     {
-        <nav class="mobile-nav" id="mobile-nav" aria-label="Mobile" hidden>
-            <a asp-page="/Index">Timesheet</a>
-            <a asp-page="/Totals">Totals</a>
-            <a asp-page="/Projects">Projects</a>
-            <a asp-page="/Types">Types</a>
-            <a asp-page="/Export">Export</a>
+        <nav class="mobile-nav" id="mobile-nav" aria-label="@WebText.T("Mobile")" hidden>
+            <a asp-page="/Index">@WebText.T("Timesheet")</a>
+            <a asp-page="/Totals">@WebText.T("Totals")</a>
+            <a asp-page="/Projects">@WebText.T("Projects")</a>
+            <a asp-page="/Types">@WebText.T("Types")</a>
+            <a asp-page="/Export">@WebText.T("Export")</a>
             @if (currentUser.IsAdmin)
             {
-                <a asp-page="/Admin/Users">Users</a>
-                <a asp-page="/Admin/Audit">Audit</a>
+                <a asp-page="/Admin/Users">@WebText.T("Users")</a>
+                <a asp-page="/Admin/Audit">@WebText.T("Audit")</a>
             }
-            <a asp-page="/Account/Settings">Settings</a>
-            <a asp-page="/Account/Security">Security</a>
+            <a asp-page="/Account/Settings">@WebText.T("Settings")</a>
+            <a asp-page="/Account/Security">@WebText.T("Security")</a>
         </nav>
     }
 </header>
@@ -129,20 +129,20 @@
     <div class="footer-main">
         <div class="footer-brand">
             <strong>TimeReport</strong>
-            <p>Private time reporting. Every account has its own encrypted database. No telemetry, no third-party requests.</p>
+            <p>@WebText.T("Private time reporting. Every account has its own encrypted database. No telemetry, no third-party requests.")</p>
         </div>
         <div class="footer-links">
-            <a asp-page="/About">About</a>
-            <a asp-page="/Account/Security">Security</a>
-            <a href="https://github.com/RogerBergling/TimeReport" target="_blank" rel="noopener noreferrer">Source</a>
-            <a href="https://github.com/RogerBergling/TimeReport/security/advisories/new" target="_blank" rel="noopener noreferrer">Report a vulnerability</a>
+            <a asp-page="/About">@WebText.T("About")</a>
+            <a asp-page="/Account/Security">@WebText.T("Security")</a>
+            <a href="https://github.com/RogerBergling/TimeReport" target="_blank" rel="noopener noreferrer">@WebText.T("Source")</a>
+            <a href="https://github.com/RogerBergling/TimeReport/security/advisories/new" target="_blank" rel="noopener noreferrer">@WebText.T("Report a vulnerability")</a>
         </div>
     </div>
     <p class="build-stamp">
-        Version @AppInfo.Version · build @AppInfo.BuildNumber
+        @WebText.T("Version") @AppInfo.Version · @WebText.T("build") @AppInfo.BuildNumber
         @if (!string.IsNullOrWhiteSpace(AppInfo.BuildCommit))
         {
-            <span> · commit @AppInfo.BuildCommit[..Math.Min(12, AppInfo.BuildCommit.Length)]</span>
+            <span> · @WebText.T("commit") @AppInfo.BuildCommit[..Math.Min(12, AppInfo.BuildCommit.Length)]</span>
         }
     </p>
 </footer>

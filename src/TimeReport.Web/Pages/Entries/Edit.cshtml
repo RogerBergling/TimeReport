@@ -1,20 +1,20 @@
 @page
 @model TimeReport.Web.Pages.Entries.EditModel
 @{
-    ViewData["Title"] = Model.IsEdit ? "Edit entry" : "Add entry";
+    ViewData["Title"] = WebText.T(Model.IsEdit ? "Edit entry" : "Add entry");
     var entryTypes = Model.Types;
     var projects = Model.Projects;
 }
 
 <div class="page-head">
     <div>
-        <p class="eyebrow">Timesheet</p>
-        <h1>@(Model.IsEdit ? "Edit entry" : "Add entry")</h1>
-        <p class="page-sub">Work entries need a project. Away entries need a reason. X-Pause must sit inside a work entry.</p>
+        <p class="eyebrow">@WebText.T("Timesheet")</p>
+        <h1>@WebText.T(Model.IsEdit ? "Edit entry" : "Add entry")</h1>
+        <p class="page-sub">@WebText.T("Work entries need a project. Away entries need a reason. X-Pause must sit inside a work entry.")</p>
     </div>
     <a class="btn btn-ghost" asp-page="/Index" asp-route-week="@Model.ReturnWeek">
         <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-arrow-left"></use></svg>
-        Back to week
+        @WebText.T("Back to week")
     </a>
 </div>
 
@@ -22,8 +22,8 @@
     <section class="panel">
         <div class="panel-head">
             <div>
-                <h2>Entry details</h2>
-                <p>Times use the 24-hour clock. A work entry must end on the same date.</p>
+                <h2>@WebText.T("Entry details")</h2>
+                <p>@WebText.T("Times use the 24-hour clock. A work entry must end on the same date.")</p>
             </div>
         </div>
         <div class="panel-body">
@@ -48,32 +48,33 @@
                     <div class="field" data-entry-project>
                         <label asp-for="ProjectId">@LocalizationService.T("LabelProject")</label>
                         <select asp-for="ProjectId">
-                            <option value="">— choose a project —</option>
+                            <option value="">@WebText.T("— choose a project —")</option>
                             @foreach (var project in projects)
                             {
-                                <option value="@project.Id">@project.Name@(project.Archived ? " (archived)" : "")</option>
+                                <option value="@project.Id">@project.Name@(project.Archived ? $" ({WebText.T("Archived")})" : "")</option>
                             }
                         </select>
                         @if (projects.Count == 0)
                         {
                             <p class="hint">
-                                No projects yet. <a asp-page="/Projects">Create one first</a>.
+                                @WebText.T("No projects yet. Create one first.")
+                                <a asp-page="/Projects">@WebText.T("Create one first")</a>.
                             </p>
                         }
                     </div>
                     <div class="field" data-entry-away>
                         <label asp-for="AwayReason">@LocalizationService.T("LabelAwayReason")</label>
-                        <input asp-for="AwayReason" maxlength="80" placeholder="Reason for the away time" />
+                        <input asp-for="AwayReason" maxlength="80" placeholder="@WebText.T("Reason for the away time")" />
                     </div>
                     <div class="field">
                         <label>@LocalizationService.T("LabelTime")</label>
                         <div class="inline-fields">
                             <div class="field">
-                                <label asp-for="Start">@LocalizationService.T("LabelStart")</label>
+                                <label asp-for="Start">@WebText.T("Start")</label>
                                 <input asp-for="Start" inputmode="numeric" placeholder="HH:MM" class="mono" required />
                             </div>
                             <div class="field">
-                                <label asp-for="End">@LocalizationService.T("LabelEnd")</label>
+                                <label asp-for="End">@WebText.T("End")</label>
                                 <input asp-for="End" inputmode="numeric" placeholder="HH:MM" class="mono" required />
                             </div>
                         </div>
@@ -95,10 +96,10 @@
                 }
 
                 <div class="field-actions">
-                    <a class="btn btn-ghost" asp-page="/Index" asp-route-week="@Model.ReturnWeek">Cancel</a>
+                    <a class="btn btn-ghost" asp-page="/Index" asp-route-week="@Model.ReturnWeek">@WebText.T("Cancel")</a>
                     <button class="btn btn-primary" type="submit">
                         <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-check"></use></svg>
-                        @LocalizationService.T("ButtonSave")
+                        @WebText.T("Save")
                     </button>
                 </div>
             </form>
@@ -107,10 +108,10 @@
             {
                 <hr class="divider" />
                 <form method="post" asp-page-handler="Delete" asp-route-id="@Model.Id"
-                      data-confirm="Delete this entry?">
+                      data-confirm="@WebText.T("Delete this entry?")">
                     <button class="btn btn-danger" type="submit">
                         <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-trash"></use></svg>
-                        Delete entry
+                        @WebText.T("Delete entry")
                     </button>
                 </form>
             }
@@ -120,17 +121,17 @@
     <section class="panel">
         <div class="panel-head">
             <div>
-                <h2>Rules</h2>
-                <p>Validation is transactional and runs on the server.</p>
+                <h2>@WebText.T("Rules")</h2>
+                <p>@WebText.T("Validation is transactional and runs on the server.")</p>
             </div>
         </div>
         <div class="panel-body">
             <ul class="security-list">
-                <li><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-check"></use></svg><span>Work cannot overlap work or away time.</span></li>
-                <li><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-check"></use></svg><span>Lunch may overlap work and is deducted from worked time.</span></li>
-                <li><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-check"></use></svg><span>Away time is tracked separately and needs a reason.</span></li>
-                <li><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-check"></use></svg><span>X-Pause is Monday–Friday only, in 15-minute steps, inside work hours, max 1:00 per ISO week.</span></li>
-                <li><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-check"></use></svg><span>Archived projects and types remain valid on historical entries only.</span></li>
+                <li><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-check"></use></svg><span>@WebText.T("Work cannot overlap work or away time.")</span></li>
+                <li><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-check"></use></svg><span>@WebText.T("Lunch may overlap work and is deducted from worked time.")</span></li>
+                <li><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-check"></use></svg><span>@WebText.T("Away time is tracked separately and needs a reason.")</span></li>
+                <li><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-check"></use></svg><span>@WebText.T("X-Pause is Monday–Friday only, in 15-minute steps, inside work hours, max 1:00 per ISO week.")</span></li>
+                <li><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-check"></use></svg><span>@WebText.T("Archived projects and types remain valid on historical entries only.")</span></li>
             </ul>
         </div>
     </section>
