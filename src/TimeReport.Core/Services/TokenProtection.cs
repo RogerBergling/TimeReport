@@ -114,7 +114,7 @@ public static class TokenProtection
             {
                 try
                 {
-                    FileSafety.EnsureRegularFile(
+                    FileSafety.EnsureOwnerOnlyFile(
                         _keyPath,
                         FileSafety.MaxKeyFileBytes,
                         "settings key file");
@@ -122,7 +122,8 @@ public static class TokenProtection
                 catch (IOException exception)
                 {
                     throw new CryptographicException(
-                        "The settings key file is not a valid regular file.",
+                        "The settings key file is not a valid owner-only regular file. " +
+                        "Restore it with mode 0600.",
                         exception);
                 }
 

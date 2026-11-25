@@ -69,6 +69,28 @@ public sealed class TokenProtectionTests
     }
 
     [Fact]
+    public void InsecureKeyFilePermissionsAreRejected()
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        using var directory = new TempDirectory();
+        var settingsPath = Path.Combine(directory.Path, "settings.json");
+        TokenProtection.Initialize(settingsPath);
+        var protectedValue = TokenProtection.Protect("secret");
+        var keyPath = settingsPath + ".key";
+        File.SetUnixFileMode(
+            keyPath,
+            UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.GroupRead);
+
+        // Clear the process-wide key cache so the key is read again.
+        TokenProtection.Initialize(Path.Combine(directory.Path, "other.json"));
+        Assert.Throws<CryptographicException>(() => TokenProtection.Unprotect(protectedValue));
+    }
+
+    [Fact]
     public void UnprotectWithoutKeyFileThrows()
     {
         using var directory = new TempDirectory();

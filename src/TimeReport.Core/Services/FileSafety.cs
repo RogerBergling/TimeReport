@@ -31,6 +31,31 @@ public static class FileSafety
         }
     }
 
+    /// <summary>
+    /// A settings key restored from a backup or copied between machines is
+    /// often mode 0644. Refuse it instead of silently using a key that another
+    /// local user can read. Windows uses DPAPI rather than a raw key file.
+    /// </summary>
+    public static void EnsureOwnerOnlyFile(string path, long maxBytes, string description)
+    {
+        EnsureRegularFile(path, maxBytes, description);
+        if (OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        const UnixFileMode forbidden =
+            UnixFileMode.GroupRead | UnixFileMode.GroupWrite | UnixFileMode.GroupExecute |
+            UnixFileMode.OtherRead | UnixFileMode.OtherWrite | UnixFileMode.OtherExecute;
+        var mode = File.GetUnixFileMode(path);
+        if ((mode & forbidden) != 0)
+        {
+            throw new IOException(
+                $"{description} must be owner-only (0600); found {mode}. " +
+                "Run: chmod 600 <file>");
+        }
+    }
+
     private static string FormatBytes(long bytes) =>
         bytes >= 1024L * 1024 * 1024
             ? $"{bytes / (1024L * 1024 * 1024)} GiB"

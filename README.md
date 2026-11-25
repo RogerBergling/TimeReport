@@ -1,5 +1,7 @@
 # TimeReport
 
+**Project facts (2026-11-25):** version **2.6.1** · C#/.NET 10, Avalonia desktop + ASP.NET web · 261 tests · MIT licensed.
+
 A local-first desktop time report for Linux and Windows, plus a multiuser web
 application for self-hosting. The desktop app is written in C#/.NET 10 with
 Avalonia. The published executables are self-contained single-file binaries: they do
@@ -26,6 +28,10 @@ and download the file for your system:
 
 The same binaries are also in the repository's [`release/`](release/) folder. You can
 verify a download with `SHA256SUMS.txt` from the release page.
+
+> **Version note:** the binaries in `release/` were built before the 2026-11-25
+> key-file permission hardening. Rebuild and re-sign them before distributing a
+> new release.
 
 ### 2. Start it
 
@@ -201,9 +207,11 @@ by the earlier Python version. A pre-migration backup is created first.
 
 The database is encrypted at rest with SQLCipher. The database key is encrypted in
 `settings.json`; `settings.json.key` contains the key that protects it. On Windows
-that key file is additionally protected with the current user's DPAPI key. Back up
-the database, `settings.json`, and `settings.json.key` together. If either settings
-file is lost, the encrypted database cannot be recovered.
+that key file is additionally protected with the current user's DPAPI key. On
+Linux and macOS the key file must be mode `0600`; the app refuses to read a
+group- or world-readable key restored from a backup. Back up the database,
+`settings.json`, and `settings.json.key` together. If either settings file is
+lost, the encrypted database cannot be recovered.
 
 The app also writes a rotating log file, `timereport.log`, in the same data folder.
 Logs, settings, sync snapshots and temporary files are owner-only on Unix. Backups
